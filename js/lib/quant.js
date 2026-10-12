@@ -214,32 +214,55 @@ export function riskLevels(price, atr, direction) {
   };
 }
 
-// ---------------- 蒙特卡洛价格锥（GBM + 信号漂移倾斜） ----------------
-export function monteCarloCone(candles, composite, horizon = 24, paths = 4000) {
+// ---------------- 蒙特卡洛价格锥 v2 ----------------
+// 区块自助法（Stationary Block Bootstrap）：直接重采样历史对数收益块，
+// 保留加密资产的肥尾、偏度与波动聚集，远比高斯 GBM 诚实。
+// 漂移 = 历史均值收缩 70% + 信号倾斜；可选传入止损/止盈价，输出先触及概率。
+export function monteCarloCone(candles, composite, horizon = 24, paths = 4000, levels = null) {
   const c = candles.map(x => x.close);
   const S0 = c[c.length - 1];
-  const rets = Stats.logReturns(c.slice(-120));
-  if (rets.length < 30) return null;
+  const rets = Stats.logReturns(c.slice(-150));
+  if (rets.length < 40) return null;
   const sigma = Stats.ewmaVol(rets);
-  // 漂移：近期均值大幅收缩至 0 + 信号倾斜（信号满分 ≈ 每bar ±0.15σ）
-  const muBase = Stats.mean(rets) * 0.3;
-  const mu = muBase + composite * 0.15 * sigma;
+  const meanR = Stats.mean(rets);
+  // 漂移：收缩后的历史均值 + 信号倾斜（满分 ≈ 每bar ±0.10σ）
+  const tilt = meanR * 0.3 - meanR + composite * 0.10 * sigma; // 增量 = 采样值 - meanR + tilt'
+  const driftPerBar = meanR * 0.3 + composite * 0.10 * sigma;
 
+  const BLOCK = 8;
   const horizons = [Math.floor(horizon / 4), Math.floor(horizon / 2), horizon];
   const terminalByH = horizons.map(() => []);
   let upCount = 0;
+  let tpFirst = 0, stopFirst = 0, touchNone = 0;
+  const tp = levels && levels.tp ? levels.tp : null;
+  const stop = levels && levels.stop ? levels.stop : null;
+  const isLong = levels && levels.isLong;
 
   for (let p = 0; p < paths; p++) {
+    // 生成一条 bootstrap 收益序列（块采样保留波动聚集）
+    const seq = [];
+    while (seq.length < horizon) {
+      const start = Math.floor(Math.random() * (rets.length - BLOCK - 1));
+      for (let j = 0; j < BLOCK && seq.length < horizon; j++) seq.push(rets[start + j]);
+    }
     let logS = Math.log(S0);
-    let hi = 0;
-    for (let t = 1; t <= horizon; t++) {
-      // Box-Muller
-      const u1 = Math.random() || 1e-9, u2 = Math.random();
-      const z = Math.sqrt(-2 * Math.log(u1)) * Math.cos(2 * Math.PI * u2);
-      logS += mu - sigma * sigma / 2 + sigma * z;
-      if (t === horizons[hi]) { terminalByH[hi].push(Math.exp(logS)); hi++; if (hi >= horizons.length) break; }
+    let hi = 0, touched = 0; // 0=未触及 1=先止盈 2=先止损
+    for (let t = 0; t < horizon; t++) {
+      logS += seq[t] - meanR + driftPerBar;
+      const px = Math.exp(logS);
+      if (t + 1 === horizons[hi]) { terminalByH[hi].push(px); hi++; if (hi >= horizons.length && !tp && !stop) break; }
+      if (!touched && tp && stop) {
+        if (isLong) {
+          if (px >= tp) touched = 1; else if (px <= stop) touched = 2;
+        } else {
+          if (px <= tp) touched = 1; else if (px >= stop) touched = 2;
+        }
+      }
     }
     if (logS > Math.log(S0)) upCount++;
+    if (touched === 1) tpFirst++;
+    else if (touched === 2) stopFirst++;
+    else touchNone++;
   }
 
   const pct = [5, 25, 50, 75, 95];
@@ -250,12 +273,96 @@ export function monteCarloCone(candles, composite, horizon = 24, paths = 4000) {
   });
 
   return {
-    S0, horizon, paths, mu, sigma,
+    S0, horizon, paths, sigma,
     probUp: upCount / paths,
     rows,
-    // 供画带状图用
     band: pct.map(p => ({ pct: p, values: rows.map(r => r['p' + p]) })),
+    touch: (tp && stop) ? {
+      tpFirst: tpFirst / paths, stopFirst: stopFirst / paths, none: touchNone / paths,
+    } : null,
   };
+}
+
+// ---------------- GARCH(1,1) 波动率预测 ----------------
+// 加密典型参数 α=0.08 β=0.90，长期方差由样本方差校准
+export function garchVolForecast(candles, horizonBars = 24) {
+  const c = candles.map(x => x.close);
+  const rets = Stats.logReturns(c.slice(-150));
+  if (rets.length < 40) return null;
+  const alpha = 0.08, beta = 0.90;
+  const varLR = Stats.std(rets) ** 2;
+  const omega = varLR * (1 - alpha - beta);
+  let v = varLR;
+  for (const r of rets) v = omega + alpha * r * r + beta * v;
+  // 多步预测：E[σ²_{t+h}] = varLR + (α+β)^h · (σ²_t - varLR)
+  const sigmaNow = Math.sqrt(v);
+  const sigmaH = Math.sqrt(varLR + Math.pow(alpha + beta, horizonBars) * (v - varLR));
+  return { sigmaNow, sigmaH, varLR: Math.sqrt(varLR), persisting: alpha + beta };
+}
+
+// ---------------- 多周期融合评分 ----------------
+export function fuseMTF(mtfRows) {
+  const W = { '15m': 0.20, '1h': 0.35, '4h': 0.30, '1d': 0.15 };
+  let sum = 0, wsum = 0;
+  for (const r of mtfRows) {
+    if (r.score == null) continue;
+    const w = W[r.iv] || 0.1;
+    sum += r.score * w; wsum += w;
+  }
+  return wsum > 0 ? sum / wsum : null;
+}
+
+// ---------------- 信号置信度评级 ----------------
+// 置信度 = 0.45×因子一致性 + 0.35×多周期对齐 + 0.20×市场状态适配
+export function signalConfidence(factors, mtfRows) {
+  const sig = Math.sign(factors.composite);
+  if (sig === 0) return { score: 0, grade: 'C', confluence: 0, mtfAlign: 0, regimeFit: 0 };
+
+  let agree = 0, total = 0;
+  for (const g in factors.groups) {
+    for (const s of factors.groups[g]) {
+      if (Math.abs(s) > 0.2) { total++; if (Math.sign(s) === sig) agree++; }
+    }
+  }
+  const confluence = total > 0 ? agree / total : 0;
+
+  const valid = (mtfRows || []).filter(r => r.score != null && Math.abs(r.score) >= 0.08);
+  const mtfAlign = valid.length > 0
+    ? valid.filter(r => Math.sign(r.score) === sig).length / valid.length
+    : 0.5;
+
+  const regime = detectRegime(factors.rawIndicators);
+  const regimeFit = regime.cls === 'flat' ? 0.45 : (regime.cls === 'trend' ? 0.85 : 0.65);
+
+  const score = Math.round(100 * (0.45 * confluence + 0.35 * mtfAlign + 0.20 * regimeFit));
+  const grade = score >= 80 ? 'S' : score >= 65 ? 'A' : score >= 50 ? 'B' : 'C';
+  return { score, grade, confluence, mtfAlign, regimeFit };
+}
+
+// ---------------- BTC 联动分析 ----------------
+export function btcLinkage(symbolCandles, btcCandles) {
+  const c1 = symbolCandles.map(x => x.close);
+  const c2 = btcCandles.map(x => x.close);
+  const n = Math.min(c1.length, c2.length);
+  if (n < 40) return null;
+  const r1 = Stats.logReturns(c1.slice(-n));
+  const r2 = Stats.logReturns(c2.slice(-n));
+  const m1 = Stats.mean(r1), m2 = Stats.mean(r2);
+  let cov = 0, v1 = 0, v2 = 0;
+  for (let i = 0; i < r1.length; i++) {
+    cov += (r1[i] - m1) * (r2[i] - m2);
+    v1 += (r1[i] - m1) ** 2;
+    v2 += (r2[i] - m2) ** 2;
+  }
+  if (v2 === 0 || v1 === 0) return null;
+  const beta = cov / v2;
+  const corr = cov / Math.sqrt(v1 * v2);
+  // 相对强度：近 24 bar 实际收益 - Beta 隐含收益
+  const k = Math.min(24, r1.length);
+  const recent1 = r1.slice(-k).reduce((a, b) => a + b, 0);
+  const recent2 = r2.slice(-k).reduce((a, b) => a + b, 0);
+  const relStrength = recent1 - beta * recent2;
+  return { beta, corr, relStrength };
 }
 
 // ---------------- 历史条件胜率（样本内统计，供参考） ----------------
