@@ -1,6 +1,8 @@
 # 币安量化系统 · Binance Quant
 
-纯前端量化交易分析系统，数据直连币安公开 API，无需密钥、无需后端，GitHub Pages 一键部署。
+**🌐 线上地址：https://dongshg3.github.io/binance-quant/**
+
+纯前端量化交易分析系统，数据直连币安公开 API，无需密钥、无需后端，GitHub Pages 一键部署。内置网络自适应：合约 API 不可达时自动降级到币安官方现货镜像，WebSocket 被屏蔽时自动切换 REST 轮询。
 
 ## 功能
 
