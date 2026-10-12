@@ -63,6 +63,7 @@ async function run() {
     renderChart(res, candles);
     renderCompare(res);
     renderTrades(res);
+    renderOOS(candles, fee, slip);
     $('btSub').textContent = `${state.symbol} · ${state.interval} · ${res.metrics.numBars} 根K线 · 耗时 ${dt}s`;
     $('btStatus').textContent = '完成 · ' + new Date().toLocaleTimeString();
   } catch (e) {
@@ -161,6 +162,55 @@ function renderTrades(res) {
       <td style="text-align:right">${fmtPrice(t.price)}</td>
       <td style="text-align:right" class="${clsBySign(t.score)}">${fmtNum(t.score, 3)}</td>
     </tr>`).join('') || '<tr><td colspan="5" class="placeholder">无调仓记录</td></tr>';
+}
+
+// ---------------- 样本外验证（70/30 切分） ----------------
+function renderOOS(candles, fee, slip) {
+  const n = candles.length;
+  const split = Math.floor(n * 0.7);
+  if (n < 500) {
+    $('oosBody').innerHTML = '<tr><td colspan="3" class="placeholder">K线数不足 500，无法进行样本外验证（建议 ≥1000）</td></tr>';
+    $('oosVerdict').innerHTML = '';
+    return;
+  }
+  const resIS = runBacktest(candles.slice(0, split), state.interval, { feeRate: fee, slippage: slip });
+  const resOOS = runBacktest(candles.slice(Math.max(0, split - 210)), state.interval, { feeRate: fee, slippage: slip });
+  if (resIS.error || resOOS.error) {
+    $('oosBody').innerHTML = `<tr><td colspan="3" class="placeholder">${resIS.error || resOOS.error}</td></tr>`;
+    return;
+  }
+  const rows = [
+    ['总收益率', fmtPct(resIS.metrics.totalReturn, 1), fmtPct(resOOS.metrics.totalReturn, 1)],
+    ['夏普比率', fmtNum(resIS.metrics.sharpe), fmtNum(resOOS.metrics.sharpe)],
+    ['最大回撤', fmtPct(-resIS.metrics.mdd, 1, false), fmtPct(-resOOS.metrics.mdd, 1, false)],
+    ['bar胜率', fmtPct(resIS.metrics.winRate, 1, false), fmtPct(resOOS.metrics.winRate, 1, false)],
+    ['信号命中率', resIS.metrics.sigAccuracy != null ? fmtPct(resIS.metrics.sigAccuracy, 1, false) : '—',
+     resOOS.metrics.sigAccuracy != null ? fmtPct(resOOS.metrics.sigAccuracy, 1, false) : '—'],
+  ];
+  $('oosBody').innerHTML = rows.map(([k, a, b]) => `
+    <tr style="cursor:default">
+      <td style="color:var(--text-dim)">${k}</td>
+      <td style="text-align:right">${a}</td>
+      <td style="text-align:right;font-weight:700">${b}</td>
+    </tr>`).join('');
+
+  // 过拟合判定
+  const isSharpe = resIS.metrics.sharpe, oosSharpe = resOOS.metrics.sharpe;
+  let verdict, cls;
+  if (oosSharpe > 0.5 && oosSharpe >= isSharpe * 0.5) {
+    verdict = `✓ 样本外夏普 ${fmtNum(oosSharpe)} 保持样本内水平（${fmtNum(isSharpe)}），策略衰减可控，过拟合风险较低`;
+    cls = 'up';
+  } else if (oosSharpe > 0) {
+    verdict = `⚠ 样本外夏普 ${fmtNum(oosSharpe)} 明显低于样本内 ${fmtNum(isSharpe)}，存在一定过拟合，实盘需降仓验证`;
+    cls = '';
+    $('oosVerdict').style.color = 'var(--accent)';
+    $('oosVerdict').innerHTML = verdict;
+    return;
+  } else {
+    verdict = `✗ 样本外夏普 ${fmtNum(oosSharpe)} 为负（样本内 ${fmtNum(isSharpe)}），策略很可能过拟合，不建议据此信号实盘`;
+    cls = 'down';
+  }
+  $('oosVerdict').innerHTML = `<span class="${cls}">${verdict}</span>`;
 }
 
 init();
