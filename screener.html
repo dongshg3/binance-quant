@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>全市场扫描 · 币安量化系统</title>
+<meta name="description" content="扫描币安全部 USDT 永续合约：多因子评分、信号分级、机会发现">
+<link rel="stylesheet" href="css/main.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📈</text></svg>">
+</head>
+<body>
+<div class="page">
+
+  <div class="controls">
+    <select id="marketSelect">
+      <option value="futures" selected>U本位合约（全部）</option>
+      <option value="spot">现货（全部）</option>
+    </select>
+    <select id="intervalSelect">
+      <option value="15m">15分钟</option>
+      <option value="1h" selected>1小时</option>
+      <option value="4h">4小时</option>
+      <option value="1d">日线</option>
+    </select>
+    <label>最低24h成交额(USDT) <input id="minVolInput" type="number" value="1000000" step="1000000" style="width:110px"></label>
+    <select id="signalFilter">
+      <option value="all">全部信号</option>
+      <option value="long">仅看多</option>
+      <option value="short">仅看空</option>
+      <option value="strong">仅强信号</option>
+    </select>
+    <button id="scanBtn" class="primary">🔍 开始扫描</button>
+    <label><input type="checkbox" id="autoScan"> 每5分钟自动扫描</label>
+    <span style="font-size:11px;color:var(--text-dim)" id="scanStatus">就绪</span>
+  </div>
+  <div class="progress-bar" id="scanProgressWrap" style="display:none;margin-bottom:14px;"><div class="fill" id="scanProgress" style="width:0%"></div></div>
+
+  <!-- 市场概览 -->
+  <div class="panel" style="margin-bottom:14px;">
+    <h3>市场宽度 <span class="sub" id="breadthSub"></span></h3>
+    <div class="breadth-bar" id="breadthBar"><div class="b-flat" style="width:100%">尚未扫描</div></div>
+    <div class="grid-metrics" id="marketStats" style="margin-top:10px;"></div>
+  </div>
+
+  <!-- 资金费率热力图 -->
+  <div class="panel" style="margin-bottom:14px;" id="heatPanel">
+    <h3>🌡️ 资金费率热力图 <span class="sub" id="heatSub">按 24h 成交额 Top 60 · 深红 = 多头付费拥挤 · 深蓝 = 空头付费拥挤</span></h3>
+    <div class="heat-legend">
+      <span><span class="lg" style="background:rgba(33,150,243,0.85)"></span>≤ -0.05% 空头付费</span>
+      <span><span class="lg" style="background:rgba(33,150,243,0.4)"></span>-0.05 ~ -0.01%</span>
+      <span><span class="lg" style="background:#2b3139"></span>中性</span>
+      <span><span class="lg" style="background:rgba(246,70,93,0.4)"></span>+0.01 ~ +0.05%</span>
+      <span><span class="lg" style="background:rgba(246,70,93,0.85)"></span>≥ +0.05% 多头付费</span>
+      <span style="margin-left:auto;">极端费率往往是反向信号 · 点击色块跳转深度分析</span>
+    </div>
+    <div class="heat-grid" id="heatGrid"><div class="placeholder">合约模式下扫描后显示</div></div>
+  </div>
+
+  <!-- 机会发现 -->
+  <div class="panel" style="margin-bottom:14px;">
+    <h3>💡 机会发现 <span class="sub">点击卡片跳转深度分析</span></h3>
+    <div id="oppContent"><div class="placeholder">运行扫描后自动挖掘机会</div></div>
+  </div>
+
+  <!-- 全市场结果表 -->
+  <div class="panel">
+    <h3>扫描结果 <span class="sub" id="resultCount"></span></h3>
+    <div class="scroll-table">
+      <table>
+        <thead><tr>
+          <th class="sortable" data-key="symbol">交易对</th>
+          <th class="sortable" data-key="price">价格</th>
+          <th class="sortable" data-key="change24h">24h%</th>
+          <th class="sortable" data-key="quoteVolume">24h成交额</th>
+          <th class="sortable" data-key="score">综合分 <span class="arrow" id="arrow-score"></span></th>
+          <th class="sortable" data-key="rsi">RSI</th>
+          <th class="sortable" data-key="adx">ADX</th>
+          <th class="sortable" data-key="annVol">年化波动</th>
+          <th class="sortable" data-key="position">建议仓位</th>
+          <th>市场状态</th>
+          <th>信号</th>
+        </tr></thead>
+        <tbody id="screenerBody"><tr><td colspan="11" class="placeholder">尚未扫描</td></tr></tbody>
+      </table>
+    </div>
+  </div>
+
+  <div id="disclaimerSlot"></div>
+</div>
+<script type="module" src="js/screener.js"></script>
+</body>
+</html>
