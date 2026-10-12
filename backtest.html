@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>回测中心 · 币安量化系统</title>
+<meta name="description" content="多因子策略历史回测：夏普、最大回撤、盈亏比、信号命中率，对比买入持有">
+<script src="https://unpkg.com/lightweight-charts@4.1.0/dist/lightweight-charts.standalone.production.js"></script>
+<link rel="stylesheet" href="css/main.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📈</text></svg>">
+</head>
+<body>
+<div class="page">
+
+  <div class="controls">
+    <select id="marketSelect">
+      <option value="futures" selected>U本位合约</option>
+      <option value="spot">现货</option>
+    </select>
+    <span id="symbolPickerWrap"></span>
+    <select id="intervalSelect">
+      <option value="15m">15分钟</option>
+      <option value="1h" selected>1小时</option>
+      <option value="4h">4小时</option>
+      <option value="1d">日线</option>
+    </select>
+    <label>K线数 <input id="limitInput" type="number" value="1000" step="100" style="width:80px"></label>
+    <label>费率% <input id="feeInput" type="number" value="0.05" step="0.01" style="width:65px"></label>
+    <label>滑点% <input id="slipInput" type="number" value="0.02" step="0.01" style="width:65px"></label>
+    <button id="runBtn" class="primary">▶ 运行回测</button>
+    <span style="font-size:11px;color:var(--text-dim)" id="btStatus"></span>
+  </div>
+
+  <!-- 绩效指标 -->
+  <div class="panel" style="margin-bottom:14px;">
+    <h3>📈 策略绩效 <span class="sub" id="btSub">尚未运行</span></h3>
+    <div class="grid-metrics" id="btMetrics"><div class="placeholder" style="grid-column:1/-1;">选择参数后点击「运行回测」</div></div>
+  </div>
+
+  <!-- 净值曲线 -->
+  <div class="chart-wrap" style="margin-bottom:14px;">
+    <div style="font-size:12px;color:var(--text-dim);margin-bottom:8px;">
+      <span style="color:#f0b90b;">—</span> 策略净值 &nbsp;&nbsp;
+      <span style="color:#2196f3;">—</span> 买入持有基准 &nbsp;&nbsp;
+      <span style="color:#f6465d;">—</span> 回撤(右轴)
+    </div>
+    <div id="eqChart" class="chart-box" style="height:340px;"></div>
+  </div>
+
+  <div class="row cols-2">
+    <!-- 基准对比 -->
+    <div class="panel">
+      <h3>⚖️ 与买入持有对比</h3>
+      <table>
+        <thead><tr><th>指标</th><th style="text-align:right">多因子策略</th><th style="text-align:right">买入持有</th></tr></thead>
+        <tbody id="compareBody"><tr><td colspan="3" class="placeholder">尚未运行</td></tr></tbody>
+      </table>
+    </div>
+    <!-- 调仓记录 -->
+    <div class="panel">
+      <h3>📋 调仓记录 <span class="sub" id="tradeCount"></span></h3>
+      <div class="scroll-table" style="max-height:320px;">
+        <table>
+          <thead><tr><th>时间</th><th>方向</th><th>仓位变化</th><th style="text-align:right">价格</th><th style="text-align:right">评分</th></tr></thead>
+          <tbody id="tradesBody"><tr><td colspan="5" class="placeholder">尚未运行</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <div id="disclaimerSlot"></div>
+</div>
+<script type="module" src="js/backtest.js"></script>
+</body>
+</html>
