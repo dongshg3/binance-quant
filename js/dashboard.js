@@ -3,7 +3,7 @@
 // ============================================================
 import { Stats, EMA } from './lib/stats.js';
 import { loadAllSymbols, loadTickers, fetchKlines, fetchFundingRate, fetchLongShortRatio, fetchOpenInterestChange, fetchTakerRatio, connectKlineWS, pollKlines, getDataMode } from './lib/api.js';
-import { computeFactors, computePosition, detectRegime, signalOf, monteCarloCone, conditionalStats, pointForecast, regChannel, riskLevels, buildTradePlan, extremeGroups, GROUP_NAMES } from './lib/quant.js';
+import { computeFactors, computePosition, detectRegime, signalOf, monteCarloCone, conditionalStats, pointForecast, regChannel, riskLevels, buildTradePlan, extremeGroups, fuseMTF, signalConfidence, garchVolForecast, btcLinkage, GROUP_NAMES } from './lib/quant.js';
 import { renderNav, setNet, fmtPrice, fmtPct, fmtPct100, fmtNum, fmtVol, clsBySign, getParams, buildSymbolPicker, disclaimerHTML } from './lib/ui.js';
 
 renderNav('dashboard');
@@ -89,15 +89,24 @@ async function reload() {
   if (!factors) { setNet('数据不足', ''); return; }
   const pos = computePosition(factors.composite, state.candles, state.interval);
 
-  renderOverview(factors, pos, extra);
+  // 先算多周期（融合评分与置信度的输入），并行 BTC 联动
+  const [mtfRows, btcCandles] = await Promise.all([
+    computeMTF(),
+    state.symbol !== 'BTCUSDT' ? fetchKlines('BTCUSDT', state.interval, 150, state.market).catch(() => null) : Promise.resolve(null),
+  ]);
+  const fused = fuseMTF(mtfRows);
+  const conf = signalConfidence(factors, mtfRows);
+  state.btcLink = btcCandles ? btcLinkage(state.candles, btcCandles) : null;
+
+  renderOverview(factors, pos, extra, fused, conf);
   renderFactors(factors);
-  renderTradePlan(factors, pos);
+  renderTradePlan(factors, pos, fused);
   renderRisk(factors, pos);
   renderFutures(extra);
-  renderForecast(factors);
+  renderForecast(factors, fused);
   renderCondStats(factors);
   renderChart(factors);
-  renderMTF();
+  renderMTFTable(mtfRows, fused);
   connectLive(extra);
 
   $('updateTime').textContent = '更新于 ' + new Date().toLocaleTimeString();
@@ -105,7 +114,7 @@ async function reload() {
 }
 
 // ---------------- 总览 ----------------
-function renderOverview(factors, pos, extra) {
+function renderOverview(factors, pos, extra, fused, conf) {
   const tk = state.tickers[state.symbol];
   const price = factors.rawIndicators.price;
   const mirror = state.market === 'futures' && getDataMode() === 'mirror';
@@ -115,10 +124,13 @@ function renderOverview(factors, pos, extra) {
   if (tk) {
     $('change24h').innerHTML = `<span class="${clsBySign(tk.change24h)}">${fmtPct100(tk.change24h)}</span> <span style="color:var(--text-dim)">24h额 ${fmtVol(tk.quoteVolume)}</span>`;
   }
-  const sig = signalOf(factors.composite);
+  // 主信号用融合评分（多周期加权），更抗噪音
+  const mainScore = fused != null ? fused : factors.composite;
+  const sig = signalOf(mainScore);
   $('signalBadge').className = 'signal-badge ' + sig.cls;
   $('signalBadge').textContent = sig.label;
-  $('scoreText').textContent = `综合分 ${fmtNum(factors.composite, 3)} · 建议仓位 ${fmtPct(pos.size, 0, false)}${pos.leverage ? ` · ≤${pos.leverage}x` : ''}`;
+  const confChip = conf ? ` · 置信度 <b style="color:${{ S: '#f0b90b', A: '#0ecb81', B: '#2196f3', C: '#848e9c' }[conf.grade]}">${conf.grade}</b>(${conf.score})` : '';
+  $('scoreText').innerHTML = `融合分 ${fmtNum(mainScore, 3)} · 本周 ${fmtNum(factors.composite, 3)} · 仓位 ${fmtPct(pos.size, 0, false)}${pos.leverage ? ` · ≤${pos.leverage}x` : ''}${confChip}`;
   const regime = detectRegime(factors.rawIndicators);
   $('regimeChip').className = 'chip ' + regime.cls;
   $('regimeChip').textContent = regime.label;
@@ -128,21 +140,46 @@ function renderOverview(factors, pos, extra) {
   const { strongest, weakest } = extremeGroups(factors.groupAverages);
   if (strongest) $('strongestFactor').innerHTML = `<span class="up">${GROUP_NAMES[strongest.key]}</span> <span style="color:var(--text-dim)">${fmtNum(strongest.value, 2)}</span>`;
   if (weakest) $('weakestFactor').innerHTML = `<span class="down">${GROUP_NAMES[weakest.key]}</span> <span style="color:var(--text-dim)">${fmtNum(weakest.value, 2)}</span>`;
+
+  // BTC 联动
+  const link = state.btcLink;
+  const el = $('btcLink');
+  if (el) {
+    if (state.symbol === 'BTCUSDT') {
+      el.innerHTML = '<div style="font-size:12px;color:var(--text-dim);line-height:1.9;">当前即 BTC<br>市场基准本体</div>';
+    } else if (link) {
+      el.innerHTML = `<div style="font-size:12px;line-height:1.9;">
+        <div>β <b>${fmtNum(link.beta, 2)}</b> <span style="color:var(--text-dim)">相关 ${fmtNum(link.corr, 2)}</span></div>
+        <div>相对强度 <b class="${clsBySign(link.relStrength)}">${fmtPct(link.relStrength, 2)}</b></div>
+      </div>`;
+    } else {
+      el.innerHTML = '<div style="font-size:12px;color:var(--text-dim);">—</div>';
+    }
+  }
 }
 
 // ---------------- 交易计划 ----------------
-function renderTradePlan(factors, pos) {
+function renderTradePlan(factors, pos, fused) {
   const raw = factors.rawIndicators;
-  const plan = buildTradePlan(raw.price, raw.atr, pos.annualizedVol, factors.composite);
+  const scoreForPlan = fused != null ? fused : factors.composite;
+  const plan = buildTradePlan(raw.price, raw.atr, pos.annualizedVol, scoreForPlan);
   const el = $('tradePlan');
   if (!plan) {
-    el.innerHTML = '<div class="placeholder">信号强度不足（|评分| < 0.08），暂不生成交易计划<br>观望也是一种仓位</div>';
+    el.innerHTML = '<div class="placeholder">信号强度不足（|融合评分| < 0.08），暂不生成交易计划<br>观望也是一种仓位</div>';
     return;
   }
+  // 蒙特卡洛触价概率：先碰到止盈二还是先碰到止损（24 bar 内）
+  const mc = monteCarloCone(state.candles, scoreForPlan, 24, 3000, { tp: plan.tp2, stop: plan.stopLoss, isLong: plan.isLong });
+  const touchRow = mc && mc.touch ? `
+    <div class="plan-footer" style="border-top:1px solid var(--border);">
+      <div class="cell-mini"><div class="k">先到止盈二</div><div class="v up">${fmtPct(mc.touch.tpFirst, 0, false)}</div></div>
+      <div class="cell-mini"><div class="k">先到止损</div><div class="v down">${fmtPct(mc.touch.stopFirst, 0, false)}</div></div>
+      <div class="cell-mini"><div class="k">都未触及</div><div class="v">${fmtPct(mc.touch.none, 0, false)}</div></div>
+    </div>` : '';
   el.innerHTML = `
     <div class="plan-header ${plan.isLong ? '' : 'sell'}">
       <span class="dir ${plan.isLong ? 'up' : 'down'}">${plan.isLong ? '🟢' : '🔴'} ${plan.direction} ${state.symbol.replace('USDT', '')}</span>
-      <span>评分 ${fmtNum(factors.composite, 3)}</span>
+      <span>融合评分 ${fmtNum(scoreForPlan, 3)}</span>
     </div>
     <div class="plan-grid">
       <span class="k">入场价（市价）</span><span class="v">${fmtPrice(plan.entry)}</span>
@@ -157,8 +194,9 @@ function renderTradePlan(factors, pos) {
       <div class="cell-mini"><div class="k">止盈一盈亏比</div><div class="v">${plan.rr1}</div></div>
       <div class="cell-mini"><div class="k">止盈二盈亏比</div><div class="v">${plan.rr2}</div></div>
     </div>
+    ${touchRow}
     <div style="font-size:10px;color:var(--text-faint);margin-top:10px;line-height:1.6;">
-      保证金% × 杠杆 × 止损% = 账户风险 1%。到达止盈一后可移动止损至入场价。
+      保证金% × 杠杆 × 止损% = 账户风险 1%。到达止盈一后可移动止损至入场价。触价概率来自 3000 条 Bootstrap 模拟路径（24 bar 内）。
     </div>`;
 }
 
@@ -218,15 +256,18 @@ function renderFutures(extra) {
 }
 
 // ---------------- 预测 ----------------
-function renderForecast(factors) {
+function renderForecast(factors, fused) {
   const raw = factors.rawIndicators;
-  const mc = monteCarloCone(state.candles, factors.composite, 24, 4000);
+  const scoreForForecast = fused != null ? fused : factors.composite;
+  const mc = monteCarloCone(state.candles, scoreForForecast, 24, 4000);
   const fcst = pointForecast(state.candles, 12);
   const reg = regChannel(state.candles, 60);
+  const garch = garchVolForecast(state.candles, 24);
 
   if (mc) {
     $('probUpBig').innerHTML = `<span class="${mc.probUp >= 0.5 ? 'up' : 'down'}">${fmtPct(mc.probUp, 1, false)}</span>`;
     const last = mc.rows[mc.rows.length - 1];
+    const ppy = Stats.periodsPerYear(state.interval);
     const cells = [
       { k: `MC中位数 (T+${mc.horizon}bar)`, v: fmtPrice(last.p50), cls: last.p50 >= mc.S0 ? 'good' : 'bad' },
       { k: '90%置信区间', v: `${fmtPrice(last.p5)} ~ ${fmtPrice(last.p95)}` },
@@ -234,8 +275,11 @@ function renderForecast(factors) {
       { k: '回归斜率 (每bar)', v: reg ? fmtPct100(reg.slopePctPerBar, 3) : '—', cls: reg ? (reg.slope > 0 ? 'good' : 'bad') : '' },
       { k: '回归R²', v: reg ? fmtNum(reg.r2, 2) : '—' },
       { k: '偏离通道 (z)', v: reg ? fmtNum(reg.zNow, 2) : '—', cls: reg && Math.abs(reg.zNow) > 2 ? 'bad' : '' },
+      { k: 'GARCH波动 (当前)', v: garch ? fmtPct(garch.sigmaNow * Math.sqrt(ppy), 0, false) + '/年' : '—' },
+      { k: `GARCH波动 (T+${mc.horizon}bar)`, v: garch ? fmtPct(garch.sigmaH * Math.sqrt(ppy), 0, false) + '/年' : '—', cls: garch && garch.sigmaH > garch.sigmaNow * 1.1 ? 'bad' : '' },
     ];
-    $('forecastMetrics').innerHTML = cells.map(c => `<div class="metric ${c.cls || ''}"><div class="k">${c.k}</div><div class="v">${c.v}</div></div>`).join('');
+    $('forecastMetrics').innerHTML = cells.map(c => `<div class="metric ${c.cls || ''}"><div class="k">${c.k}</div><div class="v">${c.v}</div></div>`).join('')
+      + '<div style="grid-column:1/-1;font-size:10px;color:var(--text-faint);">预测引擎：Block Bootstrap 重采样历史收益块（保留肥尾与波动聚集）+ 融合信号漂移倾斜，比高斯假设更贴近加密市场真实分布。</div>';
 
     $('coneBody').innerHTML = mc.rows.map(r => `
       <tr style="cursor:default">
@@ -306,8 +350,8 @@ function renderCondStats(factors) {
 }
 
 // ---------------- 多周期共振 ----------------
-async function renderMTF() {
-  const rows = await Promise.all(INTERVALS.map(async iv => {
+async function computeMTF() {
+  return Promise.all(INTERVALS.map(async iv => {
     try {
       const candles = await fetchKlines(state.symbol, iv, 200, state.market);
       const f = computeFactors(candles, null);
@@ -315,7 +359,9 @@ async function renderMTF() {
       return { iv, score: f.composite, raw: f.rawIndicators };
     } catch (e) { return { iv, score: null }; }
   }));
+}
 
+function renderMTFTable(rows, fused) {
   $('mtfBody').innerHTML = rows.map(r => {
     if (r.score == null) return `<tr style="cursor:default"><td>${r.iv}</td><td colspan="5" style="color:var(--text-dim)">数据不足</td></tr>`;
     const sig = signalOf(r.score);
@@ -334,10 +380,10 @@ async function renderMTF() {
   if (valid.length >= 2) {
     const dirs = valid.map(r => Math.sign(r.score));
     const sameDir = dirs.every(d => d === dirs[0] && d !== 0);
-    const avg = Stats.mean(valid.map(r => r.score));
-    $('mtfVerdict').innerHTML = sameDir
-      ? `<span class="${dirs[0] > 0 ? 'up' : 'down'}" style="font-weight:600">✓ ${valid.length} 个周期方向一致（${dirs[0] > 0 ? '偏多' : '偏空'}），共振强度高，信号可信度提升</span>`
-      : `<span style="color:var(--accent)">⚠ 各周期方向分歧（均值 ${fmtNum(avg, 3)}），建议降低仓位等待方向明确</span>`;
+    const fusedTxt = fused != null ? ` · 融合评分 <b class="${clsBySign(fused)}">${fmtNum(fused, 3)}</b>（15m 20% / 1h 35% / 4h 30% / 1d 15%）` : '';
+    $('mtfVerdict').innerHTML = (sameDir
+      ? `<span class="${dirs[0] > 0 ? 'up' : 'down'}" style="font-weight:600">✓ ${valid.length} 个周期方向一致（${dirs[0] > 0 ? '偏多' : '偏空'}），共振强度高</span>`
+      : `<span style="color:var(--accent)">⚠ 各周期方向分歧，建议降低仓位等待方向明确</span>`) + `<div style="margin-top:6px;color:var(--text-dim);font-size:11px;">${fusedTxt}</div>`;
   }
 }
 
