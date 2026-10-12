@@ -116,7 +116,10 @@ async function scanMarket() {
     try {
       state.funding = await fetchAllPremiumIndex();
       renderHeatmap();
-    } catch (e) {}
+    } catch (e) {
+      $('heatPanel').style.display = '';
+      $('heatGrid').innerHTML = '<div class="placeholder" style="grid-column:1/-1;">当前网络无法访问币安合约接口，资金费率热力图暂不可用（K线分析不受影响）</div>';
+    }
   } else {
     $('heatPanel').style.display = 'none';
   }
