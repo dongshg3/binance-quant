@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>深度分析 · 币安量化系统</title>
+<meta name="description" content="币安全市场量化分析：多因子信号、蒙特卡洛预测、市场状态识别、风险管理">
+<script src="https://unpkg.com/lightweight-charts@4.1.0/dist/lightweight-charts.standalone.production.js"></script>
+<link rel="stylesheet" href="css/main.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📈</text></svg>">
+</head>
+<body>
+<div class="page">
+
+  <!-- 控制栏 -->
+  <div class="controls">
+    <select id="marketSelect">
+      <option value="futures" selected>U本位合约</option>
+      <option value="spot">现货</option>
+    </select>
+    <span id="symbolPickerWrap"></span>
+    <select id="intervalSelect">
+      <option value="15m">15分钟</option>
+      <option value="1h" selected>1小时</option>
+      <option value="4h">4小时</option>
+      <option value="1d">日线</option>
+    </select>
+    <button id="refreshBtn" class="primary">刷新分析</button>
+    <span style="font-size:11px;color:var(--text-dim)" id="updateTime"></span>
+  </div>
+
+  <!-- 价格与信号总览 -->
+  <div class="panel" style="margin-bottom:14px;">
+    <div style="display:flex;align-items:center;gap:24px;flex-wrap:wrap;">
+      <div>
+        <div style="font-size:11px;color:var(--text-dim)" id="symLabel">—</div>
+        <div style="font-size:30px;font-weight:700;font-variant-numeric:tabular-nums;" id="priceNow">—</div>
+        <div style="font-size:12px;" id="change24h">—</div>
+      </div>
+      <div style="text-align:center;">
+        <div style="font-size:10px;color:var(--text-dim);margin-bottom:6px;">综合信号</div>
+        <span class="signal-badge hold" id="signalBadge">—</span>
+        <div style="font-size:11px;color:var(--text-dim);margin-top:6px;" id="scoreText">—</div>
+      </div>
+      <div>
+        <div style="font-size:10px;color:var(--text-dim);margin-bottom:6px;">市场状态</div>
+        <span class="chip flat" id="regimeChip" style="font-size:13px;padding:6px 14px;">—</span>
+        <div style="font-size:11px;color:var(--text-dim);margin-top:6px;max-width:220px;" id="regimeHint"></div>
+      </div>
+      <div>
+        <div style="font-size:10px;color:var(--text-dim);margin-bottom:6px;">因子极值</div>
+        <div style="font-size:12px;line-height:1.9;">
+          <div>最强 <span id="strongestFactor" style="font-weight:600;">—</span></div>
+          <div>最弱 <span id="weakestFactor" style="font-weight:600;">—</span></div>
+        </div>
+      </div>
+      <div style="margin-left:auto;text-align:right;">
+        <div style="font-size:10px;color:var(--text-dim);margin-bottom:4px;">上涨概率 (MC模拟 · 24bar)</div>
+        <div style="font-size:26px;font-weight:700;" id="probUpBig">—</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 图表 -->
+  <div class="chart-wrap" style="margin-bottom:14px;">
+    <div id="chart" class="chart-box" style="height:380px;"></div>
+  </div>
+
+  <div class="row cols-main-side">
+    <!-- 左列 -->
+    <div>
+      <!-- 预测模块 -->
+      <div class="panel" style="margin-bottom:14px;">
+        <h3>📊 量化预测 <span class="sub">蒙特卡洛 4000 路径 · Holt 平滑 · 回归通道</span></h3>
+        <div class="grid-metrics" id="forecastMetrics" style="margin-bottom:12px;"></div>
+        <div id="coneChart" class="chart-box" style="height:200px;margin-bottom:12px;"></div>
+        <table class="cone-table">
+          <thead><tr><th>时间跨度</th><th>P5 悲观</th><th>P25</th><th>P50 中性</th><th>P75</th><th>P95 乐观</th></tr></thead>
+          <tbody id="coneBody"></tbody>
+        </table>
+      </div>
+
+      <!-- 多周期共振 -->
+      <div class="panel" style="margin-bottom:14px;">
+        <h3>🕐 多周期共振分析 <span class="sub">周期一致性越高，信号越可靠</span></h3>
+        <table>
+          <thead><tr><th>周期</th><th>综合分</th><th>信号</th><th>市场状态</th><th>RSI</th><th>ADX</th></tr></thead>
+          <tbody id="mtfBody"></tbody>
+        </table>
+        <div style="margin-top:10px;font-size:12px;" id="mtfVerdict"></div>
+      </div>
+
+      <!-- 条件胜率 -->
+      <div class="panel">
+        <h3>🎯 历史条件胜率 <span class="sub">同类信号在样本内的后续表现</span></h3>
+        <div class="grid-metrics" id="condMetrics"></div>
+      </div>
+    </div>
+
+    <!-- 右列 -->
+    <div>
+      <!-- 交易计划 -->
+      <div class="panel" style="margin-bottom:14px;">
+        <h3>📝 交易计划 <span class="sub">单笔风险预算 1% 账户</span></h3>
+        <div id="tradePlan"><div class="placeholder">等待信号…</div></div>
+      </div>
+      <!-- 风险管理 -->
+      <div class="panel" style="margin-bottom:14px;">
+        <h3>🛡️ 风险管理</h3>
+        <div class="grid-metrics" id="riskMetrics" style="grid-template-columns:repeat(2,1fr);"></div>
+      </div>
+      <!-- 因子拆解 -->
+      <div class="panel" style="margin-bottom:14px;">
+        <h3>⚙️ 因子拆解 <span class="sub">七因子加权评分</span></h3>
+        <div id="factorBars"></div>
+      </div>
+      <!-- 合约数据 -->
+      <div class="panel" id="futuresPanel">
+        <h3>📑 合约市场数据</h3>
+        <div class="grid-metrics" id="futuresMetrics" style="grid-template-columns:repeat(2,1fr);"></div>
+      </div>
+    </div>
+  </div>
+
+  <div id="disclaimerSlot"></div>
+</div>
+<script type="module" src="js/dashboard.js"></script>
+</body>
+</html>
