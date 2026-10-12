@@ -1,0 +1,432 @@
+// ============================================================
+// dashboard.js · 单币种深度分析 + 预测
+// ============================================================
+import { Stats, EMA } from './lib/stats.js';
+import { loadAllSymbols, loadTickers, fetchKlines, fetchFundingRate, fetchLongShortRatio, fetchOpenInterestChange, fetchTakerRatio, connectKlineWS, pollKlines, getDataMode } from './lib/api.js';
+import { computeFactors, computePosition, detectRegime, signalOf, monteCarloCone, conditionalStats, pointForecast, regChannel, riskLevels, buildTradePlan, extremeGroups, GROUP_NAMES } from './lib/quant.js';
+import { renderNav, setNet, fmtPrice, fmtPct, fmtPct100, fmtNum, fmtVol, clsBySign, getParams, buildSymbolPicker, disclaimerHTML } from './lib/ui.js';
+
+renderNav('dashboard');
+document.getElementById('disclaimerSlot').innerHTML = disclaimerHTML();
+
+const params = getParams();
+const state = {
+  market: params.market || 'futures',
+  symbol: (params.symbol || 'BTCUSDT').toUpperCase(),
+  interval: params.interval || '1h',
+  candles: [],
+  allSymbols: [],
+  tickers: {},
+  ws: null,
+  chart: null, candleSeries: null, ema9S: null, ema21S: null, volS: null, fcstS: null,
+  coneChart: null,
+};
+
+const $ = id => document.getElementById(id);
+const INTERVALS = ['15m', '1h', '4h', '1d'];
+
+// ---------------- 初始化 ----------------
+async function init() {
+  $('marketSelect').value = state.market;
+  $('intervalSelect').value = state.interval;
+  initChart();
+
+  try {
+    setNet('加载币种列表…', 'connecting');
+    state.allSymbols = await loadAllSymbols(state.market);
+  } catch (e) {
+    setNet('币种列表加载失败: ' + e.message, '');
+    state.allSymbols = ['BTCUSDT', 'ETHUSDT', 'SOLUSDT', 'BNBUSDT', 'XRPUSDT', 'DOGEUSDT'];
+  }
+  if (!state.allSymbols.includes(state.symbol)) state.symbol = 'BTCUSDT';
+
+  buildSymbolPicker($('symbolPickerWrap'), state.allSymbols, state.symbol, sym => { state.symbol = sym; reload(); });
+  try { state.tickers = await loadTickers(state.market); } catch (e) {}
+
+  $('marketSelect').addEventListener('change', async e => {
+    state.market = e.target.value;
+    state.allSymbols = await loadAllSymbols(state.market).catch(() => state.allSymbols);
+    if (!state.allSymbols.includes(state.symbol)) state.symbol = 'BTCUSDT';
+    buildSymbolPicker($('symbolPickerWrap'), state.allSymbols, state.symbol, sym => { state.symbol = sym; reload(); });
+    try { state.tickers = await loadTickers(state.market); } catch (e2) {}
+    reload();
+  });
+  $('intervalSelect').addEventListener('change', e => { state.interval = e.target.value; reload(); });
+  $('refreshBtn').addEventListener('click', reload);
+
+  await reload();
+}
+
+// ---------------- 主流程 ----------------
+async function reload() {
+  setNet('拉取K线…', 'connecting');
+  if (state.ws) { state.ws.close(); state.ws = null; }
+  if (state.poller) { state.poller.stop(); state.poller = null; }
+
+  try {
+    state.candles = await fetchKlines(state.symbol, state.interval, 400, state.market);
+  } catch (e) {
+    setNet('K线加载失败: ' + e.message + (state.market === 'futures' ? '（当前网络无法访问币安合约 API，部分地区需代理；可切换「现货」模式，已内置镜像自动降级）' : ''), '');
+    return;
+  }
+
+  // 合约扩展数据（并行、容错）
+  const extra = {};
+  if (state.market === 'futures') {
+    const [fr, ls, oi, tk] = await Promise.allSettled([
+      fetchFundingRate(state.symbol),
+      fetchLongShortRatio(state.symbol),
+      fetchOpenInterestChange(state.symbol),
+      fetchTakerRatio(state.symbol),
+    ]);
+    if (fr.status === 'fulfilled') extra.fundingRate = fr.value;
+    if (ls.status === 'fulfilled') extra.lsRatio = ls.value;
+    if (oi.status === 'fulfilled') extra.oiChange = oi.value;
+    if (tk.status === 'fulfilled') extra.takerRatio = tk.value;
+  }
+
+  const factors = computeFactors(state.candles, extra);
+  if (!factors) { setNet('数据不足', ''); return; }
+  const pos = computePosition(factors.composite, state.candles, state.interval);
+
+  renderOverview(factors, pos, extra);
+  renderFactors(factors);
+  renderTradePlan(factors, pos);
+  renderRisk(factors, pos);
+  renderFutures(extra);
+  renderForecast(factors);
+  renderCondStats(factors);
+  renderChart(factors);
+  renderMTF();
+  connectLive(extra);
+
+  $('updateTime').textContent = '更新于 ' + new Date().toLocaleTimeString();
+  setNet('已连接 · 实时更新中', 'connected');
+}
+
+// ---------------- 总览 ----------------
+function renderOverview(factors, pos, extra) {
+  const tk = state.tickers[state.symbol];
+  const price = factors.rawIndicators.price;
+  const mirror = state.market === 'futures' && getDataMode() === 'mirror';
+  $('symLabel').innerHTML = state.symbol + ' · ' + state.interval + (state.market === 'futures' ? ' · 永续合约' : ' · 现货')
+    + (mirror ? ' <span class="chip trend" style="margin-left:4px;">镜像数据模式</span>' : '');
+  $('priceNow').textContent = fmtPrice(price);
+  if (tk) {
+    $('change24h').innerHTML = `<span class="${clsBySign(tk.change24h)}">${fmtPct100(tk.change24h)}</span> <span style="color:var(--text-dim)">24h额 ${fmtVol(tk.quoteVolume)}</span>`;
+  }
+  const sig = signalOf(factors.composite);
+  $('signalBadge').className = 'signal-badge ' + sig.cls;
+  $('signalBadge').textContent = sig.label;
+  $('scoreText').textContent = `综合分 ${fmtNum(factors.composite, 3)} · 建议仓位 ${fmtPct(pos.size, 0, false)}${pos.leverage ? ` · ≤${pos.leverage}x` : ''}`;
+  const regime = detectRegime(factors.rawIndicators);
+  $('regimeChip').className = 'chip ' + regime.cls;
+  $('regimeChip').textContent = regime.label;
+  $('regimeHint').textContent = regime.hint;
+
+  // 因子极值
+  const { strongest, weakest } = extremeGroups(factors.groupAverages);
+  if (strongest) $('strongestFactor').innerHTML = `<span class="up">${GROUP_NAMES[strongest.key]}</span> <span style="color:var(--text-dim)">${fmtNum(strongest.value, 2)}</span>`;
+  if (weakest) $('weakestFactor').innerHTML = `<span class="down">${GROUP_NAMES[weakest.key]}</span> <span style="color:var(--text-dim)">${fmtNum(weakest.value, 2)}</span>`;
+}
+
+// ---------------- 交易计划 ----------------
+function renderTradePlan(factors, pos) {
+  const raw = factors.rawIndicators;
+  const plan = buildTradePlan(raw.price, raw.atr, pos.annualizedVol, factors.composite);
+  const el = $('tradePlan');
+  if (!plan) {
+    el.innerHTML = '<div class="placeholder">信号强度不足（|评分| < 0.08），暂不生成交易计划<br>观望也是一种仓位</div>';
+    return;
+  }
+  el.innerHTML = `
+    <div class="plan-header ${plan.isLong ? '' : 'sell'}">
+      <span class="dir ${plan.isLong ? 'up' : 'down'}">${plan.isLong ? '🟢' : '🔴'} ${plan.direction} ${state.symbol.replace('USDT', '')}</span>
+      <span>评分 ${fmtNum(factors.composite, 3)}</span>
+    </div>
+    <div class="plan-grid">
+      <span class="k">入场价（市价）</span><span class="v">${fmtPrice(plan.entry)}</span>
+      <span class="k">止损（2.5×ATR）</span><span class="v down">${fmtPrice(plan.stopLoss)} <small>-${plan.stopPct.toFixed(2)}%</small></span>
+      <span class="k">止盈一（${plan.rr1}）</span><span class="v up">${fmtPrice(plan.tp1)} <small>+${plan.tp1Pct.toFixed(2)}%</small></span>
+      <span class="k">止盈二（${plan.rr2}）</span><span class="v up">${fmtPrice(plan.tp2)} <small>+${plan.tp2Pct.toFixed(2)}%</small></span>
+      <span class="k">建议杠杆</span><span class="v">${plan.leverage}x</span>
+      <span class="k">保证金占比</span><span class="v" style="color:var(--accent)">${plan.marginPct.toFixed(1)}%</span>
+    </div>
+    <div class="plan-footer">
+      <div class="cell-mini"><div class="k">单笔风险</div><div class="v">${plan.riskPerTrade.toFixed(1)}%</div></div>
+      <div class="cell-mini"><div class="k">止盈一盈亏比</div><div class="v">${plan.rr1}</div></div>
+      <div class="cell-mini"><div class="k">止盈二盈亏比</div><div class="v">${plan.rr2}</div></div>
+    </div>
+    <div style="font-size:10px;color:var(--text-faint);margin-top:10px;line-height:1.6;">
+      保证金% × 杠杆 × 止损% = 账户风险 1%。到达止盈一后可移动止损至入场价。
+    </div>`;
+}
+
+// ---------------- 因子条 ----------------
+function renderFactors(factors) {
+  const rows = [];
+  for (const g in factors.groupAverages) {
+    const v = factors.groupAverages[g];
+    const w = Math.min(Math.abs(v), 1) * 50;
+    rows.push(`
+      <div class="factor-row">
+        <span class="name">${GROUP_NAMES[g] || g}</span>
+        <div class="fbar"><div class="mid"></div><div class="fill ${v >= 0 ? 'pos' : 'neg'}" style="width:${w}%"></div></div>
+        <span class="val ${clsBySign(v)}">${fmtNum(v, 2)}</span>
+      </div>`);
+  }
+  $('factorBars').innerHTML = rows.join('');
+}
+
+// ---------------- 风险管理 ----------------
+function renderRisk(factors, pos) {
+  const raw = factors.rawIndicators;
+  const risk = riskLevels(raw.price, raw.atr, pos.direction);
+  const rets = Stats.logReturns(state.candles.map(x => x.close).slice(-200));
+  const { var: v95, es: es95 } = Stats.varEs(rets, 95);
+  const cells = [
+    { k: '年化波动率 (EWMA)', v: fmtPct(pos.annualizedVol, 1, false) },
+    { k: 'ATR(14)', v: fmtPrice(raw.atr) },
+    { k: '建议仓位', v: fmtPct(pos.size, 0, false), cls: pos.direction > 0 ? 'good' : pos.direction < 0 ? 'bad' : '' },
+    { k: '建议杠杆上限', v: pos.leverage ? pos.leverage + 'x' : '—' },
+    { k: 'VaR 95% (单bar)', v: fmtPct(-v95, 2, false), cls: 'bad' },
+    { k: 'ES 95% (单bar)', v: fmtPct(-es95, 2, false), cls: 'bad' },
+  ];
+  if (risk) {
+    cells.push({ k: pos.direction > 0 ? '止损位 (1.5×ATR)' : '止损位 (1.5×ATR)', v: fmtPrice(risk.stop) + ` (${fmtPct100(-risk.stopPct, 2, false)})`, cls: 'bad' });
+    cells.push({ k: '目标一 (R:R 1:1)', v: fmtPrice(risk.t1) + ` (${fmtPct100(risk.t1Pct, 2, false)})`, cls: 'good' });
+    cells.push({ k: '目标二 (R:R 1:2)', v: fmtPrice(risk.t2) + ` (${fmtPct100(risk.t2Pct, 2, false)})`, cls: 'good' });
+  }
+  $('riskMetrics').innerHTML = cells.map(c => `<div class="metric ${c.cls || ''}"><div class="k">${c.k}</div><div class="v">${c.v}</div></div>`).join('');
+}
+
+// ---------------- 合约数据 ----------------
+function renderFutures(extra) {
+  const panel = $('futuresPanel');
+  if (state.market !== 'futures') { panel.style.display = 'none'; return; }
+  panel.style.display = '';
+  const fr = extra.fundingRate;
+  const mirror = getDataMode() === 'mirror';
+  const cells = [
+    { k: '资金费率', v: fr != null ? fmtPct(fr, 4) : '—', cls: fr > 0.0005 ? 'bad' : fr < -0.0005 ? 'good' : '' },
+    { k: '多空账户比', v: extra.lsRatio != null ? fmtNum(extra.lsRatio, 2) : '—' },
+    { k: '持仓量30期变化', v: extra.oiChange != null ? fmtPct(extra.oiChange, 2) : '—', cls: clsBySign(extra.oiChange) },
+    { k: '主动买卖比', v: extra.takerRatio != null ? fmtNum(extra.takerRatio, 2) : '—', cls: extra.takerRatio > 1.05 ? 'good' : extra.takerRatio < 0.95 ? 'bad' : '' },
+  ];
+  $('futuresMetrics').innerHTML = cells.map(c => `<div class="metric ${c.cls || ''}"><div class="k">${c.k}</div><div class="v">${c.v}</div></div>`).join('')
+    + (mirror ? '<div style="grid-column:1/-1;font-size:10px;color:var(--text-faint);margin-top:4px;">镜像数据模式下合约专属数据不可用（资金费率 / 多空比 / 持仓量需直连币安合约 API）</div>' : '');
+}
+
+// ---------------- 预测 ----------------
+function renderForecast(factors) {
+  const raw = factors.rawIndicators;
+  const mc = monteCarloCone(state.candles, factors.composite, 24, 4000);
+  const fcst = pointForecast(state.candles, 12);
+  const reg = regChannel(state.candles, 60);
+
+  if (mc) {
+    $('probUpBig').innerHTML = `<span class="${mc.probUp >= 0.5 ? 'up' : 'down'}">${fmtPct(mc.probUp, 1, false)}</span>`;
+    const last = mc.rows[mc.rows.length - 1];
+    const cells = [
+      { k: `MC中位数 (T+${mc.horizon}bar)`, v: fmtPrice(last.p50), cls: last.p50 >= mc.S0 ? 'good' : 'bad' },
+      { k: '90%置信区间', v: `${fmtPrice(last.p5)} ~ ${fmtPrice(last.p95)}` },
+      { k: 'Holt预测 (T+12bar)', v: fcst.length ? fmtPrice(fcst[fcst.length - 1]) : '—', cls: fcst.length && fcst[fcst.length - 1] >= mc.S0 ? 'good' : 'bad' },
+      { k: '回归斜率 (每bar)', v: reg ? fmtPct100(reg.slopePctPerBar, 3) : '—', cls: reg ? (reg.slope > 0 ? 'good' : 'bad') : '' },
+      { k: '回归R²', v: reg ? fmtNum(reg.r2, 2) : '—' },
+      { k: '偏离通道 (z)', v: reg ? fmtNum(reg.zNow, 2) : '—', cls: reg && Math.abs(reg.zNow) > 2 ? 'bad' : '' },
+    ];
+    $('forecastMetrics').innerHTML = cells.map(c => `<div class="metric ${c.cls || ''}"><div class="k">${c.k}</div><div class="v">${c.v}</div></div>`).join('');
+
+    $('coneBody').innerHTML = mc.rows.map(r => `
+      <tr style="cursor:default">
+        <td>T+${r.horizon} bar</td>
+        <td class="down">${fmtPrice(r.p5)}</td>
+        <td class="down">${fmtPrice(r.p25)}</td>
+        <td style="font-weight:700">${fmtPrice(r.p50)}</td>
+        <td class="up">${fmtPrice(r.p75)}</td>
+        <td class="up">${fmtPrice(r.p95)}</td>
+      </tr>`).join('');
+
+    renderConeChart(mc, fcst);
+  } else {
+    $('forecastMetrics').innerHTML = '<div class="placeholder">数据不足，无法预测</div>';
+  }
+}
+
+function renderConeChart(mc, fcst) {
+  const el = $('coneChart');
+  el.innerHTML = '';
+  if (state.coneChart) { try { state.coneChart.remove(); } catch (e) {} }
+  const chart = LightweightCharts.createChart(el, {
+    height: 200,
+    layout: { background: { color: 'transparent' }, textColor: '#848e9c' },
+    grid: { vertLines: { color: '#1e2329' }, horzLines: { color: '#1e2329' } },
+    timeScale: { borderColor: '#2b3139' },
+    rightPriceScale: { borderColor: '#2b3139' },
+  });
+  state.coneChart = chart;
+  const n = state.candles.length;
+  const stepMs = state.candles[1].time - state.candles[0].time;
+  const t0 = state.candles[n - 1].time / 1000;
+
+  const mk = (data, color, width, style) => {
+    const s = chart.addLineSeries({ color, lineWidth: width, lineStyle: style || 0, priceLineVisible: false, lastValueVisible: false, crosshairMarkerVisible: false });
+    s.setData(data);
+    return s;
+  };
+  // 历史价格（最近80根）
+  const hist = state.candles.slice(-80).map(k => ({ time: k.time / 1000, value: k.close }));
+  mk(hist, '#eaecef', 1);
+  // MC 分位带
+  const pts = mc.rows.map((r, i) => ({ time: t0 + r.horizon * stepMs / 1000, p5: r.p5, p50: r.p50, p95: r.p95 }));
+  const anchor = { time: t0, p5: mc.S0, p50: mc.S0, p95: mc.S0 };
+  const all = [anchor, ...pts];
+  mk(all.map(p => ({ time: p.time, value: p.p95 })), 'rgba(14,203,129,0.7)', 1, 2);
+  mk(all.map(p => ({ time: p.time, value: p.p50 })), '#f0b90b', 2, 2);
+  mk(all.map(p => ({ time: p.time, value: p.p5 })), 'rgba(246,70,93,0.7)', 1, 2);
+  if (fcst.length) {
+    const fd = [{ time: t0, value: mc.S0 }, ...fcst.map((v, i) => ({ time: t0 + (i + 1) * stepMs / 1000, value: v }))];
+    mk(fd, '#2196f3', 1, 2);
+  }
+  chart.timeScale().fitContent();
+}
+
+// ---------------- 条件胜率 ----------------
+function renderCondStats(factors) {
+  const cs = conditionalStats(state.candles, factors.composite, 12);
+  if (!cs) { $('condMetrics').innerHTML = '<div class="placeholder">样本内同类信号不足 15 次，无法统计</div>'; return; }
+  const cells = [
+    { k: '同类信号次数', v: cs.matches },
+    { k: `胜率 (T+${cs.forwardBars}bar)`, v: fmtPct(cs.winRate, 1, false), cls: cs.winRate > 0.52 ? 'good' : cs.winRate < 0.48 ? 'bad' : '' },
+    { k: '平均收益', v: fmtPct(cs.avgRet, 2), cls: clsBySign(cs.avgRet) },
+    { k: '中位收益', v: fmtPct(cs.medianRet, 2), cls: clsBySign(cs.medianRet) },
+  ];
+  $('condMetrics').innerHTML = cells.map(c => `<div class="metric ${c.cls || ''}"><div class="k">${c.k}</div><div class="v">${c.v}</div></div>`).join('')
+    + `<div style="grid-column:1/-1;font-size:10px;color:var(--text-dim);margin-top:4px;">口径：历史中出现与当前同方向/同级别信号后，${cs.forwardBars} 根K线内的方向收益。${cs.expectancyNote}。</div>`;
+}
+
+// ---------------- 多周期共振 ----------------
+async function renderMTF() {
+  const rows = await Promise.all(INTERVALS.map(async iv => {
+    try {
+      const candles = await fetchKlines(state.symbol, iv, 200, state.market);
+      const f = computeFactors(candles, null);
+      if (!f) return { iv, score: null };
+      return { iv, score: f.composite, raw: f.rawIndicators };
+    } catch (e) { return { iv, score: null }; }
+  }));
+
+  $('mtfBody').innerHTML = rows.map(r => {
+    if (r.score == null) return `<tr style="cursor:default"><td>${r.iv}</td><td colspan="5" style="color:var(--text-dim)">数据不足</td></tr>`;
+    const sig = signalOf(r.score);
+    const regime = detectRegime(r.raw);
+    return `<tr style="cursor:default">
+      <td><b>${r.iv}</b></td>
+      <td class="${clsBySign(r.score)}" style="font-weight:600">${fmtNum(r.score, 3)}</td>
+      <td><span class="chip ${sig.dir > 0 ? 'long' : sig.dir < 0 ? 'short' : 'flat'}">${sig.label}</span></td>
+      <td><span class="chip ${regime.cls}">${regime.label}</span></td>
+      <td>${fmtNum(r.raw.rsi, 1)}</td>
+      <td>${fmtNum(r.raw.adx, 1)}</td>
+    </tr>`;
+  }).join('');
+
+  const valid = rows.filter(r => r.score != null);
+  if (valid.length >= 2) {
+    const dirs = valid.map(r => Math.sign(r.score));
+    const sameDir = dirs.every(d => d === dirs[0] && d !== 0);
+    const avg = Stats.mean(valid.map(r => r.score));
+    $('mtfVerdict').innerHTML = sameDir
+      ? `<span class="${dirs[0] > 0 ? 'up' : 'down'}" style="font-weight:600">✓ ${valid.length} 个周期方向一致（${dirs[0] > 0 ? '偏多' : '偏空'}），共振强度高，信号可信度提升</span>`
+      : `<span style="color:var(--accent)">⚠ 各周期方向分歧（均值 ${fmtNum(avg, 3)}），建议降低仓位等待方向明确</span>`;
+  }
+}
+
+// ---------------- 图表 ----------------
+function initChart() {
+  const el = $('chart');
+  state.chart = LightweightCharts.createChart(el, {
+    height: 380,
+    layout: { background: { color: 'transparent' }, textColor: '#848e9c' },
+    grid: { vertLines: { color: '#1e2329' }, horzLines: { color: '#1e2329' } },
+    timeScale: { borderColor: '#2b3139', timeVisible: true },
+    rightPriceScale: { borderColor: '#2b3139' },
+    crosshair: { mode: 0 },
+  });
+  state.candleSeries = state.chart.addCandlestickSeries({
+    upColor: '#0ecb81', downColor: '#f6465d', borderVisible: false,
+    wickUpColor: '#0ecb81', wickDownColor: '#f6465d',
+  });
+  state.ema9S = state.chart.addLineSeries({ color: '#f0b90b', lineWidth: 1, priceLineVisible: false, lastValueVisible: false });
+  state.ema21S = state.chart.addLineSeries({ color: '#2196f3', lineWidth: 1, priceLineVisible: false, lastValueVisible: false });
+  state.volS = state.chart.addHistogramSeries({ priceFormat: { type: 'volume' }, priceScaleId: 'vol', lastValueVisible: false, priceLineVisible: false });
+  state.chart.priceScale('vol').applyOptions({ scaleMargins: { top: 0.82, bottom: 0 } });
+  window.addEventListener('resize', () => state.chart.applyOptions({ width: el.clientWidth }));
+}
+
+function renderChart() {
+  const candles = state.candles;
+  const toSec = candles.map(k => ({ time: k.time / 1000, open: k.open, high: k.high, low: k.low, close: k.close }));
+  state.candleSeries.setData(toSec);
+  const closes = candles.map(k => k.close);
+  const e9 = EMA(closes, 9), e21 = EMA(closes, 21);
+  state.ema9S.setData(candles.map((k, i) => e9[i] != null ? { time: k.time / 1000, value: e9[i] } : null).filter(Boolean));
+  state.ema21S.setData(candles.map((k, i) => e21[i] != null ? { time: k.time / 1000, value: e21[i] } : null).filter(Boolean));
+  state.volS.setData(candles.map(k => ({ time: k.time / 1000, value: k.volume, color: k.close >= k.open ? 'rgba(14,203,129,0.4)' : 'rgba(246,70,93,0.4)' })));
+  state.chart.timeScale().fitContent();
+}
+
+// ---------------- 实时（WS 优先，失败自动转 REST 轮询） ----------------
+function onLiveCandle(k, lastPriceRef) {
+  const priceEl = $('priceNow');
+  if (lastPriceRef.v != null && k.close !== lastPriceRef.v) {
+    priceEl.classList.remove('flash-up', 'flash-down');
+    void priceEl.offsetWidth;
+    priceEl.classList.add(k.close > lastPriceRef.v ? 'flash-up' : 'flash-down');
+  }
+  lastPriceRef.v = k.close;
+  priceEl.textContent = fmtPrice(k.close);
+  state.candleSeries.update({ time: k.time / 1000, open: k.open, high: k.high, low: k.low, close: k.close });
+  if (k.closed || k.isPoll) {
+    const last = state.candles[state.candles.length - 1];
+    if (last && last.time === k.time) Object.assign(last, k);
+    else if (last && k.time > last.time) { state.candles.push({ ...k }); if (state.candles.length > 400) state.candles.shift(); }
+    if (k.closed) reloadQuiet();
+  }
+}
+
+function connectLive() {
+  const lastPriceRef = { v: null };
+  state.ws = connectKlineWS(state.symbol, state.interval, state.market,
+    k => onLiveCandle(k, lastPriceRef),
+    s => {
+      if (s === 'connected') setNet('已连接 · 实时更新中', 'connected');
+      else if (s === 'connecting') setNet('实时连接中…', 'connecting');
+      else if (s === 'disconnected') setNet('连接断开，重连中…', 'connecting');
+      else if (s === 'failed') {
+        // WS 彻底不可用（网络屏蔽）→ REST 轮询兜底
+        setNet('实时推送不可用 · 已切换 5 秒轮询', 'connecting');
+        state.poller = pollKlines(state.symbol, state.interval, state.market, k => {
+          const last = state.candles[state.candles.length - 1];
+          const isNew = last && k.time > last.time;
+          onLiveCandle({ ...k, isPoll: true, closed: isNew }, lastPriceRef);
+        }, 5000);
+      }
+    });
+}
+
+let quietTimer = null;
+function reloadQuiet() {
+  clearTimeout(quietTimer);
+  quietTimer = setTimeout(async () => {
+    const factors = computeFactors(state.candles, null);
+    if (!factors) return;
+    const pos = computePosition(factors.composite, state.candles, state.interval);
+    renderOverview(factors, pos, {});
+    renderFactors(factors);
+    renderTradePlan(factors, pos);
+    renderRisk(factors, pos);
+    $('updateTime').textContent = '更新于 ' + new Date().toLocaleTimeString();
+  }, 500);
+}
+
+init();
