@@ -43,7 +43,23 @@ export function signalOf(composite) {
 }
 
 // ---------------- 七因子引擎 ----------------
-export function computeFactors(candles, extraData) {
+// 权重选择：分段专业化模型（板块 > 规模 > 全局），仅采用云端标记 good=true 的分段，
+// 未命中或分段不达标时回退全局学习权重，再退静态权重
+function pickWeights(symbol) {
+  if (MODEL && MODEL.weights) {
+    const meta = symbol && MODEL.symbolMeta && MODEL.symbolMeta[symbol];
+    if (meta && MODEL.segments) {
+      const catSeg = MODEL.segments['cat:' + meta.cat];
+      if (catSeg && catSeg.good && catSeg.weights) return { weights: catSeg.weights, scale: catSeg.scoreScale, src: `板块·${meta.cat}` };
+      const sizeSeg = MODEL.segments['size:' + meta.size];
+      if (sizeSeg && sizeSeg.good && sizeSeg.weights) return { weights: sizeSeg.weights, scale: sizeSeg.scoreScale, src: `规模·${meta.size}` };
+    }
+    return { weights: MODEL.weights, scale: MODEL.scoreScale, src: 'global' };
+  }
+  return { weights: FACTOR_WEIGHTS, scale: 0, src: 'static' };
+}
+
+export function computeFactors(candles, extraData, symbol) {
   if (candles.length < 60) return null;
   const c = candles.map(x => x.close);
   const h = candles.map(x => x.high);
@@ -162,7 +178,8 @@ export function computeFactors(candles, extraData) {
     futures: [fundingScore, lsRatioScore, oiScore],
   };
 
-  const weights = (MODEL && MODEL.weights) ? MODEL.weights : FACTOR_WEIGHTS;
+  const picked = pickWeights(symbol);
+  const weights = picked.weights;
   const groupAverages = {};
   let composite = 0;
   for (const g in groups) {
@@ -173,8 +190,8 @@ export function computeFactors(candles, extraData) {
   // 评分尺度标定：学习权重含正负号会系统性压缩评分绝对值（排序能力不受影响），
   // 按训练时发布的 scoreScale（横截面标准差）把显示评分标定回标准差 0.13，
   // 让 0.15/0.35 信号阈值在任何版本权重下保持一致的统计含义（约 1.2σ / 2.7σ）
-  if (MODEL && MODEL.weights && MODEL.scoreScale > 0) {
-    composite = composite / MODEL.scoreScale * 0.13;
+  if (picked.scale > 0) {
+    composite = composite / picked.scale * 0.13;
   }
 
   const er = efficiencyRatio(c, 20);
@@ -183,7 +200,7 @@ export function computeFactors(candles, extraData) {
 
   return {
     composite, groupAverages, groups,
-    weightSource: MODEL ? `learned-v${MODEL.version || '?'}` : 'static',
+    weightSource: MODEL ? `learned-v${MODEL.version || '?'}·${picked.src}` : 'static',
     rawIndicators: {
       price, atr, rsi: rsiArr[n], macdH: histogram[n], adx: adx[n], pdi: pdi[n], mdi: mdi[n],
       stochRsi: stoch[n], volRatio, squeeze,
