@@ -570,6 +570,20 @@ def main():
 
     trained_at = datetime.now(timezone.utc).isoformat(timespec="seconds")
 
+    # 评分标定：学习权重含正负号会系统性压缩综合评分尺度（排序能力不受影响）。
+    # 关键细节：必须用「横截面标准差」（每个时间戳内各币种评分的离散度，取中位数），
+    # 而不是混合标准差——扫描页比较的是同一时刻的币种间差异，混合口径含时间序列波动会高估。
+    w_vec = np.array([final_weights.get(g, 0.0) for g in GROUPS])
+    comp_all = X @ w_vec
+    buckets = {}
+    for k in range(len(comp_all)):
+        buckets.setdefault(int(ts[k]), []).append(comp_all[k])
+    xs_stds = [float(np.std(v)) for v in buckets.values() if len(v) >= 5]
+    score_scale = float(np.median(xs_stds)) if xs_stds else float(np.std(comp_all))
+    if score_scale <= 1e-8:
+        score_scale = 1.0
+    print(f"[train] 评分尺度 scoreScale(横截面): {score_scale:.6f}（混合 {float(np.std(comp_all)):.6f}）")
+
     # evolution.json 追加
     evo_path = os.path.join(DATA_DIR, "evolution.json")
     evolution = []
@@ -613,6 +627,7 @@ def main():
         "engine": "ridge-v3-honest",
         "fwdBars": FWD,
         "weights": final_weights,
+        "scoreScale": round(score_scale, 8),
         "staticWeights": STATIC_WEIGHTS,
         "factorIC": factor_ic,
         "oos": {"ic": round(ic_oos, 4), "icInSample": round(ic_in, 4),
