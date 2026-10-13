@@ -19,8 +19,8 @@ jobs:
         with:
           python-version: '3.12'
 
-      - name: Install numpy
-        run: pip install numpy
+      - name: Install numpy + scikit-learn
+        run: pip install numpy scikit-learn
 
       - uses: actions/cache@v4
         with:
