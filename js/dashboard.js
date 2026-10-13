@@ -5,6 +5,8 @@ import { Stats, EMA } from './lib/stats.js';
 import { loadAllSymbols, loadTickers, fetchKlines, fetchFundingRate, fetchLongShortRatio, fetchOpenInterestChange, fetchTakerRatio, connectKlineWS, pollKlines, getDataMode } from './lib/api.js';
 import { computeFactors, computePosition, detectRegime, signalOf, monteCarloCone, conditionalStats, pointForecast, regChannel, riskLevels, buildTradePlan, extremeGroups, fuseMTF, signalConfidence, garchVolForecast, btcLinkage, GROUP_NAMES } from './lib/quant.js';
 import { renderNav, setNet, fmtPrice, fmtPct, fmtPct100, fmtNum, fmtVol, clsBySign, getParams, buildSymbolPicker, disclaimerHTML } from './lib/ui.js';
+import { loadModel, modelBadgeHTML } from './lib/model.js';
+import { logSignal, labelOutcomes } from './lib/tracker.js';
 
 renderNav('dashboard');
 document.getElementById('disclaimerSlot').innerHTML = disclaimerHTML();
@@ -30,6 +32,7 @@ async function init() {
   $('marketSelect').value = state.market;
   $('intervalSelect').value = state.interval;
   initChart();
+  loadModel().then(() => { const b = $('modelBadge'); if (b) b.innerHTML = modelBadgeHTML(); });
 
   try {
     setNet('加载币种列表…', 'connecting');
@@ -97,6 +100,16 @@ async function reload() {
   const fused = fuseMTF(mtfRows);
   const conf = signalConfidence(factors, mtfRows);
   state.btcLink = btcCandles ? btcLinkage(state.candles, btcCandles) : null;
+
+  // 信号追踪：记录快照 + 回填到期信号的实际走势（静默、不阻塞渲染）
+  const mainScoreNow = fused != null ? fused : factors.composite;
+  logSignal({
+    time: Date.now(), symbol: state.symbol, interval: state.interval, market: state.market,
+    price: factors.rawIndicators.price, composite: factors.composite, fused,
+    direction: Math.sign(mainScoreNow), weightSource: factors.weightSource,
+    groupAverages: factors.groupAverages, regime: detectRegime(factors.rawIndicators).label,
+  });
+  labelOutcomes(fetchKlines);
 
   renderOverview(factors, pos, extra, fused, conf);
   renderFactors(factors);
