@@ -4,7 +4,7 @@
 import { Stats, EMA } from './lib/stats.js';
 import { loadAllSymbols, loadTickers, fetchKlines, fetchFundingRate, fetchLongShortRatio, fetchOpenInterestChange, fetchTakerRatio, connectKlineWS, pollKlines, getDataMode } from './lib/api.js';
 import { computeFactors, computePosition, detectRegime, signalOf, monteCarloCone, conditionalStats, pointForecast, regChannel, riskLevels, buildTradePlan, extremeGroups, fuseMTF, signalConfidence, garchVolForecast, btcLinkage, GROUP_NAMES } from './lib/quant.js';
-import { renderNav, setNet, fmtPrice, fmtPct, fmtPct100, fmtNum, fmtVol, clsBySign, getParams, buildSymbolPicker, disclaimerHTML } from './lib/ui.js';
+import { renderNav, setNet, fmtPrice, fmtPct, fmtPct100, fmtNum, fmtVol, clsBySign, getParams, buildSymbolPicker, disclaimerHTML, icon, pop } from './lib/ui.js';
 import { loadModel, modelBadgeHTML } from './lib/model.js';
 import { logSignal, labelOutcomes } from './lib/tracker.js';
 
@@ -140,9 +140,12 @@ function renderOverview(factors, pos, extra, fused, conf) {
   // 主信号用融合评分（多周期加权），更抗噪音
   const mainScore = fused != null ? fused : factors.composite;
   const sig = signalOf(mainScore);
-  $('signalBadge').className = 'signal-badge ' + sig.cls;
-  $('signalBadge').textContent = sig.label;
-  const confChip = conf ? ` · 置信度 <b style="color:${{ S: '#f0b90b', A: '#0ecb81', B: '#2196f3', C: '#848e9c' }[conf.grade]}">${conf.grade}</b>(${conf.score})` : '';
+  const badge = $('signalBadge');
+  const prevSig = badge.textContent;
+  badge.className = 'signal-badge ' + sig.cls;
+  badge.textContent = sig.label;
+  if (prevSig !== sig.label && prevSig !== '—') pop(badge);
+  const confChip = conf ? ` · 置信度 <b style="color:${{ S: '#2563eb', A: '#16a34a', B: '#7c3aed', C: '#9aa3af' }[conf.grade]}">${conf.grade}</b>(${conf.score})` : '';
   $('scoreText').innerHTML = `融合分 ${fmtNum(mainScore, 3)} · 本周 ${fmtNum(factors.composite, 3)} · 仓位 ${fmtPct(pos.size, 0, false)}${pos.leverage ? ` · ≤${pos.leverage}x` : ''}${confChip}`;
   const regime = detectRegime(factors.rawIndicators);
   $('regimeChip').className = 'chip ' + regime.cls;
@@ -191,7 +194,7 @@ function renderTradePlan(factors, pos, fused) {
     </div>` : '';
   el.innerHTML = `
     <div class="plan-header ${plan.isLong ? '' : 'sell'}">
-      <span class="dir ${plan.isLong ? 'up' : 'down'}">${plan.isLong ? '🟢' : '🔴'} ${plan.direction} ${state.symbol.replace('USDT', '')}</span>
+      <span class="dir ${plan.isLong ? 'up' : 'down'}">${icon(plan.isLong ? 'trendUp' : 'trendDown')}${plan.direction} ${state.symbol.replace('USDT', '')}</span>
       <span>融合评分 ${fmtNum(scoreForPlan, 3)}</span>
     </div>
     <div class="plan-grid">
@@ -316,10 +319,10 @@ function renderConeChart(mc, fcst) {
   if (state.coneChart) { try { state.coneChart.remove(); } catch (e) {} }
   const chart = LightweightCharts.createChart(el, {
     height: 200,
-    layout: { background: { color: 'transparent' }, textColor: '#848e9c' },
-    grid: { vertLines: { color: '#1e2329' }, horzLines: { color: '#1e2329' } },
-    timeScale: { borderColor: '#2b3139' },
-    rightPriceScale: { borderColor: '#2b3139' },
+    layout: { background: { color: 'transparent' }, textColor: '#5b6472' },
+    grid: { vertLines: { color: '#eef0f4' }, horzLines: { color: '#eef0f4' } },
+    timeScale: { borderColor: '#d8dee7' },
+    rightPriceScale: { borderColor: '#d8dee7' },
   });
   state.coneChart = chart;
   const n = state.candles.length;
@@ -333,17 +336,17 @@ function renderConeChart(mc, fcst) {
   };
   // 历史价格（最近80根）
   const hist = state.candles.slice(-80).map(k => ({ time: k.time / 1000, value: k.close }));
-  mk(hist, '#eaecef', 1);
+  mk(hist, '#3d4450', 1);
   // MC 分位带
   const pts = mc.rows.map((r, i) => ({ time: t0 + r.horizon * stepMs / 1000, p5: r.p5, p50: r.p50, p95: r.p95 }));
   const anchor = { time: t0, p5: mc.S0, p50: mc.S0, p95: mc.S0 };
   const all = [anchor, ...pts];
-  mk(all.map(p => ({ time: p.time, value: p.p95 })), 'rgba(14,203,129,0.7)', 1, 2);
-  mk(all.map(p => ({ time: p.time, value: p.p50 })), '#f0b90b', 2, 2);
-  mk(all.map(p => ({ time: p.time, value: p.p5 })), 'rgba(246,70,93,0.7)', 1, 2);
+  mk(all.map(p => ({ time: p.time, value: p.p95 })), 'rgba(22,163,74,0.65)', 1, 2);
+  mk(all.map(p => ({ time: p.time, value: p.p50 })), '#2563eb', 2, 2);
+  mk(all.map(p => ({ time: p.time, value: p.p5 })), 'rgba(220,38,38,0.65)', 1, 2);
   if (fcst.length) {
     const fd = [{ time: t0, value: mc.S0 }, ...fcst.map((v, i) => ({ time: t0 + (i + 1) * stepMs / 1000, value: v }))];
-    mk(fd, '#2196f3', 1, 2);
+    mk(fd, '#7c3aed', 1, 2);
   }
   chart.timeScale().fitContent();
 }
@@ -395,8 +398,8 @@ function renderMTFTable(rows, fused) {
     const sameDir = dirs.every(d => d === dirs[0] && d !== 0);
     const fusedTxt = fused != null ? ` · 融合评分 <b class="${clsBySign(fused)}">${fmtNum(fused, 3)}</b>（15m 20% / 1h 35% / 4h 30% / 1d 15%）` : '';
     $('mtfVerdict').innerHTML = (sameDir
-      ? `<span class="${dirs[0] > 0 ? 'up' : 'down'}" style="font-weight:600">✓ ${valid.length} 个周期方向一致（${dirs[0] > 0 ? '偏多' : '偏空'}），共振强度高</span>`
-      : `<span style="color:var(--accent)">⚠ 各周期方向分歧，建议降低仓位等待方向明确</span>`) + `<div style="margin-top:6px;color:var(--text-dim);font-size:11px;">${fusedTxt}</div>`;
+      ? `<span class="${dirs[0] > 0 ? 'up' : 'down'}" style="font-weight:600">${icon('check')} ${valid.length} 个周期方向一致（${dirs[0] > 0 ? '偏多' : '偏空'}） 共振强度高</span>`
+      : `<span style="color:var(--accent)">${icon('alert')} 各周期方向分歧 建议降低仓位等待方向明确</span>`) + `<div style="margin-top:6px;color:var(--text-dim);font-size:11px;">${fusedTxt}</div>`;
   }
 }
 
@@ -405,18 +408,18 @@ function initChart() {
   const el = $('chart');
   state.chart = LightweightCharts.createChart(el, {
     height: 380,
-    layout: { background: { color: 'transparent' }, textColor: '#848e9c' },
-    grid: { vertLines: { color: '#1e2329' }, horzLines: { color: '#1e2329' } },
-    timeScale: { borderColor: '#2b3139', timeVisible: true },
-    rightPriceScale: { borderColor: '#2b3139' },
+    layout: { background: { color: 'transparent' }, textColor: '#5b6472' },
+    grid: { vertLines: { color: '#eef0f4' }, horzLines: { color: '#eef0f4' } },
+    timeScale: { borderColor: '#d8dee7', timeVisible: true },
+    rightPriceScale: { borderColor: '#d8dee7' },
     crosshair: { mode: 0 },
   });
   state.candleSeries = state.chart.addCandlestickSeries({
-    upColor: '#0ecb81', downColor: '#f6465d', borderVisible: false,
-    wickUpColor: '#0ecb81', wickDownColor: '#f6465d',
+    upColor: '#16a34a', downColor: '#dc2626', borderVisible: false,
+    wickUpColor: '#16a34a', wickDownColor: '#dc2626',
   });
-  state.ema9S = state.chart.addLineSeries({ color: '#f0b90b', lineWidth: 1, priceLineVisible: false, lastValueVisible: false });
-  state.ema21S = state.chart.addLineSeries({ color: '#2196f3', lineWidth: 1, priceLineVisible: false, lastValueVisible: false });
+  state.ema9S = state.chart.addLineSeries({ color: '#d97706', lineWidth: 1, priceLineVisible: false, lastValueVisible: false });
+  state.ema21S = state.chart.addLineSeries({ color: '#2563eb', lineWidth: 1, priceLineVisible: false, lastValueVisible: false });
   state.volS = state.chart.addHistogramSeries({ priceFormat: { type: 'volume' }, priceScaleId: 'vol', lastValueVisible: false, priceLineVisible: false });
   state.chart.priceScale('vol').applyOptions({ scaleMargins: { top: 0.82, bottom: 0 } });
   window.addEventListener('resize', () => state.chart.applyOptions({ width: el.clientWidth }));
@@ -430,7 +433,7 @@ function renderChart() {
   const e9 = EMA(closes, 9), e21 = EMA(closes, 21);
   state.ema9S.setData(candles.map((k, i) => e9[i] != null ? { time: k.time / 1000, value: e9[i] } : null).filter(Boolean));
   state.ema21S.setData(candles.map((k, i) => e21[i] != null ? { time: k.time / 1000, value: e21[i] } : null).filter(Boolean));
-  state.volS.setData(candles.map(k => ({ time: k.time / 1000, value: k.volume, color: k.close >= k.open ? 'rgba(14,203,129,0.4)' : 'rgba(246,70,93,0.4)' })));
+  state.volS.setData(candles.map(k => ({ time: k.time / 1000, value: k.volume, color: k.close >= k.open ? 'rgba(22,163,74,0.35)' : 'rgba(220,38,38,0.35)' })));
   state.chart.timeScale().fitContent();
 }
 
