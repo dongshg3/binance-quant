@@ -22,10 +22,15 @@ jobs:
       - name: Install numpy
         run: pip install numpy
 
+      - uses: actions/cache@v4
+        with:
+          path: data_cache
+          key: futures-dump-v1
+
       - name: Train factor weights
         env:
           TQ_TOP_N: '150'        # 训练币种池：Top 150 高流动性 USDT 交易对
-          TQ_MIN_SAMPLES: '60000'
+          TQ_MIN_SAMPLES: '200000'
         run: python train/train.py
 
       - name: Commit model artifacts
