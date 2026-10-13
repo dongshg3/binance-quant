@@ -223,6 +223,34 @@ tbody tr:hover { background: linear-gradient(90deg, rgba(240,185,11,.05), var(--
 .opp-card .meta { font-size: 11px; color: var(--text-dim); margin-top: 4px; }
 .opp-card .reason { font-size: 11px; color: var(--text); margin-top: 6px; line-height: 1.6; }
 
+/* ---------- 机会强度分级 ---------- */
+.opp-card.tier-tA { border-left-width: 5px; background: linear-gradient(180deg, rgba(14,203,129,.07), var(--bg-cell) 60%); }
+.opp-card.tier-tA.sell { background: linear-gradient(180deg, rgba(246,70,93,.07), var(--bg-cell) 60%); }
+.opp-card.tier-tS { border-left-width: 5px; background: linear-gradient(180deg, rgba(14,203,129,.13), var(--bg-cell) 65%); box-shadow: 0 0 20px rgba(14,203,129,.18); }
+.opp-card.tier-tS.sell { background: linear-gradient(180deg, rgba(246,70,93,.13), var(--bg-cell) 65%); box-shadow: 0 0 20px rgba(246,70,93,.18); }
+.tier-badge { font-size: 9px; font-weight: 800; padding: 2px 7px; border-radius: 4px; letter-spacing: .5px; }
+.tier-badge.tS-buy { background: #f0b90b; color: #0b0e11; }
+.tier-badge.tS-sell { background: #f0b90b; color: #0b0e11; }
+.tier-badge.tA-buy { background: rgba(14,203,129,.22); color: var(--up); border: 1px solid rgba(14,203,129,.4); }
+.tier-badge.tA-sell { background: rgba(246,70,93,.22); color: var(--down); border: 1px solid rgba(246,70,93,.4); }
+.tier-badge.tB-buy { background: rgba(14,203,129,.08); color: var(--up); border: 1px solid rgba(14,203,129,.18); }
+.tier-badge.tB-sell { background: rgba(246,70,93,.08); color: var(--down); border: 1px solid rgba(246,70,93,.18); }
+.tier-badge.tC-buy, .tier-badge.tC-sell { background: var(--bg-cell); color: var(--text-faint); border: 1px solid var(--border); }
+
+/* 结果表分级底色 */
+tr.row-tA-buy { background: rgba(14,203,129,.08); }
+tr.row-tA-sell { background: rgba(246,70,93,.08); }
+tr.row-tB-buy { background: rgba(14,203,129,.03); }
+tr.row-tB-sell { background: rgba(246,70,93,.03); }
+.score-chip { font-weight: 700; font-variant-numeric: tabular-nums; padding: 2px 7px; border-radius: 5px; font-size: 12px; }
+.score-chip.tS-buy { background: rgba(240,185,11,.18); color: #f0b90b; border: 1px solid rgba(240,185,11,.4); }
+.score-chip.tS-sell { background: rgba(240,185,11,.18); color: #f0b90b; border: 1px solid rgba(240,185,11,.4); }
+.score-chip.tA-buy { background: rgba(14,203,129,.14); color: var(--up); }
+.score-chip.tA-sell { background: rgba(246,70,93,.14); color: var(--down); }
+.score-chip.tB-buy { color: var(--up); }
+.score-chip.tB-sell { color: var(--down); }
+.score-chip.tC-buy, .score-chip.tC-sell { color: var(--text-dim); }
+
 /* ---------- 交易计划 ---------- */
 .plan-header {
   display: flex; justify-content: space-between; align-items: center;
