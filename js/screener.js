@@ -5,7 +5,7 @@ import { Stats } from './lib/stats.js';
 import { loadAllSymbols, loadTickers, fetchKlines, fetchAllPremiumIndex } from './lib/api.js';
 import { computeFactors, computePosition, detectRegime, signalOf, buildTradePlan } from './lib/quant.js';
 import { renderNav, setNet, fmtPrice, fmtPct100, fmtPct, fmtNum, fmtVol, clsBySign, goDashboard, disclaimerHTML, icon, swapHTML } from './lib/ui.js';
-import { loadModel } from './lib/model.js';
+import { loadModel, getModel } from './lib/model.js';
 import { logSignal, labelOutcomes } from './lib/tracker.js';
 
 renderNav('screener');
@@ -140,7 +140,7 @@ async function scanMarket() {
       try {
         const candles = await fetchKlines(sym, state.interval, 120, state.market);
         if (candles.length >= 60) {
-          const f = computeFactors(candles, null);
+          const f = computeFactors(candles, null, sym);
           if (f) {
             const pos = computePosition(f.composite, candles, state.interval);
             const tk = state.tickers[sym] || {};
@@ -350,13 +350,18 @@ function renderTable() {
   });
 
   $('resultCount').textContent = `${list.length} 个币种 · 点击行查看深度分析`;
+  const CAT_CN = { major: '主流', l1: 'L1', l2: 'L2', defi: 'DeFi', meme: 'Meme', ai: 'AI', gaming: '游戏', infra: '基建', other: '其他' };
+  const SIZE_CN = { large: '大盘', mid: '中盘', small: '小盘' };
+  const meta = (getModel() && getModel().symbolMeta) || {};
   $('screenerBody').innerHTML = list.map(x => {
     const sig = signalOf(x.score);
     const t = tierOf(x.score);
     const rowCls = t.cls === 'tS' || t.cls === 'tA' ? (x.score > 0 ? 'row-tA-buy' : 'row-tA-sell')
       : t.cls === 'tB' ? (x.score > 0 ? 'row-tB-buy' : 'row-tB-sell') : '';
+    const sm = meta[x.symbol];
+    const segChip = sm ? ` <span class="chip flat" style="padding:0 5px;font-size:9px;" title="${SIZE_CN[sm.size]} · ${CAT_CN[sm.cat]}分段模型">${CAT_CN[sm.cat]}</span>` : '';
     return `<tr data-sym="${x.symbol}" class="${rowCls}">
-      <td><b>${x.symbol.replace('USDT', '')}</b><span style="color:var(--text-dim);font-size:10px;">/USDT</span></td>
+      <td><b>${x.symbol.replace('USDT', '')}</b><span style="color:var(--text-dim);font-size:10px;">/USDT</span>${segChip}</td>
       <td>${fmtPrice(x.price)}</td>
       <td class="${clsBySign(x.change24h)}">${x.change24h != null ? fmtPct100(x.change24h) : '—'}</td>
       <td>${fmtVol(x.quoteVolume)}</td>
