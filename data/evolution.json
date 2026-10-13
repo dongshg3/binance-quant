@@ -296,5 +296,166 @@
    "icPrev": null,
    "gate": "skipped(<30样本)"
   }
+ },
+ {
+  "version": 8,
+  "trainedAt": "2026-10-13T20:51:55+00:00",
+  "symbols": 149,
+  "samples": 519606,
+  "fwdSet": [
+   2,
+   4,
+   8
+  ],
+  "weights": {
+   "trend": 0.0135,
+   "momentum": -0.1313,
+   "meanRev": 0.0522,
+   "volume": -0.2877,
+   "volatility": -0.1119,
+   "position": -0.1506,
+   "htf": 0.0591,
+   "futures": 0.1936
+  },
+  "factorIC": {
+   "trend": -0.0439,
+   "momentum": 0.0372,
+   "meanRev": 0.0462,
+   "volume": -0.0207,
+   "volatility": -0.0187,
+   "position": 0.0064,
+   "htf": 0.0037,
+   "futures": 0.0043
+  },
+  "icInSample": 0.0446,
+  "icOOS": 0.0282,
+  "icXS": 0.0228,
+  "icXSRaw4": 0.0235,
+  "nwT": 3.63,
+  "icPerSym": 0.0296,
+  "icPerSymMedian": 0.0302,
+  "icDecay": {
+   "1": 0.033,
+   "2": 0.0281,
+   "4": 0.0157,
+   "8": 0.0045,
+   "12": -0.0124,
+   "24": 0.0039
+  },
+  "gapInOut": 0.0164,
+  "randIC": {
+   "mean": -0.0008,
+   "std": 0.0257,
+   "percentile": 0.815
+  },
+  "lsSpread": 0.023183,
+  "lsSharpeOOS": 0.34,
+  "dcor": {
+   "trend": {
+    "dcor": 0.099,
+    "p": 0.016
+   },
+   "momentum": {
+    "dcor": 0.0878,
+    "p": 0.016
+   },
+   "meanRev": {
+    "dcor": 0.0954,
+    "p": 0.016
+   },
+   "volume": {
+    "dcor": 0.0805,
+    "p": 0.016
+   },
+   "volatility": {
+    "dcor": 0.0568,
+    "p": 0.016
+   },
+   "position": {
+    "dcor": 0.0546,
+    "p": 0.016
+   },
+   "htf": {
+    "dcor": 0.0371,
+    "p": 0.213
+   },
+   "futures": {
+    "dcor": 0.038,
+    "p": 0.164
+   },
+   "_composite": {
+    "dcor": 0.0749,
+    "p": 0.016
+   }
+  },
+  "conditionalIC": {
+   "byAdx": {
+    "低": 0.0227,
+    "中": 0.0219,
+    "高": 0.0381
+   },
+   "byVol": {
+    "低": 0.0245,
+    "中": 0.0307,
+    "高": 0.0305
+   },
+   "byFunding": {
+    "低": 0.023,
+    "高": 0.0245
+   }
+  },
+  "segments": {
+   "size:large": {
+    "icXS": -0.0114,
+    "nwT": -0.98,
+    "n": 74080,
+    "symbols": 30,
+    "good": false
+   },
+   "size:mid": {
+    "icXS": 0.0351,
+    "nwT": 4.1,
+    "n": 140091,
+    "symbols": 60,
+    "good": true
+   },
+   "size:small": {
+    "icXS": 0.0308,
+    "nwT": 2.98,
+    "n": 143217,
+    "symbols": 59,
+    "good": true
+   },
+   "cat:defi": {
+    "icXS": -0.0249,
+    "nwT": -1.91,
+    "n": 42882,
+    "symbols": 17,
+    "good": false
+   },
+   "cat:l1": {
+    "icXS": -0.0302,
+    "nwT": -2.35,
+    "n": 67600,
+    "symbols": 26,
+    "good": false
+   },
+   "cat:other": {
+    "icXS": 0.0338,
+    "nwT": 3.46,
+    "n": 179306,
+    "symbols": 80,
+    "good": true
+   }
+  },
+  "accepted": true,
+  "rejectReason": "",
+  "alpha": 0.6,
+  "tracker": {
+   "n": 0,
+   "icNew": null,
+   "icPrev": null,
+   "gate": "skipped(<30样本)"
+  }
  }
 ]
