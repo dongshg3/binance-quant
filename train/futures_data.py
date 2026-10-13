@@ -18,6 +18,7 @@ import zipfile
 from bisect import bisect_right
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timedelta, timezone
+from urllib.parse import quote
 
 BASE = "https://data.binance.vision/data/futures/um"
 CACHE_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "data_cache", "futures")
@@ -74,7 +75,7 @@ def _load_zip_csv(symbol, dataset, period, freq):
         with open(fpath, "rb") as f:
             blob = f.read()
     else:
-        blob = _download(f"{BASE}/{freq}/{dataset}/{symbol}/{fname}")
+        blob = _download(f"{BASE}/{freq}/{dataset}/{quote(symbol)}/{quote(fname)}")
         if period != current:
             with open(fpath, "wb") as f:
                 f.write(blob)
