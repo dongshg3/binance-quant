@@ -28,6 +28,8 @@
       <option value="long">仅看多</option>
       <option value="short">仅看空</option>
       <option value="strong">仅强信号</option>
+      <option value="edge">高模型优势（IC≥0.03）</option>
+      <option value="coin">逐币模型币种</option>
     </select>
     <button id="scanBtn" class="primary"><span data-icon="search"></span>开始扫描</button>
     <label><input type="checkbox" id="autoScan"> 每5分钟自动扫描</label>
@@ -73,6 +75,7 @@
           <th class="sortable" data-key="change24h">24h%</th>
           <th class="sortable" data-key="quoteVolume">24h成交额</th>
           <th class="sortable" data-key="score">综合分 <span class="arrow" id="arrow-score"></span></th>
+          <th class="sortable" data-key="edgeIC" title="该币种评分使用的权重来源及其样本外 IC（越高代表该来源历史兑现能力越强）">模型优势</th>
           <th class="sortable" data-key="rsi">RSI</th>
           <th class="sortable" data-key="adx">ADX</th>
           <th class="sortable" data-key="annVol">年化波动</th>
