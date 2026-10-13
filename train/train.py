@@ -37,9 +37,9 @@ FWD = 12                  # 标签：未来 12 bar 对数收益
 RIDGE_LAMBDA = 5.0
 MIN_BARS = 400
 MIN_SAMPLES = int(os.environ.get("TQ_MIN_SAMPLES", "20000"))
-GROUPS = ["trend", "momentum", "meanRev", "volume", "volatility", "position"]  # 可学习组
-STATIC_WEIGHTS = {"trend": 0.25, "momentum": 0.20, "meanRev": 0.15, "volume": 0.15,
-                  "volatility": 0.10, "position": 0.05, "futures": 0.10}
+GROUPS = ["trend", "momentum", "meanRev", "volume", "volatility", "position", "htf"]  # 可学习组
+STATIC_WEIGHTS = {"trend": 0.22, "momentum": 0.18, "meanRev": 0.13, "volume": 0.13,
+                  "volatility": 0.09, "position": 0.05, "htf": 0.10, "futures": 0.10}
 FUTURES_STATIC = 0.10     # futures 组需要逐 bar 资金费率历史，训练期固定为静态权重
 EMA_ALPHA = 0.6           # 权重收缩：新权重 0.6 + 旧权重 0.4（防训练间抖动/过拟合）
 MIN_OOS_IC = 0.02         # 市场样本外 IC 下限，低于则拒绝更新
@@ -207,6 +207,20 @@ def MACD_hist(c, f=12, s=26, sig=9):
 def clamp(x, lo, hi):
     return max(lo, min(hi, x))
 
+# ---------------- 高周期重采样（无未来函数，与前端同构） ----------------
+def resample_closes(c, f):
+    """基础周期收盘价 → f 倍周期（1h→4h/日线），只保留已完成的 bar"""
+    m = len(c) // f
+    return c[:m * f].reshape(m, f)[:, -1]
+
+def map_htf(values, n, f):
+    """大周期第 j 个完整 bar 覆盖基础 bar [j*f,(j+1)*f)，基础 bar i 只能看到 i//f - 1"""
+    out = np.full(n, np.nan)
+    idx = np.arange(n) // f - 1
+    valid = (idx >= 0) & (idx < len(values))
+    out[valid] = values[idx[valid]]
+    return out
+
 # ---------------- 七因子引擎（与前端 computeFactors 同构，训练期不含 futures 组） ----------------
 def group_scores(ohlcv):
     c = ohlcv[:, 4]; h = ohlcv[:, 2]; l = ohlcv[:, 3]; v = ohlcv[:, 5]
@@ -224,6 +238,24 @@ def group_scores(ohlcv):
     bbw = np.where((~np.isnan(bbU)) & (~np.isnan(bbM)) & (bbM != 0), (bbU - bbL) / bbM * 100, np.nan)
 
     out = {g: np.zeros(n) for g in GROUPS}
+
+    # 高周期共振（4× = 4h、24× = 日线；仅用已完成的大周期 bar，与前端同构）
+    c4 = resample_closes(c, 4); c24 = resample_closes(c, 24)
+    ema_d = EMA(c24, 20)
+    d_trend = np.where(np.isnan(ema_d), np.nan, np.sign(c24 - ema_d))
+    d_slope = np.full(len(ema_d), np.nan)
+    for j in range(3, len(ema_d)):
+        if not np.isnan(ema_d[j]) and not np.isnan(ema_d[j - 3]):
+            d_slope[j] = np.sign(ema_d[j] - ema_d[j - 3]) * 0.5
+    rsi4 = RSI(c4)
+    rsi4_s = np.where(np.isnan(rsi4), np.nan, np.clip((50 - rsi4) / 20, -1, 1))
+    macd4h = MACD_hist(c4)
+    macd4_s = np.where(np.isnan(macd4h), np.nan, np.sign(macd4h) * 0.5)
+    htf_trend_map = map_htf(d_trend, n, 24)
+    htf_slope_map = map_htf(d_slope, n, 24)
+    htf_rsi_map = map_htf(rsi4_s, n, 4)
+    htf_macd_map = map_htf(macd4_s, n, 4)
+
     for i in range(n):
         price = c[i]; a = atr[i]
         # trend
@@ -285,6 +317,10 @@ def group_scores(ohlcv):
                 elif 0.35 < pos < 0.45 and price > ema50[i]: fib_s = 0.4
                 elif pos < 0.1: fib_s = -0.3
         out["position"][i] = fib_s
+        # htf（高周期共振）
+        parts = [htf_trend_map[i], htf_slope_map[i], htf_rsi_map[i], htf_macd_map[i]]
+        parts = [p for p in parts if not np.isnan(p)]
+        out["htf"][i] = float(np.mean(parts)) if parts else 0.0
     return out
 
 # ---------------- 统计工具 ----------------
