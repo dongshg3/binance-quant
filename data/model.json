@@ -1,39 +1,42 @@
 {
- "version": 3,
- "trainedAt": "2026-10-13T04:54:34+00:00",
+ "version": 4,
+ "trainedAt": "2026-10-13T05:08:39+00:00",
  "engine": "ridge-v2-livegate",
  "fwdBars": 12,
  "weights": {
-  "trend": 0.116,
-  "momentum": -0.4672,
-  "meanRev": 0.1008,
-  "volume": -0.149,
-  "volatility": -0.0302,
-  "position": -0.0368,
+  "trend": 0.0792,
+  "momentum": -0.3978,
+  "meanRev": 0.1198,
+  "volume": -0.1232,
+  "volatility": -0.0315,
+  "position": -0.01,
+  "htf": -0.1385,
   "futures": 0.1
  },
  "staticWeights": {
-  "trend": 0.25,
-  "momentum": 0.2,
-  "meanRev": 0.15,
-  "volume": 0.15,
-  "volatility": 0.1,
+  "trend": 0.22,
+  "momentum": 0.18,
+  "meanRev": 0.13,
+  "volume": 0.13,
+  "volatility": 0.09,
   "position": 0.05,
+  "htf": 0.1,
   "futures": 0.1
  },
  "factorIC": {
-  "trend": -0.1126,
-  "momentum": -0.2861,
-  "meanRev": 0.1023,
-  "volume": -0.012,
-  "volatility": -0.0353,
-  "position": -0.0167
+  "trend": -0.0997,
+  "momentum": -0.2908,
+  "meanRev": 0.0758,
+  "volume": -0.0165,
+  "volatility": -0.0177,
+  "position": -0.0143,
+  "htf": -0.1661
  },
  "oos": {
-  "ic": 0.3756,
-  "icInSample": 0.4167,
-  "lsSpread": 0.04534,
-  "lsSharpe": 10.44
+  "ic": 0.4199,
+  "icInSample": 0.5117,
+  "lsSpread": 0.045099,
+  "lsSharpe": 12.62
  },
  "accepted": true,
  "rejectReason": "",
@@ -44,8 +47,8 @@
   "gate": "skipped(<30样本)"
  },
  "meta": {
-  "symbols": 60,
-  "samples": 46658,
+  "symbols": 148,
+  "samples": 115694,
   "interval": "1h",
   "ridgeLambda": 5.0,
   "alpha": 0.6,
