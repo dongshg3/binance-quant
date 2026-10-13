@@ -389,3 +389,7 @@ tr.row-tB-sell { background: rgba(220, 38, 38, 0.03); }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
 }
+
+/* 竞技场：对照组选手行（随机/静态基准） */
+tr.row-control { background: rgba(100, 116, 139, 0.05); font-style: normal; }
+tr.row-control td:first-child { border-left: 3px dashed var(--text-faint); }
