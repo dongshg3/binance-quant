@@ -4,7 +4,7 @@
 import { Stats } from './lib/stats.js';
 import { loadAllSymbols, fetchKlines } from './lib/api.js';
 import { runBacktest } from './lib/quant.js';
-import { renderNav, setNet, fmtPrice, fmtPct, fmtNum, fmtTime, clsBySign, getParams, buildSymbolPicker, disclaimerHTML } from './lib/ui.js';
+import { renderNav, setNet, fmtPrice, fmtPct, fmtNum, fmtTime, clsBySign, getParams, buildSymbolPicker, disclaimerHTML, icon } from './lib/ui.js';
 
 renderNav('backtest');
 document.getElementById('disclaimerSlot').innerHTML = disclaimerHTML();
@@ -42,7 +42,7 @@ async function init() {
 
 async function run() {
   $('runBtn').disabled = true;
-  $('runBtn').textContent = '⏳ 回测中…';
+  $('runBtn').innerHTML = icon('loader', 'spin') + '回测中…';
   $('btStatus').textContent = '拉取K线数据…';
 
   const limit = Math.min(parseInt($('limitInput').value) || 1000, 1500);
@@ -70,7 +70,7 @@ async function run() {
     $('btStatus').textContent = '失败: ' + e.message;
   } finally {
     $('runBtn').disabled = false;
-    $('runBtn').textContent = '▶ 运行回测';
+    $('runBtn').innerHTML = icon('play') + '运行回测';
   }
 }
 
@@ -99,18 +99,18 @@ function renderChart(res, candles) {
   if (state.chart) { try { state.chart.remove(); } catch (e) {} }
   const chart = LightweightCharts.createChart(el, {
     height: 340,
-    layout: { background: { color: 'transparent' }, textColor: '#848e9c' },
-    grid: { vertLines: { color: '#1e2329' }, horzLines: { color: '#1e2329' } },
-    timeScale: { borderColor: '#2b3139', timeVisible: true },
-    rightPriceScale: { borderColor: '#2b3139' },
-    leftPriceScale: { visible: true, borderColor: '#2b3139' },
+    layout: { background: { color: 'transparent' }, textColor: '#5b6472' },
+    grid: { vertLines: { color: '#eef0f4' }, horzLines: { color: '#eef0f4' } },
+    timeScale: { borderColor: '#d8dee7', timeVisible: true },
+    rightPriceScale: { borderColor: '#d8dee7' },
+    leftPriceScale: { visible: true, borderColor: '#d8dee7' },
   });
   state.chart = chart;
 
   const start = candles.length - res.returns.length;
-  const eqLine = chart.addLineSeries({ color: '#f0b90b', lineWidth: 2, priceLineVisible: false });
-  const bhLine = chart.addLineSeries({ color: '#2196f3', lineWidth: 1, priceLineVisible: false });
-  const ddLine = chart.addAreaSeries({ color: 'rgba(246,70,93,0.4)', lineColor: '#f6465d', lineWidth: 1, priceScaleId: 'left', priceLineVisible: false, lastValueVisible: false });
+  const eqLine = chart.addLineSeries({ color: '#2563eb', lineWidth: 2, priceLineVisible: false });
+  const bhLine = chart.addLineSeries({ color: '#94a3b8', lineWidth: 1, priceLineVisible: false });
+  const ddLine = chart.addAreaSeries({ color: 'rgba(220,38,38,0.35)', lineColor: '#dc2626', lineWidth: 1, priceScaleId: 'left', priceLineVisible: false, lastValueVisible: false });
   chart.priceScale('left').applyOptions({ scaleMargins: { top: 0.05, bottom: 0.75 } });
 
   const eqData = [], bhData = [], ddData = [];
@@ -146,8 +146,8 @@ function renderCompare(res) {
     </tr>`).join('') + `
     <tr style="cursor:default"><td colspan="3" style="font-size:11px;color:var(--text-dim);padding-top:10px;">
       ${m.totalReturn >= b.totalReturn
-        ? `✓ 策略跑赢买入持有 ${fmtPct(m.totalReturn - b.totalReturn, 1, false)}，且回撤${m.mdd <= b.mdd ? '更小' : '更大'}`
-        : `⚠ 策略跑输买入持有 ${fmtPct(b.totalReturn - m.totalReturn, 1, false)}，该品种该周期上策略可能不适用`}
+        ? `${icon('check')} 策略跑赢买入持有 ${fmtPct(m.totalReturn - b.totalReturn, 1, false)}，且回撤${m.mdd <= b.mdd ? '更小' : '更大'}`
+        : `${icon('alert')} 策略跑输买入持有 ${fmtPct(b.totalReturn - m.totalReturn, 1, false)}，该品种该周期上策略可能不适用`}
     </td></tr>`;
 }
 
@@ -198,16 +198,16 @@ function renderOOS(candles, fee, slip) {
   const isSharpe = resIS.metrics.sharpe, oosSharpe = resOOS.metrics.sharpe;
   let verdict, cls;
   if (oosSharpe > 0.5 && oosSharpe >= isSharpe * 0.5) {
-    verdict = `✓ 样本外夏普 ${fmtNum(oosSharpe)} 保持样本内水平（${fmtNum(isSharpe)}），策略衰减可控，过拟合风险较低`;
+    verdict = `${icon('check')} 样本外夏普 ${fmtNum(oosSharpe)} 保持样本内水平（${fmtNum(isSharpe)}） 策略衰减可控 过拟合风险较低`;
     cls = 'up';
   } else if (oosSharpe > 0) {
-    verdict = `⚠ 样本外夏普 ${fmtNum(oosSharpe)} 明显低于样本内 ${fmtNum(isSharpe)}，存在一定过拟合，实盘需降仓验证`;
+    verdict = `${icon('alert')} 样本外夏普 ${fmtNum(oosSharpe)} 明显低于样本内 ${fmtNum(isSharpe)} 存在一定过拟合 实盘需降仓验证`;
     cls = '';
     $('oosVerdict').style.color = 'var(--accent)';
     $('oosVerdict').innerHTML = verdict;
     return;
   } else {
-    verdict = `✗ 样本外夏普 ${fmtNum(oosSharpe)} 为负（样本内 ${fmtNum(isSharpe)}），策略很可能过拟合，不建议据此信号实盘`;
+    verdict = `${icon('x')} 样本外夏普 ${fmtNum(oosSharpe)} 为负（样本内 ${fmtNum(isSharpe)}） 策略很可能过拟合 不建议据此信号实盘`;
     cls = 'down';
   }
   $('oosVerdict').innerHTML = `<span class="${cls}">${verdict}</span>`;
