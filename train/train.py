@@ -6,9 +6,14 @@
 #   2. 用与前端完全一致的七因子引擎计算各 bar 因子组得分
 #   3. 以未来 12 bar 对数收益为标签，岭回归学习因子组权重
 #   4. Spearman IC 分析 + 70/30 Walk-Forward 样本外验证
-#   5. 导出 data/model.json（最新权重）并追加 data/evolution.json（进化历史）
+#   5. 实盘闭环：读取 data/tracker/*.csv（浏览器导出的真实信号结果），
+#      仅用于模型选择闸门（绝不参与拟合，防自反馈过拟合）
+#   6. EMA 权重收缩（新 0.6 / 旧 0.4）降低训练间方差
+#   7. 导出 data/model.json（最新权重）并追加 data/evolution.json（进化历史）
 # 零 AI token、零付费服务。
 # ============================================================
+import csv
+import glob
 import json
 import math
 import os
@@ -36,8 +41,13 @@ GROUPS = ["trend", "momentum", "meanRev", "volume", "volatility", "position"]  #
 STATIC_WEIGHTS = {"trend": 0.25, "momentum": 0.20, "meanRev": 0.15, "volume": 0.15,
                   "volatility": 0.10, "position": 0.05, "futures": 0.10}
 FUTURES_STATIC = 0.10     # futures 组需要逐 bar 资金费率历史，训练期固定为静态权重
+EMA_ALPHA = 0.6           # 权重收缩：新权重 0.6 + 旧权重 0.4（防训练间抖动/过拟合）
+MIN_OOS_IC = 0.02         # 市场样本外 IC 下限，低于则拒绝更新
+TRACKER_MIN_N = 30        # 实盘追踪样本下限，不足则闸门不启用
+TRACKER_TOLERANCE = 0.02  # 实盘 IC 允许退化容忍度
 
 DATA_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "data")
+TRACKER_DIR = os.path.join(DATA_DIR, "tracker")
 os.makedirs(DATA_DIR, exist_ok=True)
 
 # ---------------- HTTP ----------------
@@ -290,6 +300,46 @@ def spearman(x, y):
     denom = math.sqrt((rx ** 2).sum() * (ry ** 2).sum())
     return float((rx * ry).sum() / denom) if denom > 0 else 0.0
 
+# ---------------- 实盘追踪数据（模型选择闸门，绝不参与拟合） ----------------
+ALL_GROUPS = GROUPS + ["futures"]
+
+def load_tracker():
+    """读取 data/tracker/*.csv（浏览器导出的真实信号→结果记录）。
+    返回 [{'groups': {g: v}, 'ret24': float}]，按 (symbol, interval, time) 去重。"""
+    rows, seen = [], set()
+    for path in sorted(glob.glob(os.path.join(TRACKER_DIR, "*.csv"))):
+        try:
+            with open(path, encoding="utf-8-sig", newline="") as f:
+                for r in csv.DictReader(f):
+                    try:
+                        if not r.get("ret24"):
+                            continue  # 尚未回填结果的信号
+                        d = int(float(r.get("direction") or 0))
+                        if d == 0:
+                            continue  # 观望信号无方向，不参与方向性评估
+                        key = (r.get("symbol"), r.get("interval"), r.get("time"))
+                        if key in seen:
+                            continue
+                        seen.add(key)
+                        groups = {}
+                        for g in ALL_GROUPS:
+                            v = r.get(g)
+                            groups[g] = float(v) if v not in (None, "") else 0.0
+                        rows.append({"groups": groups, "ret24": float(r["ret24"])})
+                    except (ValueError, TypeError):
+                        continue
+        except OSError:
+            continue
+    return rows
+
+def tracker_ic(weights, rows):
+    """在实盘信号上评估某套权重的排序能力：权重×记录下的因子组得分 → 与真实 T+24 收益的 Spearman 相关。"""
+    if len(rows) < 10:
+        return None
+    comps = [sum(weights.get(g, 0.0) * r["groups"].get(g, 0.0) for g in ALL_GROUPS) for r in rows]
+    rets = [r["ret24"] for r in rows]
+    return spearman(np.array(comps), np.array(rets))
+
 # ---------------- 数据 ----------------
 def get_symbols():
     info = market_get("/exchangeInfo")
@@ -375,9 +425,55 @@ def main():
     # 权重映射：学习权重归一化到 0.90，futures 固定 0.10
     absum = float(np.sum(np.abs(w_raw)))
     scale = (1.0 - FUTURES_STATIC) / absum if absum > 0 else 0
-    learned_weights = {g: round(float(w_raw[j]) * scale, 4) for j, g in enumerate(GROUPS)}
-    final_weights = dict(learned_weights)
-    final_weights["futures"] = FUTURES_STATIC
+    learned_weights = {g: float(w_raw[j]) * scale for j, g in enumerate(GROUPS)}
+
+    # ---------------- 防过拟合：EMA 权重收缩 + 实盘闸门 ----------------
+    # 旧权重（上一版模型，无则静态）
+    prev_weights = dict(STATIC_WEIGHTS)
+    model_path = os.path.join(DATA_DIR, "model.json")
+    if os.path.exists(model_path):
+        try:
+            with open(model_path, encoding="utf-8") as f:
+                prev_model = json.load(f)
+            if prev_model.get("weights"):
+                prev_weights = prev_model["weights"]
+        except Exception:
+            pass
+
+    # EMA 收缩：新 0.6 / 旧 0.4，再归一化（L1 = 0.90）
+    shrunk = {g: EMA_ALPHA * learned_weights[g] + (1 - EMA_ALPHA) * float(prev_weights.get(g, 0)) for g in GROUPS}
+    absum2 = float(sum(abs(v) for v in shrunk.values()))
+    if absum2 > 0:
+        shrunk = {g: v * (1.0 - FUTURES_STATIC) / absum2 for g, v in shrunk.items()}
+    candidate = {g: round(shrunk[g], 4) for g in GROUPS}
+    candidate["futures"] = FUTURES_STATIC
+
+    # 闸门 1：市场样本外 IC 下限
+    accepted = True
+    reject_reasons = []
+    if ic_oos < MIN_OOS_IC:
+        accepted = False
+        reject_reasons.append(f"市场样本外IC {ic_oos:.4f} < {MIN_OOS_IC}")
+
+    # 闸门 2：实盘追踪 IC（仅模型选择，不参与拟合；样本不足则跳过）
+    tracker_rows = load_tracker()
+    tk_ic_new = tracker_ic(candidate, tracker_rows) if len(tracker_rows) >= TRACKER_MIN_N else None
+    tk_ic_prev = tracker_ic(prev_weights, tracker_rows) if len(tracker_rows) >= TRACKER_MIN_N else None
+    if tk_ic_new is not None and tk_ic_prev is not None:
+        if tk_ic_new < tk_ic_prev - TRACKER_TOLERANCE:
+            accepted = False
+            reject_reasons.append(f"实盘追踪IC退化 {tk_ic_new:.4f} < {tk_ic_prev:.4f} - {TRACKER_TOLERANCE}")
+
+    final_weights = candidate if accepted else {g: round(float(prev_weights.get(g, 0)), 4) for g in ALL_GROUPS}
+    if "futures" not in final_weights:
+        final_weights["futures"] = FUTURES_STATIC
+
+    tracker_info = {
+        "n": len(tracker_rows),
+        "icNew": round(tk_ic_new, 4) if tk_ic_new is not None else None,
+        "icPrev": round(tk_ic_prev, 4) if tk_ic_prev is not None else None,
+        "gate": "applied" if tk_ic_new is not None else "skipped(<30样本)",
+    }
 
     trained_at = datetime.now(timezone.utc).isoformat(timespec="seconds")
 
@@ -400,6 +496,10 @@ def main():
         "icOOS": round(ic_oos, 4),
         "lsSpread": round(spread, 6),
         "lsSharpeOOS": round(ls_sharpe, 2),
+        "accepted": accepted,
+        "rejectReason": "; ".join(reject_reasons),
+        "alpha": EMA_ALPHA,
+        "tracker": tracker_info,
     }
     evolution.append(run)
     evolution = evolution[-200:]  # 保留最近 200 次
@@ -410,20 +510,27 @@ def main():
     model = {
         "version": version,
         "trainedAt": trained_at,
-        "engine": "ridge-v1",
+        "engine": "ridge-v2-livegate",
         "fwdBars": FWD,
         "weights": final_weights,
         "staticWeights": STATIC_WEIGHTS,
         "factorIC": factor_ic,
         "oos": {"ic": round(ic_oos, 4), "icInSample": round(ic_in, 4),
                 "lsSpread": round(spread, 6), "lsSharpe": round(ls_sharpe, 2)},
+        "accepted": accepted,
+        "rejectReason": "; ".join(reject_reasons),
+        "tracker": tracker_info,
         "meta": {"symbols": used, "samples": int(len(y)), "interval": INTERVAL,
-                 "ridgeLambda": RIDGE_LAMBDA, "note": "权重由岭回归从历史数据学习，futures 组固定 0.10"},
+                 "ridgeLambda": RIDGE_LAMBDA, "alpha": EMA_ALPHA,
+                 "note": "权重=岭回归学习×0.6+旧权重×0.4（EMA收缩）；实盘追踪数据仅用于更新闸门，不参与拟合"},
     }
     with open(os.path.join(DATA_DIR, "model.json"), "w", encoding="utf-8") as f:
         json.dump(model, f, ensure_ascii=False, indent=1)
 
-    print(f"[train] v{version} 完成 | IC 样本内 {ic_in:.4f} / 样本外 {ic_oos:.4f} | 多空夏普(OOS) {ls_sharpe:.2f}")
+    status = "接受" if accepted else f"拒绝（{'; '.join(reject_reasons)}）"
+    print(f"[train] v{version} 完成 | IC 样本内 {ic_in:.4f} / 样本外 {ic_oos:.4f} | 多空夏普(OOS) {ls_sharpe:.2f} | 更新{status}")
+    if tk_ic_new is not None:
+        print(f"[train] 实盘追踪: n={len(tracker_rows)} IC 新 {tk_ic_new:.4f} / 旧 {tk_ic_prev:.4f}")
     print(f"[train] 权重: {json.dumps(final_weights, ensure_ascii=False)}")
 
 if __name__ == "__main__":
