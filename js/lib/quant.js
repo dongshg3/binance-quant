@@ -62,6 +62,26 @@ function pickWeights(symbol) {
   return { weights: FACTOR_WEIGHTS, scale: 0, src: 'static' };
 }
 
+// 该币种当前生效权重来源的元信息（种类、板块/规模键、是否反向、样本外 IC）
+// 用于机会排序与「模型优势」展示；IC 对反向分段取绝对值（反向启用后 |IC| 即有效边际）
+export function weightSourceInfo(symbol) {
+  if (!MODEL || !MODEL.weights) return { kind: 'static', key: null, flipped: false, ic: null };
+  const coin = symbol && MODEL.coinModels && MODEL.coinModels[symbol];
+  if (coin && coin.weights) return { kind: 'coin', key: symbol, flipped: false, ic: coin.ic != null ? Math.abs(coin.ic) : null };
+  const meta = symbol && MODEL.symbolMeta && MODEL.symbolMeta[symbol];
+  if (meta && MODEL.segments) {
+    const catSeg = MODEL.segments['cat:' + meta.cat];
+    if (catSeg && catSeg.good && catSeg.weights) {
+      return { kind: 'cat', key: meta.cat, flipped: !!catSeg.flipped, ic: catSeg.icXS != null ? Math.abs(catSeg.icXS) : null };
+    }
+    const sizeSeg = MODEL.segments['size:' + meta.size];
+    if (sizeSeg && sizeSeg.good && sizeSeg.weights) {
+      return { kind: 'size', key: meta.size, flipped: !!sizeSeg.flipped, ic: sizeSeg.icXS != null ? Math.abs(sizeSeg.icXS) : null };
+    }
+  }
+  return { kind: 'global', key: null, flipped: false, ic: MODEL.oos && MODEL.oos.icXS != null ? Math.abs(MODEL.oos.icXS) : null };
+}
+
 export function computeFactors(candles, extraData, symbol) {
   if (candles.length < 60) return null;
   const c = candles.map(x => x.close);
