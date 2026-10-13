@@ -317,9 +317,9 @@ function renderOpportunities() {
       </div>`);
   };
 
-  mk('🟢 做多机会（按质量分排序）', r.filter(x => x.score > 0).sort((a, b) => qualityOf(b) - qualityOf(a)).slice(0, 4), '',
+  mk('🟢 做多机会（|评分| ≥ 0.15，按质量分排序）', r.filter(x => x.score >= 0.15).sort((a, b) => qualityOf(b) - qualityOf(a)).slice(0, 4), '',
     x => `RSI ${fmtNum(x.rsi, 0)} · ADX ${fmtNum(x.adx, 0)} · ${x.regime.label} · 建议仓位 ${fmtPct(x.position, 0, false)}`, true);
-  mk('🔴 做空机会（按质量分排序）', r.filter(x => x.score < 0).sort((a, b) => qualityOf(b) - qualityOf(a)).slice(0, 4), 'sell',
+  mk('🔴 做空机会（|评分| ≥ 0.15，按质量分排序）', r.filter(x => x.score <= -0.15).sort((a, b) => qualityOf(b) - qualityOf(a)).slice(0, 4), 'sell',
     x => `RSI ${fmtNum(x.rsi, 0)} · ADX ${fmtNum(x.adx, 0)} · ${x.regime.label} · 建议仓位 ${fmtPct(x.position, 0, false)}`, true);
   mk('🟡 挤压蓄势（波动率收缩，等待突破）', r.filter(x => x.squeeze < 0.6).sort((a, b) => b.quoteVolume - a.quoteVolume).slice(0, 4), 'squeeze',
     x => `BBW 收缩至均值 ${fmtPct(x.squeeze, 0, false)} · 24h额 ${fmtVol(x.quoteVolume)}`);
