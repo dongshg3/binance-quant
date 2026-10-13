@@ -7,7 +7,7 @@
 <meta name="description" content="币安全市场量化分析：多因子信号、蒙特卡洛预测、市场状态识别、风险管理">
 <script src="https://unpkg.com/lightweight-charts@4.1.0/dist/lightweight-charts.standalone.production.js"></script>
 <link rel="stylesheet" href="css/main.css">
-<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📈</text></svg>">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%232563eb' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M9 5v4'/><rect width='4' height='6' x='7' y='9' rx='1'/><path d='M9 15v2'/><path d='M17 3v2'/><rect width='4' height='8' x='15' y='5' rx='1'/><path d='M17 13v3'/><path d='M3 3v16a2 2 0 0 0 2 2h16'/></svg>">
 </head>
 <body>
 <div class="page">
@@ -25,7 +25,7 @@
       <option value="4h">4小时</option>
       <option value="1d">日线</option>
     </select>
-    <button id="refreshBtn" class="primary">刷新分析</button>
+    <button id="refreshBtn" class="primary"><span data-icon="refresh"></span>刷新分析</button>
     <span style="font-size:11px;color:var(--text-dim)" id="updateTime"></span>
   </div>
 
@@ -76,7 +76,7 @@
     <div>
       <!-- 预测模块 -->
       <div class="panel" style="margin-bottom:14px;">
-        <h3>📊 量化预测 <span class="sub">蒙特卡洛 4000 路径 · Holt 平滑 · 回归通道</span></h3>
+        <h3><span data-icon="activity"></span>量化预测 <span class="sub">蒙特卡洛 4000 路径 · Holt 平滑 · 回归通道</span></h3>
         <div class="grid-metrics" id="forecastMetrics" style="margin-bottom:12px;"></div>
         <div id="coneChart" class="chart-box" style="height:200px;margin-bottom:12px;"></div>
         <table class="cone-table">
@@ -87,7 +87,7 @@
 
       <!-- 多周期共振 -->
       <div class="panel" style="margin-bottom:14px;">
-        <h3>🕐 多周期共振分析 <span class="sub">周期一致性越高，信号越可靠</span></h3>
+        <h3><span data-icon="layers"></span>多周期共振分析 <span class="sub">周期一致性越高 信号越可靠</span></h3>
         <table>
           <thead><tr><th>周期</th><th>综合分</th><th>信号</th><th>市场状态</th><th>RSI</th><th>ADX</th></tr></thead>
           <tbody id="mtfBody"></tbody>
@@ -97,7 +97,7 @@
 
       <!-- 条件胜率 -->
       <div class="panel">
-        <h3>🎯 历史条件胜率 <span class="sub">同类信号在样本内的后续表现</span></h3>
+        <h3><span data-icon="target"></span>历史条件胜率 <span class="sub">同类信号在样本内的后续表现</span></h3>
         <div class="grid-metrics" id="condMetrics"></div>
       </div>
     </div>
@@ -106,22 +106,22 @@
     <div>
       <!-- 交易计划 -->
       <div class="panel" style="margin-bottom:14px;">
-        <h3>📝 交易计划 <span class="sub">单笔风险预算 1% 账户</span></h3>
+        <h3><span data-icon="clipboard"></span>交易计划 <span class="sub">单笔风险预算 1% 账户</span></h3>
         <div id="tradePlan"><div class="placeholder">等待信号…</div></div>
       </div>
       <!-- 风险管理 -->
       <div class="panel" style="margin-bottom:14px;">
-        <h3>🛡️ 风险管理</h3>
+        <h3><span data-icon="shield"></span>风险管理</h3>
         <div class="grid-metrics" id="riskMetrics" style="grid-template-columns:repeat(2,1fr);"></div>
       </div>
       <!-- 因子拆解 -->
       <div class="panel" style="margin-bottom:14px;">
-        <h3>⚙️ 因子拆解 <span class="sub">七因子加权评分</span></h3>
+        <h3><span data-icon="sliders"></span>因子拆解 <span class="sub">八因子加权评分</span></h3>
         <div id="factorBars"></div>
       </div>
       <!-- 合约数据 -->
       <div class="panel" id="futuresPanel">
-        <h3>📑 合约市场数据</h3>
+        <h3><span data-icon="database"></span>合约市场数据</h3>
         <div class="grid-metrics" id="futuresMetrics" style="grid-template-columns:repeat(2,1fr);"></div>
       </div>
     </div>
