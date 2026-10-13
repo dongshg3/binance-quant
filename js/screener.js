@@ -4,7 +4,7 @@
 import { Stats } from './lib/stats.js';
 import { loadAllSymbols, loadTickers, fetchKlines, fetchAllPremiumIndex } from './lib/api.js';
 import { computeFactors, computePosition, detectRegime, signalOf, buildTradePlan } from './lib/quant.js';
-import { renderNav, setNet, fmtPrice, fmtPct100, fmtPct, fmtNum, fmtVol, clsBySign, goDashboard, disclaimerHTML } from './lib/ui.js';
+import { renderNav, setNet, fmtPrice, fmtPct100, fmtPct, fmtNum, fmtVol, clsBySign, goDashboard, disclaimerHTML, icon, swapHTML } from './lib/ui.js';
 import { loadModel } from './lib/model.js';
 import { logSignal, labelOutcomes } from './lib/tracker.js';
 
@@ -46,7 +46,7 @@ function loadCache() {
     if (c.minVol) $('minVolInput').value = c.minVol;
     $('heatPanel').style.display = state.market === 'futures' ? '' : 'none';
     const t = new Date(c.time);
-    $('scanStatus').innerHTML = `📦 已恢复上次扫描缓存（${t.toLocaleString()}），后台自动更新中…`;
+    $('scanStatus').innerHTML = `${icon('package')} 已恢复上次扫描缓存（${t.toLocaleString()}），后台自动更新中…`;
     renderBreadth();
     renderOpportunities();
     renderTable();
@@ -110,7 +110,7 @@ async function scanMarket() {
   if (state.scanning) return;
   state.scanning = true;
   $('scanBtn').disabled = true;
-  $('scanBtn').textContent = '⏳ 扫描中…';
+  $('scanBtn').innerHTML = icon('loader', 'spin') + '扫描中…';
   $('scanProgressWrap').style.display = 'block';
 
   // 刷新 ticker + 资金费率
@@ -186,7 +186,7 @@ async function scanMarket() {
   state.results = results;
   state.scanning = false;
   $('scanBtn').disabled = false;
-  $('scanBtn').textContent = '🔍 开始扫描';
+  $('scanBtn').innerHTML = icon('search') + '开始扫描';
   $('scanProgressWrap').style.display = 'none';
   $('scanStatus').textContent = `完成 · ${results.length} 个币种 · ${new Date().toLocaleTimeString()}`;
   setNet('扫描完成', 'connected');
@@ -228,14 +228,14 @@ function renderBreadth() {
 // ---------------- 资金费率热力图 ----------------
 function fundingColor(fr) {
   // fr 为小数，±0.0005 = ±0.05%
-  if (fr == null) return 'background:#1b212b;color:#5e6773;';
-  if (fr >= 0.001) return 'background:rgba(246,70,93,0.95);color:#fff;';
-  if (fr >= 0.0005) return 'background:rgba(246,70,93,0.75);color:#fff;';
-  if (fr >= 0.0001) return 'background:rgba(246,70,93,0.35);color:#ffb3bd;';
-  if (fr <= -0.001) return 'background:rgba(33,150,243,0.95);color:#fff;';
-  if (fr <= -0.0005) return 'background:rgba(33,150,243,0.7);color:#fff;';
-  if (fr <= -0.0001) return 'background:rgba(33,150,243,0.3);color:#a8cfff;';
-  return 'background:#242c38;color:#848e9c;';
+  if (fr == null) return 'background:#f2f4f8;color:#9aa3af;';
+  if (fr >= 0.001) return 'background:rgba(220,38,38,0.92);color:#fff;';
+  if (fr >= 0.0005) return 'background:rgba(220,38,38,0.68);color:#fff;';
+  if (fr >= 0.0001) return 'background:rgba(220,38,38,0.14);color:#dc2626;';
+  if (fr <= -0.001) return 'background:rgba(37,99,235,0.92);color:#fff;';
+  if (fr <= -0.0005) return 'background:rgba(37,99,235,0.62);color:#fff;';
+  if (fr <= -0.0001) return 'background:rgba(37,99,235,0.13);color:#2563eb;';
+  return 'background:#eef1f6;color:#5b6472;';
 }
 
 function renderHeatmap() {
@@ -317,19 +317,21 @@ function renderOpportunities() {
       </div>`);
   };
 
-  mk('🟢 做多机会（|评分| ≥ 0.15，按质量分排序）', r.filter(x => x.score >= 0.15).sort((a, b) => qualityOf(b) - qualityOf(a)).slice(0, 4), '',
+  mk(`${icon('trendUp')} 做多机会（|评分| ≥ 0.15，按质量分排序）`, r.filter(x => x.score >= 0.15).sort((a, b) => qualityOf(b) - qualityOf(a)).slice(0, 4), '',
     x => `RSI ${fmtNum(x.rsi, 0)} · ADX ${fmtNum(x.adx, 0)} · ${x.regime.label} · 建议仓位 ${fmtPct(x.position, 0, false)}`, true);
-  mk('🔴 做空机会（|评分| ≥ 0.15，按质量分排序）', r.filter(x => x.score <= -0.15).sort((a, b) => qualityOf(b) - qualityOf(a)).slice(0, 4), 'sell',
+  mk(`${icon('trendDown')} 做空机会（|评分| ≥ 0.15，按质量分排序）`, r.filter(x => x.score <= -0.15).sort((a, b) => qualityOf(b) - qualityOf(a)).slice(0, 4), 'sell',
     x => `RSI ${fmtNum(x.rsi, 0)} · ADX ${fmtNum(x.adx, 0)} · ${x.regime.label} · 建议仓位 ${fmtPct(x.position, 0, false)}`, true);
-  mk('🟡 挤压蓄势（波动率收缩，等待突破）', r.filter(x => x.squeeze < 0.6).sort((a, b) => b.quoteVolume - a.quoteVolume).slice(0, 4), 'squeeze',
+  mk(`${icon('zap')} 挤压蓄势（波动率收缩 等待突破）`, r.filter(x => x.squeeze < 0.6).sort((a, b) => b.quoteVolume - a.quoteVolume).slice(0, 4), 'squeeze',
     x => `BBW 收缩至均值 ${fmtPct(x.squeeze, 0, false)} · 24h额 ${fmtVol(x.quoteVolume)}`);
-  mk('🔵 放量异动（量能 > 2.5 倍）', r.filter(x => x.volRatio > 2.5).sort((a, b) => b.volRatio - a.volRatio).slice(0, 4), 'accum',
+  mk(`${icon('activity')} 放量异动（量能 > 2.5 倍）`, r.filter(x => x.volRatio > 2.5).sort((a, b) => b.volRatio - a.volRatio).slice(0, 4), 'accum',
     x => `量比 ${fmtNum(x.volRatio, 1)}× · 24h ${x.change24h != null ? fmtPct100(x.change24h) : '—'}`);
 
-  $('oppContent').innerHTML = sections.join('') || '<div class="placeholder">未发现明显机会</div>';
-  $('oppContent').querySelectorAll('.opp-card').forEach(card => {
-    card.addEventListener('click', () => goDashboard(card.dataset.sym, state.market, state.interval));
-  });
+  swapHTML($('oppContent'), sections.join('') || '<div class="placeholder">未发现明显机会</div>');
+  setTimeout(() => {
+    $('oppContent').querySelectorAll('.opp-card').forEach(card => {
+      card.addEventListener('click', () => goDashboard(card.dataset.sym, state.market, state.interval));
+    });
+  }, 160);
 }
 
 // ---------------- 结果表 ----------------
