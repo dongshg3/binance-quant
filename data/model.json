@@ -1,6 +1,6 @@
 {
- "version": 8,
- "trainedAt": "2026-10-13T14:38:46+00:00",
+ "version": 7,
+ "trainedAt": "2026-10-13T10:31:10+00:00",
  "engine": "ridge-v4-noleak",
  "fwdBars": 12,
  "weights": {
@@ -13,7 +13,7 @@
   "htf": -0.1522,
   "futures": 0.1
  },
- "scoreScale": 0.06694078,
+ "scoreScale": 0.06670658,
  "staticWeights": {
   "trend": 0.22,
   "momentum": 0.18,
@@ -25,49 +25,49 @@
   "futures": 0.1
  },
  "factorIC": {
-  "trend": -0.0181,
-  "momentum": -0.0179,
-  "meanRev": -0.0081,
-  "volume": 0.0101,
-  "volatility": 0.0015,
-  "position": -0.0212,
-  "htf": -0.0451,
-  "futures": 0.0038
+  "trend": -0.0192,
+  "momentum": -0.0155,
+  "meanRev": -0.0047,
+  "volume": 0.007,
+  "volatility": 0.0009,
+  "position": -0.0231,
+  "htf": -0.0641,
+  "futures": 0.0051
  },
  "oos": {
-  "ic": 0.0007,
-  "icInSample": 0.0367,
-  "icXS": -0.0092,
-  "icPerSymbolMean": -0.01,
-  "icPerSymbolMedian": -0.0125,
-  "gapInOut": 0.036,
-  "lsSpread": -0.00032,
-  "lsSharpe": -0.1
+  "ic": 0.0032,
+  "icInSample": 0.0369,
+  "icXS": -0.0067,
+  "icPerSymbolMean": -0.0053,
+  "icPerSymbolMedian": -0.0069,
+  "gapInOut": 0.0337,
+  "lsSpread": -0.000224,
+  "lsSharpe": -0.07
  },
  "diagnostics": {
   "icDecay": {
-   "1": 0.009,
-   "2": 0.0055,
-   "4": 0.0029,
-   "8": 0.0061,
-   "24": -0.0074
+   "1": 0.0097,
+   "2": 0.0061,
+   "4": 0.004,
+   "8": 0.0074,
+   "24": -0.0024
   },
   "perSymbol": {
-   "mean": -0.01,
-   "median": -0.0125,
-   "worst": -0.1957,
-   "best": 0.1695
+   "mean": -0.0053,
+   "median": -0.0069,
+   "worst": -0.2098,
+   "best": 0.3552
   },
   "randomIC": {
-   "mean": 0.0011,
-   "std": 0.0212,
-   "percentile": 0.48
+   "mean": 0.0008,
+   "std": 0.0267,
+   "percentile": 0.525
   },
-  "xsBuckets": 975,
+  "xsBuckets": 977,
   "embargo": 200
  },
  "accepted": false,
- "rejectReason": "单币种IC -0.0100 < 0.02",
+ "rejectReason": "单币种IC -0.0053 < 0.02",
  "tracker": {
   "n": 0,
   "icNew": null,
@@ -75,8 +75,8 @@
   "gate": "skipped(<30样本)"
  },
  "meta": {
-  "symbols": 149,
-  "samples": 525430,
+  "symbols": 150,
+  "samples": 529101,
   "interval": "1h",
   "ridgeLambda": 5.0,
   "alpha": 0.6,
