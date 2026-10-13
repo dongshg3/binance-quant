@@ -65,10 +65,14 @@ async function marketGet(market, path, timeoutMs) {
 }
 
 // 全部可交易币种（合约 = 全部 USDT 永续；镜像降级时 = 全部 USDT 现货）
+// 稳定币/指数合约：价格动态是脱锚噪音或合成指数，因子信号无意义，全站排除
+export const EXCLUDED_BASES = new Set(['USDC', 'FDUSD', 'TUSD', 'USDP', 'DAI', 'BUSD', 'USD1', 'USDD', 'USDE', 'USDS', 'BTCDOM']);
+
 export async function loadAllSymbols(market = 'futures') {
   const data = await marketGet(market, '/exchangeInfo', 10000);
   const mirror = market === 'futures' && futuresBlocked === true;
   const symbols = (data.symbols || []).filter(s => {
+    if (EXCLUDED_BASES.has(s.baseAsset)) return false;
     if (market === 'futures' && !mirror) return s.quoteAsset === 'USDT' && s.contractType === 'PERPETUAL' && s.status === 'TRADING';
     return s.quoteAsset === 'USDT' && s.status === 'TRADING' && !s.symbol.includes('UP') && !s.symbol.includes('DOWN') && !s.symbol.includes('BULL') && !s.symbol.includes('BEAR');
   }).map(s => s.symbol);
