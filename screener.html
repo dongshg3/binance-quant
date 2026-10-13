@@ -6,7 +6,7 @@
 <title>全市场扫描 · 币安量化系统</title>
 <meta name="description" content="扫描币安全部 USDT 永续合约：多因子评分、信号分级、机会发现">
 <link rel="stylesheet" href="css/main.css">
-<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📈</text></svg>">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%232563eb' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M9 5v4'/><rect width='4' height='6' x='7' y='9' rx='1'/><path d='M9 15v2'/><path d='M17 3v2'/><rect width='4' height='8' x='15' y='5' rx='1'/><path d='M17 13v3'/><path d='M3 3v16a2 2 0 0 0 2 2h16'/></svg>">
 </head>
 <body>
 <div class="page">
@@ -29,7 +29,7 @@
       <option value="short">仅看空</option>
       <option value="strong">仅强信号</option>
     </select>
-    <button id="scanBtn" class="primary">🔍 开始扫描</button>
+    <button id="scanBtn" class="primary"><span data-icon="search"></span>开始扫描</button>
     <label><input type="checkbox" id="autoScan"> 每5分钟自动扫描</label>
     <span style="font-size:11px;color:var(--text-dim)" id="scanStatus">就绪</span>
   </div>
@@ -44,13 +44,13 @@
 
   <!-- 资金费率热力图 -->
   <div class="panel" style="margin-bottom:14px;" id="heatPanel">
-    <h3>🌡️ 资金费率热力图 <span class="sub" id="heatSub">按 24h 成交额 Top 60 · 深红 = 多头付费拥挤 · 深蓝 = 空头付费拥挤</span></h3>
+    <h3><span data-icon="thermometer"></span>资金费率热力图 <span class="sub" id="heatSub">按 24h 成交额 Top 60 · 深红 = 多头付费拥挤 · 深蓝 = 空头付费拥挤</span></h3>
     <div class="heat-legend">
-      <span><span class="lg" style="background:rgba(33,150,243,0.85)"></span>≤ -0.05% 空头付费</span>
-      <span><span class="lg" style="background:rgba(33,150,243,0.4)"></span>-0.05 ~ -0.01%</span>
-      <span><span class="lg" style="background:#2b3139"></span>中性</span>
-      <span><span class="lg" style="background:rgba(246,70,93,0.4)"></span>+0.01 ~ +0.05%</span>
-      <span><span class="lg" style="background:rgba(246,70,93,0.85)"></span>≥ +0.05% 多头付费</span>
+      <span><span class="lg" style="background:rgba(37,99,235,0.85)"></span>≤ -0.05% 空头付费</span>
+      <span><span class="lg" style="background:rgba(37,99,235,0.4)"></span>-0.05 ~ -0.01%</span>
+      <span><span class="lg" style="background:#d5dbe4"></span>中性</span>
+      <span><span class="lg" style="background:rgba(220,38,38,0.4)"></span>+0.01 ~ +0.05%</span>
+      <span><span class="lg" style="background:rgba(220,38,38,0.85)"></span>≥ +0.05% 多头付费</span>
       <span style="margin-left:auto;">极端费率往往是反向信号 · 点击色块跳转深度分析</span>
     </div>
     <div class="heat-grid" id="heatGrid"><div class="placeholder" style="grid-column:1/-1;">合约模式下扫描后显示</div></div>
@@ -58,7 +58,7 @@
 
   <!-- 机会发现 -->
   <div class="panel" style="margin-bottom:14px;">
-    <h3>💡 机会发现 <span class="sub">点击卡片跳转深度分析</span></h3>
+    <h3><span data-icon="bulb"></span>机会发现 <span class="sub">点击卡片跳转深度分析</span></h3>
     <div id="oppContent"><div class="placeholder">运行扫描后自动挖掘机会</div></div>
   </div>
 
