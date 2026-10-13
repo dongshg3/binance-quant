@@ -396,11 +396,11 @@ def group_scores(ohlcv, fut=None):
     return out, aux
 
 # ---------------- 统计工具 ----------------
-def spearman(x, y):
+def spearman(x, y, min_n=30):
     x = np.asarray(x); y = np.asarray(y)
     mask = ~(np.isnan(x) | np.isnan(y))
     x, y = x[mask], y[mask]
-    if len(x) < 30:
+    if len(x) < min_n:
         return 0.0
     rx = np.argsort(np.argsort(x)).astype(float)
     ry = np.argsort(np.argsort(y)).astype(float)
@@ -504,11 +504,13 @@ def tracker_ic(weights, rows):
 
 def cross_sectional_ic(pred, y, ts, min_n=5):
     """横截面 IC：每个时间戳内对币种排序求 Spearman，再取平均。
-    这是"选币能力"的诚实口径——混合 IC 会被跨币种同涨同跌严重虚增。"""
+    这是"选币能力"的诚实口径——混合 IC 会被跨币种同涨同跌严重虚增。
+    桶内样本量门槛随分段缩小（小分段桶只有 10-30 个币种，显著性由 NW t 把关）。"""
     buckets = {}
     for k in range(len(y)):
         buckets.setdefault(int(ts[k]), []).append(k)
-    ics = [spearman(pred[idx], y[idx]) for idx in buckets.values() if len(idx) >= min_n]
+    sp_min = max(5, min(30, min_n))
+    ics = [spearman(pred[idx], y[idx], min_n=sp_min) for idx in buckets.values() if len(idx) >= min_n]
     return (float(np.mean(ics)), len(ics), ics) if ics else (None, 0, [])
 
 # ---------------- 数据 ----------------
