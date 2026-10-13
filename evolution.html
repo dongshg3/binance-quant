@@ -52,8 +52,8 @@
   <div class="panel" style="margin-bottom:14px;">
     <h3>🗂️ 训练运行历史 <span class="sub">GitHub Actions 每 6 小时自动训练</span></h3>
     <table class="table" style="margin-top:6px;">
-      <thead><tr><th>版本</th><th>训练时间 (UTC)</th><th>币种数</th><th>样本数</th><th>样本内 IC</th><th>样本外 IC</th><th>多空夏普</th></tr></thead>
-      <tbody id="histBody"><tr><td colspan="7" style="color:var(--text-dim)">加载中…</td></tr></tbody>
+      <thead><tr><th>版本</th><th>训练时间 (UTC)</th><th>币种数</th><th>样本数</th><th>样本内 IC</th><th>样本外 IC</th><th>实盘 IC</th><th>闸门</th><th>多空夏普</th></tr></thead>
+      <tbody id="histBody"><tr><td colspan="9" style="color:var(--text-dim)">加载中…</td></tr></tbody>
     </table>
   </div>
 
@@ -64,7 +64,7 @@
     <div id="trackerTables" style="margin-top:10px;"></div>
     <div style="margin-top:12px;">
       <button id="exportBtn" class="primary">⬇ 导出 CSV</button>
-      <span style="font-size:11px;color:var(--text-dim);margin-left:10px;" id="exportStatus">数据仅存于本浏览器，可导出用于离线分析</span>
+      <span style="font-size:11px;color:var(--text-dim);margin-left:10px;" id="exportStatus">数据仅存于本浏览器 · 导出后放入项目 data/tracker/ 目录，云端训练自动用于更新闸门（不参与拟合，防过拟合）</span>
     </div>
   </div>
 
