@@ -1,0 +1,45 @@
+{
+ "version": 1,
+ "trainedAt": "2026-10-13T04:14:52+00:00",
+ "engine": "ridge-v1",
+ "fwdBars": 12,
+ "weights": {
+  "trend": 0.1114,
+  "momentum": -0.3836,
+  "meanRev": 0.1992,
+  "volume": -0.0945,
+  "volatility": -0.0695,
+  "position": 0.0416,
+  "futures": 0.1
+ },
+ "staticWeights": {
+  "trend": 0.25,
+  "momentum": 0.2,
+  "meanRev": 0.15,
+  "volume": 0.15,
+  "volatility": 0.1,
+  "position": 0.05,
+  "futures": 0.1
+ },
+ "factorIC": {
+  "trend": -0.036,
+  "momentum": -0.3792,
+  "meanRev": -0.0686,
+  "volume": 0.0847,
+  "volatility": -0.0289,
+  "position": -0.0296
+ },
+ "oos": {
+  "ic": 0.3586,
+  "icInSample": 0.3771,
+  "lsSpread": 0.023585,
+  "lsSharpe": 11.57
+ },
+ "meta": {
+  "symbols": 12,
+  "samples": 5856,
+  "interval": "1h",
+  "ridgeLambda": 5.0,
+  "note": "权重由岭回归从历史数据学习，futures 组固定 0.10"
+ }
+}
