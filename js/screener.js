@@ -6,6 +6,7 @@ import { loadAllSymbols, loadTickers, fetchKlines, fetchAllPremiumIndex } from '
 import { computeFactors, computePosition, detectRegime, signalOf, buildTradePlan } from './lib/quant.js';
 import { renderNav, setNet, fmtPrice, fmtPct100, fmtPct, fmtNum, fmtVol, clsBySign, goDashboard, disclaimerHTML } from './lib/ui.js';
 import { loadModel } from './lib/model.js';
+import { logSignal, labelOutcomes } from './lib/tracker.js';
 
 renderNav('screener');
 document.getElementById('disclaimerSlot').innerHTML = disclaimerHTML();
@@ -143,6 +144,16 @@ async function scanMarket() {
           if (f) {
             const pos = computePosition(f.composite, candles, state.interval);
             const tk = state.tickers[sym] || {};
+            // 多空信号（|评分|≥0.15）写入追踪器，后续自动回填实际走势
+            if (Math.abs(f.composite) >= 0.15) {
+              logSignal({
+                time: Date.now(), symbol: sym, interval: state.interval, market: state.market,
+                price: candles[candles.length - 1].close, composite: f.composite, fused: null,
+                direction: Math.sign(f.composite), weightSource: f.weightSource,
+                groupAverages: f.groupAverages, regime: detectRegime(f.rawIndicators).label,
+                origin: 'screener',
+              });
+            }
             results.push({
               symbol: sym,
               price: candles[candles.length - 1].close,
@@ -184,6 +195,7 @@ async function scanMarket() {
   renderOpportunities();
   renderTable();
   saveCache(); // 持久化，刷新页面不丢失
+  labelOutcomes(fetchKlines); // 回填到期信号的实际走势（静默）
 }
 
 // ---------------- 市场宽度 ----------------
@@ -246,6 +258,20 @@ function renderHeatmap() {
   $('heatSub').textContent = `按 24h 成交额 Top ${entries.length} · 红 = 多头付费（拥挤看多，警惕回撤） · 蓝 = 空头付费（拥挤看空，警惕反弹）`;
 }
 
+// ---------------- 机会分级与质量分 ----------------
+function tierOf(score) {
+  const a = Math.abs(score);
+  if (a >= 0.5) return { key: 'S', label: '极强', cls: 'tS' };
+  if (a >= 0.35) return { key: 'A', label: '强烈', cls: 'tA' };
+  if (a >= 0.15) return { key: 'B', label: '普通', cls: 'tB' };
+  return { key: 'C', label: '弱', cls: 'tC' };
+}
+// 机会质量分 = 信号强度 60% + 趋势强度(ADX) 25% + 量能参与 15%
+// 比裸评分排序更抗噪音：高分但无趋势/无量能配合的信号会被降权
+function qualityOf(x) {
+  return Math.abs(x.score) * 0.6 + Math.min((x.adx || 0) / 50, 1) * 0.25 + Math.min((x.volRatio || 0) / 3, 1) * 0.15;
+}
+
 // ---------------- 机会发现 ----------------
 function renderOpportunities() {
   const r = state.results;
@@ -269,23 +295,31 @@ function renderOpportunities() {
       <div style="margin-bottom:16px;">
         <div style="font-size:12px;color:var(--text-dim);margin-bottom:8px;text-transform:uppercase;letter-spacing:.5px;">${title}</div>
         <div class="opp-grid">
-          ${list.map(x => `
-            <div class="opp-card ${cls}" data-sym="${x.symbol}">
+          ${list.map(x => {
+            const t = tierOf(x.score);
+            const dirCls = x.score < 0 ? 'sell' : 'buy';
+            return `
+            <div class="opp-card ${cls} tier-${t.cls}" data-sym="${x.symbol}">
               <div style="display:flex;justify-content:space-between;align-items:center;">
                 <span class="sym">${x.symbol.replace('USDT', '')}<span style="color:var(--text-dim);font-size:10px;">/USDT</span></span>
-                <span class="${clsBySign(x.score)}" style="font-weight:700;">${fmtNum(x.score, 2)}</span>
+                <span class="tier-badge ${t.cls}-${dirCls}">${t.key} · ${t.label}</span>
+              </div>
+              <div style="display:flex;justify-content:space-between;align-items:center;margin-top:4px;">
+                <span class="${clsBySign(x.score)}" style="font-weight:700;font-size:16px;">${fmtNum(x.score, 2)}</span>
+                <span style="font-size:10px;color:var(--text-faint);">质量分 ${(qualityOf(x) * 100).toFixed(0)}</span>
               </div>
               <div class="meta">${fmtPrice(x.price)} · 24h ${x.change24h != null ? fmtPct100(x.change24h) : '—'} · 额 ${fmtVol(x.quoteVolume)}</div>
               <div class="reason">${reasonFn(x)}</div>
               ${withPlan ? miniPlan(x) : ''}
-            </div>`).join('')}
+            </div>`;
+          }).join('')}
         </div>
       </div>`);
   };
 
-  mk('🟢 做多机会（评分最高）', [...r].sort((a, b) => b.score - a.score).slice(0, 4), '',
+  mk('🟢 做多机会（按质量分排序）', r.filter(x => x.score > 0).sort((a, b) => qualityOf(b) - qualityOf(a)).slice(0, 4), '',
     x => `RSI ${fmtNum(x.rsi, 0)} · ADX ${fmtNum(x.adx, 0)} · ${x.regime.label} · 建议仓位 ${fmtPct(x.position, 0, false)}`, true);
-  mk('🔴 做空机会（评分最低）', [...r].sort((a, b) => a.score - b.score).slice(0, 4), 'sell',
+  mk('🔴 做空机会（按质量分排序）', r.filter(x => x.score < 0).sort((a, b) => qualityOf(b) - qualityOf(a)).slice(0, 4), 'sell',
     x => `RSI ${fmtNum(x.rsi, 0)} · ADX ${fmtNum(x.adx, 0)} · ${x.regime.label} · 建议仓位 ${fmtPct(x.position, 0, false)}`, true);
   mk('🟡 挤压蓄势（波动率收缩，等待突破）', r.filter(x => x.squeeze < 0.6).sort((a, b) => b.quoteVolume - a.quoteVolume).slice(0, 4), 'squeeze',
     x => `BBW 收缩至均值 ${fmtPct(x.squeeze, 0, false)} · 24h额 ${fmtVol(x.quoteVolume)}`);
@@ -316,12 +350,15 @@ function renderTable() {
   $('resultCount').textContent = `${list.length} 个币种 · 点击行查看深度分析`;
   $('screenerBody').innerHTML = list.map(x => {
     const sig = signalOf(x.score);
-    return `<tr data-sym="${x.symbol}">
+    const t = tierOf(x.score);
+    const rowCls = t.cls === 'tS' || t.cls === 'tA' ? (x.score > 0 ? 'row-tA-buy' : 'row-tA-sell')
+      : t.cls === 'tB' ? (x.score > 0 ? 'row-tB-buy' : 'row-tB-sell') : '';
+    return `<tr data-sym="${x.symbol}" class="${rowCls}">
       <td><b>${x.symbol.replace('USDT', '')}</b><span style="color:var(--text-dim);font-size:10px;">/USDT</span></td>
       <td>${fmtPrice(x.price)}</td>
       <td class="${clsBySign(x.change24h)}">${x.change24h != null ? fmtPct100(x.change24h) : '—'}</td>
       <td>${fmtVol(x.quoteVolume)}</td>
-      <td class="${clsBySign(x.score)}" style="font-weight:700">${fmtNum(x.score, 3)}</td>
+      <td><span class="score-chip ${t.cls}-${x.score > 0 ? 'buy' : 'sell'}">${fmtNum(x.score, 3)}${t.key !== 'C' ? ' ' + t.key : ''}</span></td>
       <td class="${x.rsi > 70 ? 'down' : x.rsi < 30 ? 'up' : ''}">${fmtNum(x.rsi, 1)}</td>
       <td>${fmtNum(x.adx, 1)}</td>
       <td>${fmtPct(x.annVol, 0, false)}</td>
