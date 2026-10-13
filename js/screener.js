@@ -3,7 +3,7 @@
 // ============================================================
 import { Stats } from './lib/stats.js';
 import { loadAllSymbols, loadTickers, fetchKlines, fetchAllPremiumIndex } from './lib/api.js';
-import { computeFactors, computePosition, detectRegime, signalOf, buildTradePlan } from './lib/quant.js';
+import { computeFactors, computePosition, detectRegime, signalOf, buildTradePlan, weightSourceInfo } from './lib/quant.js';
 import { renderNav, setNet, fmtPrice, fmtPct100, fmtPct, fmtNum, fmtVol, clsBySign, goDashboard, disclaimerHTML, icon, swapHTML } from './lib/ui.js';
 import { loadModel, getModel } from './lib/model.js';
 import { logSignal, labelOutcomes } from './lib/tracker.js';
@@ -140,10 +140,14 @@ async function scanMarket() {
       try {
         const candles = await fetchKlines(sym, state.interval, 120, state.market);
         if (candles.length >= 60) {
-          const f = computeFactors(candles, null, sym);
+          // 合约市场把资金费率喂给因子引擎（futures 因子组参与学习权重，不传则评分系统性缺失一组信号）
+          const extra = state.market === 'futures' && state.funding[sym]
+            ? { fundingRate: state.funding[sym].fundingRate } : null;
+          const f = computeFactors(candles, extra, sym);
           if (f) {
             const pos = computePosition(f.composite, candles, state.interval);
             const tk = state.tickers[sym] || {};
+            const edge = weightSourceInfo(sym);
             // 多空信号（|评分|≥0.15）写入追踪器，后续自动回填实际走势
             if (Math.abs(f.composite) >= 0.15) {
               logSignal({
@@ -169,6 +173,8 @@ async function scanMarket() {
               position: pos.size,
               direction: pos.direction,
               regime: detectRegime(f.rawIndicators),
+              funding: extra ? extra.fundingRate : null,
+              edgeKind: edge.kind, edgeKey: edge.key, edgeFlipped: edge.flipped, edgeIC: edge.ic,
             });
           }
         }
@@ -182,6 +188,20 @@ async function scanMarket() {
   }
 
   await Promise.all(Array.from({ length: CONCURRENCY }, () => worker()));
+
+  // 横截面标定：模型训练目标是截面排序（XS IC），相对排名比绝对分更贴近模型本义
+  // 为每个币种计算 z 分数与百分位（ signed：做多看高分端，做空看低分端）
+  if (results.length > 5) {
+    const sorted = results.map(x => x.score).slice().sort((a, b) => a - b);
+    const mu = Stats.mean(sorted);
+    const sd = Math.sqrt(Stats.mean(sorted.map(s => (s - mu) * (s - mu)))) || 1e-9;
+    for (const x of results) {
+      x.xsZ = (x.score - mu) / sd;
+      let lo = 0, hi = sorted.length;
+      while (lo < hi) { const mid = (lo + hi) >> 1; if (sorted[mid] < x.score) lo = mid + 1; else hi = mid; }
+      x.xsPct = lo / (sorted.length - 1);
+    }
+  }
 
   state.results = results;
   state.scanning = false;
@@ -271,6 +291,22 @@ function tierOf(score) {
 function qualityOf(x) {
   return Math.abs(x.score) * 0.6 + Math.min((x.adx || 0) / 50, 1) * 0.25 + Math.min((x.volRatio || 0) / 3, 1) * 0.15;
 }
+// 机会排序分 = 质量分 × 模型优势加成
+// 该币种生效权重来源的样本外 IC 越高，其信号的历史兑现能力越强，最多加成 2 倍
+// 无 IC 信息（旧缓存/静态权重）按全局 IC 0.02 中性处理（加成 1.2）
+function oppRank(x) {
+  const ic = x.edgeIC != null ? Math.min(Math.max(x.edgeIC, 0), 0.1) : 0.02;
+  return qualityOf(x) * (1 + ic / 0.1);
+}
+// 权重来源的中文标签
+const EDGE_KEY_CN = { major: '主流', l1: 'L1', l2: 'L2', defi: 'DeFi', meme: 'Meme', ai: 'AI', gaming: '游戏', infra: '基建', other: '其他', large: '大盘', mid: '中盘', small: '小盘' };
+function edgeLabel(x) {
+  if (!x.edgeKind) return '—';
+  if (x.edgeKind === 'coin') return '逐币模型';
+  if (x.edgeKind === 'global') return '全局模型';
+  if (x.edgeKind === 'static') return '静态权重';
+  return `${EDGE_KEY_CN[x.edgeKey] || x.edgeKey}${x.edgeKind === 'cat' ? '板块' : ''}${x.edgeFlipped ? '·反向' : ''}`;
+}
 
 // ---------------- 机会发现 ----------------
 function renderOpportunities() {
@@ -298,6 +334,8 @@ function renderOpportunities() {
           ${list.map(x => {
             const t = tierOf(x.score);
             const dirCls = x.score < 0 ? 'sell' : 'buy';
+            const pctTxt = x.xsPct != null ? `超过 ${(Math.abs(x.xsPct - (x.score < 0 ? 1 : 0)) * 100).toFixed(0)}% 币种` : '';
+            const edgeTxt = x.edgeIC != null ? `${edgeLabel(x)} · IC ${x.edgeIC.toFixed(3)}` : edgeLabel(x);
             return `
             <div class="opp-card ${cls} tier-${t.cls}" data-sym="${x.symbol}">
               <div style="display:flex;justify-content:space-between;align-items:center;">
@@ -306,10 +344,11 @@ function renderOpportunities() {
               </div>
               <div style="display:flex;justify-content:space-between;align-items:center;margin-top:4px;">
                 <span class="${clsBySign(x.score)}" style="font-weight:700;font-size:16px;">${fmtNum(x.score, 2)}</span>
-                <span style="font-size:10px;color:var(--text-faint);">质量分 ${(qualityOf(x) * 100).toFixed(0)}</span>
+                <span style="font-size:10px;color:var(--text-faint);">质量分 ${(qualityOf(x) * 100).toFixed(0)}${pctTxt ? ' · ' + pctTxt : ''}</span>
               </div>
-              <div class="meta">${fmtPrice(x.price)} · 24h ${x.change24h != null ? fmtPct100(x.change24h) : '—'} · 额 ${fmtVol(x.quoteVolume)}</div>
+              <div class="meta">${fmtPrice(x.price)} · 24h ${x.change24h != null ? fmtPct100(x.change24h) : '—'} · 额 ${fmtVol(x.quoteVolume)}${x.funding != null ? ` · 费率 ${fmtPct(x.funding, 3, false)}` : ''}</div>
               <div class="reason">${reasonFn(x)}</div>
+              <div style="font-size:10px;margin-top:4px;"><span class="chip trend" style="padding:1px 6px;">${edgeTxt}</span></div>
               ${withPlan ? miniPlan(x) : ''}
             </div>`;
           }).join('')}
@@ -317,14 +356,26 @@ function renderOpportunities() {
       </div>`);
   };
 
-  mk(`${icon('trendUp')} 做多机会（|评分| ≥ 0.15，按质量分排序）`, r.filter(x => x.score >= 0.15).sort((a, b) => qualityOf(b) - qualityOf(a)).slice(0, 4), '',
+  mk(`${icon('trendUp')} 做多机会（|评分| ≥ 0.15，按 质量×模型优势 排序）`, r.filter(x => x.score >= 0.15).sort((a, b) => oppRank(b) - oppRank(a)).slice(0, 4), '',
     x => `RSI ${fmtNum(x.rsi, 0)} · ADX ${fmtNum(x.adx, 0)} · ${x.regime.label} · 建议仓位 ${fmtPct(x.position, 0, false)}`, true);
-  mk(`${icon('trendDown')} 做空机会（|评分| ≥ 0.15，按质量分排序）`, r.filter(x => x.score <= -0.15).sort((a, b) => qualityOf(b) - qualityOf(a)).slice(0, 4), 'sell',
+  mk(`${icon('trendDown')} 做空机会（|评分| ≥ 0.15，按 质量×模型优势 排序）`, r.filter(x => x.score <= -0.15).sort((a, b) => oppRank(b) - oppRank(a)).slice(0, 4), 'sell',
     x => `RSI ${fmtNum(x.rsi, 0)} · ADX ${fmtNum(x.adx, 0)} · ${x.regime.label} · 建议仓位 ${fmtPct(x.position, 0, false)}`, true);
   mk(`${icon('zap')} 挤压蓄势（波动率收缩 等待突破）`, r.filter(x => x.squeeze < 0.6).sort((a, b) => b.quoteVolume - a.quoteVolume).slice(0, 4), 'squeeze',
     x => `BBW 收缩至均值 ${fmtPct(x.squeeze, 0, false)} · 24h额 ${fmtVol(x.quoteVolume)}`);
   mk(`${icon('activity')} 放量异动（量能 > 2.5 倍）`, r.filter(x => x.volRatio > 2.5).sort((a, b) => b.volRatio - a.volRatio).slice(0, 4), 'accum',
     x => `量比 ${fmtNum(x.volRatio, 1)}× · 24h ${x.change24h != null ? fmtPct100(x.change24h) : '—'}`);
+
+  // 横截面相对强度榜：模型的训练目标是截面排序（XS IC），绝对分未达阈值时相对排名仍含信息
+  // 明确标注「相对」——震荡市里全市场绝对分都低时，这是排序意义上的最强/最弱，不等于可交易信号
+  const withPct = r.filter(x => x.xsPct != null);
+  if (withPct.length > 10) {
+    mk(`${icon('chartLine')} 相对强度榜 · 多头侧（横截面排名前 4，非绝对信号）`,
+      withPct.slice().sort((a, b) => b.xsPct - a.xsPct).slice(0, 4), '',
+      x => `横截面分位 ${(x.xsPct * 100).toFixed(0)}% · z=${fmtNum(x.xsZ, 2)} · ${x.regime.label} · 评分未达 0.15 阈值时仅作排序参考`);
+    mk(`${icon('chartLine')} 相对强度榜 · 空头侧（横截面排名末 4，非绝对信号）`,
+      withPct.slice().sort((a, b) => a.xsPct - b.xsPct).slice(0, 4), 'sell',
+      x => `横截面分位 ${(x.xsPct * 100).toFixed(0)}% · z=${fmtNum(x.xsZ, 2)} · ${x.regime.label} · 评分未达 -0.15 阈值时仅作排序参考`);
+  }
 
   swapHTML($('oppContent'), sections.join('') || '<div class="placeholder">未发现明显机会</div>');
   setTimeout(() => {
@@ -341,6 +392,8 @@ function renderTable() {
   if (filter === 'long') list = list.filter(x => x.score >= 0.15);
   else if (filter === 'short') list = list.filter(x => x.score <= -0.15);
   else if (filter === 'strong') list = list.filter(x => Math.abs(x.score) >= 0.35);
+  else if (filter === 'edge') list = list.filter(x => (x.edgeIC ?? 0) >= 0.03);
+  else if (filter === 'coin') list = list.filter(x => x.edgeKind === 'coin');
 
   const { sortKey, sortDir } = state;
   list.sort((a, b) => {
@@ -366,6 +419,7 @@ function renderTable() {
       <td class="${clsBySign(x.change24h)}">${x.change24h != null ? fmtPct100(x.change24h) : '—'}</td>
       <td>${fmtVol(x.quoteVolume)}</td>
       <td><span class="score-chip ${t.cls}-${x.score > 0 ? 'buy' : 'sell'}">${fmtNum(x.score, 3)}${t.key !== 'C' ? ' ' + t.key : ''}</span></td>
+      <td>${x.edgeKind ? `<span class="chip ${x.edgeKind === 'coin' ? 'long' : x.edgeFlipped ? 'trend' : 'flat'}" style="padding:1px 6px;font-size:9px;" title="该币种评分使用的权重来源及其样本外 IC">${edgeLabel(x)}${x.edgeIC != null ? ` ${x.edgeIC.toFixed(3)}` : ''}</span>` : '<span style="color:var(--text-faint)">—</span>'}</td>
       <td class="${x.rsi > 70 ? 'down' : x.rsi < 30 ? 'up' : ''}">${fmtNum(x.rsi, 1)}</td>
       <td>${fmtNum(x.adx, 1)}</td>
       <td>${fmtPct(x.annVol, 0, false)}</td>
@@ -373,7 +427,7 @@ function renderTable() {
       <td><span class="chip ${x.regime.cls}">${x.regime.label}</span></td>
       <td><span class="chip ${sig.dir > 0 ? 'long' : sig.dir < 0 ? 'short' : 'flat'}">${sig.label}</span></td>
     </tr>`;
-  }).join('') || '<tr><td colspan="11" class="placeholder">无匹配结果</td></tr>';
+  }).join('') || '<tr><td colspan="12" class="placeholder">无匹配结果</td></tr>';
 
   $('screenerBody').querySelectorAll('tr[data-sym]').forEach(tr => {
     tr.addEventListener('click', () => goDashboard(tr.dataset.sym, state.market, state.interval));
