@@ -5,6 +5,7 @@ import { Stats } from './lib/stats.js';
 import { loadAllSymbols, loadTickers, fetchKlines, fetchAllPremiumIndex } from './lib/api.js';
 import { computeFactors, computePosition, detectRegime, signalOf, buildTradePlan } from './lib/quant.js';
 import { renderNav, setNet, fmtPrice, fmtPct100, fmtPct, fmtNum, fmtVol, clsBySign, goDashboard, disclaimerHTML } from './lib/ui.js';
+import { loadModel } from './lib/model.js';
 
 renderNav('screener');
 document.getElementById('disclaimerSlot').innerHTML = disclaimerHTML();
@@ -55,6 +56,7 @@ function loadCache() {
 
 async function init() {
   setNet('加载币种列表…', 'connecting');
+  await loadModel(); // 扫描前先拿到云端学习权重（失败则自动回退静态权重）
   try {
     state.symbols = await loadAllSymbols(state.market);
     state.tickers = await loadTickers(state.market);
