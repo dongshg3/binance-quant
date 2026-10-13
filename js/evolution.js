@@ -11,9 +11,9 @@ const $ = id => document.getElementById(id);
 
 const GROUP_COLORS = {
   trend: '#f0b90b', momentum: '#2196f3', meanRev: '#0ecb81',
-  volume: '#b37feb', volatility: '#f6465d', position: '#2ebd85', futures: '#848e9c',
+  volume: '#b37feb', volatility: '#f6465d', position: '#2ebd85', htf: '#ff7043', futures: '#848e9c',
 };
-const GROUP_ORDER = ['trend', 'momentum', 'meanRev', 'volume', 'volatility', 'position', 'futures'];
+const GROUP_ORDER = ['trend', 'momentum', 'meanRev', 'volume', 'volatility', 'position', 'htf', 'futures'];
 
 async function fetchJSON(path) {
   const res = await fetch(path + '?t=' + Date.now(), { cache: 'no-store' });
