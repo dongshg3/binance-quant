@@ -36,21 +36,22 @@ export const FAMILIES = {
   random:     { name: '随机对照', weights: null },   // 每赛季重新随机：冠军的及格线
   staticRef:  { name: '静态对照', weights: { trend: 0.22, momentum: 0.18, meanRev: 0.13, volume: 0.13, volatility: 0.09, position: 0.05, htf: 0.10, futures: 0.10 } },
   learned:    { name: '云端模型', weights: null },   // data/model.json 全局学习权重，随云端训练自动更新
+  coin:       { name: '逐币模型', weights: null },   // data/model.json coinModels：34 个单币种专训权重，实盘验证场
 };
-const CONTROL_FAMILIES = new Set(['random', 'staticRef', 'learned']); // 基准组：不淘汰、不复制
+const CONTROL_FAMILIES = new Set(['random', 'staticRef', 'learned', 'coin']); // 基准组：不淘汰、不复制
 
-// 云端学习权重（6 小时缓存；竞技场里 learned 族选手的权重来源）
+// 云端学习权重（6 小时缓存；learned 族用全局权重，coin 族用 coinModels 逐币权重）
 async function fetchLearnedWeights() {
   try {
     const cache = JSON.parse(localStorage.getItem('bq_arena_model') || 'null');
-    if (cache && Date.now() - cache.time < 6 * 36e5) return cache;
+    if (cache && Date.now() - cache.time < 6 * 36e5 && cache.coinModels) return cache;
   } catch (e) { /* ignore */ }
   try {
     const res = await fetch('data/model.json?t=' + Date.now(), { cache: 'no-store' });
     if (!res.ok) throw new Error('model.json HTTP ' + res.status);
     const m = await res.json();
     if (!m || !m.weights) throw new Error('model.json 无权重');
-    const out = { time: Date.now(), trainedAt: m.trainedAt, weights: m.weights };
+    const out = { time: Date.now(), trainedAt: m.trainedAt, weights: m.weights, coinModels: m.coinModels || {} };
     try { localStorage.setItem('bq_arena_model', JSON.stringify(out)); } catch (e) { /* ignore */ }
     return out;
   } catch (e) {
@@ -126,20 +127,20 @@ async function ensurePools() {
     const existing = await getAll('players');
     const have = new Set(existing.map(p => `${p.interval}|${p.family}`));
     const adds = [];
-    const needLearned = Object.keys(ARENA_INTERVALS).some(iv => !have.has(`${iv}|learned`));
+    const needLearned = Object.keys(ARENA_INTERVALS).some(iv => !have.has(`${iv}|learned`) || !have.has(`${iv}|coin`));
     const learned = needLearned ? await fetchLearnedWeights() : null;
     for (const iv of Object.keys(ARENA_INTERVALS)) {
       for (const [fam, def] of Object.entries(FAMILIES)) {
         if (have.has(`${iv}|${fam}`)) continue;  // 该周期该族已存在（任何世代）
-        const w = fam === 'learned'
-          ? { ...(learned?.weights || FAMILIES.hybrid.weights) }
+        const w = (fam === 'learned' || fam === 'coin')
+          ? { ...(learned?.weights || FAMILIES.hybrid.weights) }   // coin 族占位权重；实盘计分按币种动态取 coinModels
           : (def.weights ? { ...def.weights } : randomWeights());
         adds.push({
           id: `${iv}_${fam}_g0_${rid()}`,
           interval: iv, family: fam, familyName: def.name,
           generation: 0, parentId: null,
           weights: w,
-          modelTrainedAt: fam === 'learned' ? (learned?.trainedAt || null) : undefined,
+          modelTrainedAt: (fam === 'learned' || fam === 'coin') ? (learned?.trainedAt || null) : undefined,
           params: { horizon: ARENA_INTERVALS[iv].horizon, entryThreshold: ARENA_INTERVALS[iv].entryThreshold },
           status: 'active',
           createdAt: Date.now(), seasonStart: Date.now(),
@@ -158,17 +159,26 @@ async function ensurePools() {
 }
 
 // ---------------- 信号生成 ----------------
-function playerScore(weights, g) {
+// 计分：coin 族按币种动态取 coinModels 专训权重；该币无专训模型时返回 null（跳过）
+function playerScore(p, g, sym, coinModels) {
+  let w = p.weights;
+  if (p.family === 'coin') {
+    const cm = coinModels && coinModels[sym];
+    if (!cm || !cm.weights) return null;
+    w = cm.weights;
+  }
   let s = 0;
-  for (const k in weights) s += (weights[k] || 0) * (g[k] || 0);
+  for (const k in w) s += (w[k] || 0) * (g[k] || 0);
   return s;
 }
 
-async function generateForInterval(iv, symbols, tickers) {
+async function generateForInterval(iv, symbols) {
   const cfg = ARENA_INTERVALS[iv];
   const lastKey = `bq_arena_lastbar_${iv}`;
   const players = (await getAll('players', 'by_iv', iv)).filter(p => p.status !== 'retired');
   if (!players.length) return 0;
+  const hasCoin = players.some(p => p.family === 'coin');
+  const coinModels = hasCoin ? ((await fetchLearnedWeights())?.coinModels || null) : null;
   const db = await openDB();
   let created = 0;
   for (const sym of symbols) {
@@ -184,8 +194,8 @@ async function generateForInterval(iv, symbols, tickers) {
     if (!f) continue;
     const g = f.groupAverages;
     for (const p of players) {
-      const score = playerScore(p.weights, g);
-      if (Math.abs(score) < p.params.entryThreshold) continue;
+      const score = playerScore(p, g, sym, coinModels);
+      if (score == null || Math.abs(score) < p.params.entryThreshold) continue;
       const id = `${p.id}|${sym}|${lastBar.time}`;
       const rec = {
         id, playerId: p.id, interval: iv, symbol: sym,
@@ -197,6 +207,7 @@ async function generateForInterval(iv, symbols, tickers) {
         entryPrice: null, exitBarTime: null, exitPrice: null,
         grossReturn: null, netReturn: null, mfe: null, mae: null,
         status: 'pending_entry', createdAt: Date.now(),
+        ...(p.family === 'coin' && coinModels?.[sym] ? { coinIc: coinModels[sym].ic, coinN: coinModels[sym].n } : {}),
       };
       try { await txStore(db, 'signals', 'readwrite', s => s.put(rec)); created++; } catch (e) { /* 重复 id 忽略 */ }
     }
@@ -381,6 +392,7 @@ async function maybeRunSeason(iv) {
     randomRank: ranked.findIndex(r => r.p.family === 'random') + 1,
     staticRank: ranked.findIndex(r => r.p.family === 'staticRef') + 1,
     learnedRank: ranked.findIndex(r => r.p.family === 'learned') + 1,
+    coinRank: ranked.findIndex(r => r.p.family === 'coin') + 1,
     table: ranked.map(r => ({ family: r.p.family, name: r.p.familyName, gen: r.p.generation, n: r.ss.n, tStat: +r.ss.tStat.toFixed(2), meanRet: +r.ss.meanRet.toFixed(5), winRate: +r.ss.winRate.toFixed(3), retired: r.p.status === 'retired' })),
   };
   await txStore(db, 'seasons', 'readwrite', s => s.put(log));
@@ -402,9 +414,10 @@ export async function arenaAutoTick(force = false) {
     const lm = await fetchLearnedWeights();
     if (lm && lm.weights) {
       const db0 = await openDB();
-      for (const p of (await getAll('players')).filter(p => p.family === 'learned')) {
+      for (const p of (await getAll('players')).filter(p => p.family === 'learned' || p.family === 'coin')) {
         if (p.modelTrainedAt !== lm.trainedAt) {
-          p.weights = { ...lm.weights };
+          if (p.family === 'learned') p.weights = { ...lm.weights };
+          // coin 族权重在计分时按币种实时取自 coinModels，这里只同步模型版本标记
           p.modelTrainedAt = lm.trainedAt;
           await txStore(db0, 'players', 'readwrite', s => s.put(p));
         }
