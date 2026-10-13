@@ -1,15 +1,15 @@
 {
- "version": 1,
- "trainedAt": "2026-10-13T04:14:52+00:00",
+ "version": 2,
+ "trainedAt": "2026-10-13T04:27:50+00:00",
  "engine": "ridge-v1",
  "fwdBars": 12,
  "weights": {
-  "trend": 0.1114,
-  "momentum": -0.3836,
-  "meanRev": 0.1992,
-  "volume": -0.0945,
-  "volatility": -0.0695,
-  "position": 0.0416,
+  "trend": 0.116,
+  "momentum": -0.4672,
+  "meanRev": 0.1008,
+  "volume": -0.149,
+  "volatility": -0.0302,
+  "position": -0.0368,
   "futures": 0.1
  },
  "staticWeights": {
@@ -22,22 +22,22 @@
   "futures": 0.1
  },
  "factorIC": {
-  "trend": -0.036,
-  "momentum": -0.3792,
-  "meanRev": -0.0686,
-  "volume": 0.0847,
-  "volatility": -0.0289,
-  "position": -0.0296
+  "trend": -0.112,
+  "momentum": -0.2867,
+  "meanRev": 0.1015,
+  "volume": -0.0143,
+  "volatility": -0.0294,
+  "position": -0.0136
  },
  "oos": {
-  "ic": 0.3586,
-  "icInSample": 0.3771,
-  "lsSpread": 0.023585,
-  "lsSharpe": 11.57
+  "ic": 0.3762,
+  "icInSample": 0.4167,
+  "lsSpread": 0.045373,
+  "lsSharpe": 10.45
  },
  "meta": {
-  "symbols": 12,
-  "samples": 5856,
+  "symbols": 60,
+  "samples": 46658,
   "interval": "1h",
   "ridgeLambda": 5.0,
   "note": "权重由岭回归从历史数据学习，futures 组固定 0.10"

@@ -26,5 +26,33 @@
   "icOOS": 0.3586,
   "lsSpread": 0.023585,
   "lsSharpeOOS": 11.57
+ },
+ {
+  "version": 2,
+  "trainedAt": "2026-10-13T04:27:50+00:00",
+  "symbols": 60,
+  "samples": 46658,
+  "fwdBars": 12,
+  "weights": {
+   "trend": 0.116,
+   "momentum": -0.4672,
+   "meanRev": 0.1008,
+   "volume": -0.149,
+   "volatility": -0.0302,
+   "position": -0.0368,
+   "futures": 0.1
+  },
+  "factorIC": {
+   "trend": -0.112,
+   "momentum": -0.2867,
+   "meanRev": 0.1015,
+   "volume": -0.0143,
+   "volatility": -0.0294,
+   "position": -0.0136
+  },
+  "icInSample": 0.4167,
+  "icOOS": 0.3762,
+  "lsSpread": 0.045373,
+  "lsSharpeOOS": 10.45
  }
 ]
