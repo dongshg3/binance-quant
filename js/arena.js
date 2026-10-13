@@ -9,7 +9,8 @@ document.getElementById('disclaimerSlot').innerHTML = disclaimerHTML();
 const $ = id => document.getElementById(id);
 
 const IV_NAMES = { '15m': '15 分钟', '1h': '1 小时', '4h': '4 小时', '1d': '日线' };
-const CONTROL = new Set(['random', 'staticRef']);
+const CTRL_TAGS = { random: '对照', staticRef: '对照', learned: '云端', coin: '逐币' };
+const CONTROL = new Set(Object.keys(CTRL_TAGS));
 
 function statLine(st) {
   if (!st || !st.n) return '<span style="color:var(--text-faint)">样本积累中</span>';
@@ -35,11 +36,14 @@ async function render() {
     const blk = state.intervals[iv];
     const cfg = ARENA_INTERVALS[iv];
     const seasonPct = Math.min(100, (Date.now() - blk.seasonStart) / cfg.seasonMs * 100);
+    const pctTxt = seasonPct < 10 ? seasonPct.toFixed(1) : seasonPct.toFixed(0);
+    const elapsedD = (Date.now() - blk.seasonStart) / 864e5;
+    const seasonD = cfg.seasonMs / 864e5;
     const remainD = Math.max(0, (cfg.seasonMs - (Date.now() - blk.seasonStart)) / 864e5);
     const rows = blk.players.map((p, i) => {
       const isCtrl = CONTROL.has(p.family);
       const champ = p.isChampion ? `<span class="chip trend" style="padding:1px 7px;">${icon('crown')}冠军</span>` : '';
-      const ctrlTag = isCtrl ? `<span class="chip ${p.family === 'learned' ? 'trend' : 'flat'}" style="padding:1px 7px;">${p.family === 'learned' ? '云端' : '对照'}</span>` : '';
+      const ctrlTag = isCtrl ? `<span class="chip ${p.family === 'learned' || p.family === 'coin' ? 'trend' : 'flat'}" style="padding:1px 7px;">${CTRL_TAGS[p.family]}</span>` : '';
       return `<tr class="${isCtrl ? 'row-control' : ''}">
         <td style="color:var(--text-faint)">${i + 1}</td>
         <td><b>${p.familyName}</b> <span style="color:var(--text-faint);font-size:10px;">g${p.generation}</span> ${champ}${ctrlTag}</td>
@@ -55,7 +59,7 @@ async function render() {
       : `<span class="chip flat">样本不足 8 笔，排名暂无统计意义</span>`;
     return `
     <div class="panel" style="margin-bottom:14px;">
-      <h3>${icon('layers')} ${IV_NAMES[iv]}周期 <span class="sub">赛季进度 ${seasonPct.toFixed(0)}% · 距本赛季结束约 ${remainD.toFixed(1)} 天 · 待结算 ${blk.pending} · 已结算 ${blk.filled}</span></h3>
+      <h3>${icon('layers')} ${IV_NAMES[iv]}周期 <span class="sub">赛季进度 ${pctTxt}% · 已进行 ${elapsedD.toFixed(1)} / ${seasonD.toFixed(0)} 天 · 待结算 ${blk.pending} · 已结算 ${blk.filled}</span></h3>
       <div style="height:5px;background:var(--bg-soft,#eef1f6);border-radius:3px;margin:6px 0 10px;overflow:hidden;">
         <div style="height:100%;width:${seasonPct}%;background:var(--accent);border-radius:3px;transition:width .6s ease;"></div>
       </div>
@@ -100,6 +104,7 @@ async function render() {
   if (state.seasons.length) {
     $('seasonLog').innerHTML = state.seasons.map(s => {
       const c = s.champion;
+      const modelRanks = `${s.learnedRank ? ` · 云端第 ${s.learnedRank}` : ''}${s.coinRank ? ` · 逐币第 ${s.coinRank}` : ''}`;
       return `<div class="panel flat" style="margin-bottom:8px;padding:10px 14px;">
         <div style="display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px;align-items:center;">
           <div><b>${IV_NAMES[s.interval]}周期 · 赛季结算</b>
@@ -107,11 +112,17 @@ async function render() {
           <div style="font-size:12px;">
             ${icon('trophy')} 第一：<b>${c.name} g${c.gen}</b>
             <span class="${clsBySign(c.stats.meanRet)}" style="margin-left:6px;">${fmtPct(c.stats.totalRet, 2)}</span>
-            <span style="color:var(--text-dim);margin-left:8px;">随机组第 ${s.randomRank}/${s.players} · 静态组第 ${s.staticRank}/${s.players}</span>
+            <span style="color:var(--text-dim);margin-left:8px;">随机组第 ${s.randomRank}/${s.players} · 静态组第 ${s.staticRank}/${s.players}${modelRanks}</span>
           </div>
         </div>
       </div>`;
     }).join('');
+  }
+  // 自动运行状态（不覆盖控制台正在显示的本轮结果）
+  const lastTick = Number(localStorage.getItem('bq_arena_lasttick') || 0);
+  const cs = $('ctrlStatus');
+  if (cs && !cs.dataset.done) {
+    cs.textContent = `自动模式：任意页面保持打开时每 10 分钟自动运行一轮 · 上次运行 ${lastTick ? new Date(lastTick).toLocaleString() : '—'}`;
   }
   setNet('竞技场运行中', 'connected');
 }
@@ -123,12 +134,14 @@ async function init() {
     $('ctrlStatus').textContent = '正在运行一轮（拉取 K 线生成信号 + 回填结算）…';
     const r = await arenaAutoTick(true);
     $('ctrlStatus').textContent = r ? `完成：新生成 ${r.created} 条信号 · 新结算 ${r.filled} 条` : '本轮无新增（节流或数据未更新）';
+    $('ctrlStatus').dataset.done = '1';
     await render();
   });
   $('resetBtn').addEventListener('click', async () => {
     if (!confirm('确定重置竞技场？全部选手、信号与赛季记录将清零重建。')) return;
     await resetArena();
     $('ctrlStatus').textContent = '已重置，选手池已重建';
+    $('ctrlStatus').dataset.done = '1';
     await render();
   });
   // 页面打开时强制跑一轮（首访立即建池 + 生成信号）
