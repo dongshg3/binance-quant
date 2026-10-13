@@ -296,5 +296,61 @@
    "icPrev": null,
    "gate": "skipped(<30样本)"
   }
+ },
+ {
+  "version": 8,
+  "trainedAt": "2026-10-13T14:38:46+00:00",
+  "symbols": 149,
+  "samples": 525430,
+  "fwdBars": 12,
+  "weights": {
+   "trend": 0.1033,
+   "momentum": -0.3343,
+   "meanRev": 0.1371,
+   "volume": -0.115,
+   "volatility": -0.0241,
+   "position": -0.0341,
+   "htf": -0.1522,
+   "futures": 0.1
+  },
+  "factorIC": {
+   "trend": -0.0181,
+   "momentum": -0.0179,
+   "meanRev": -0.0081,
+   "volume": 0.0101,
+   "volatility": 0.0015,
+   "position": -0.0212,
+   "htf": -0.0451,
+   "futures": 0.0038
+  },
+  "icInSample": 0.0367,
+  "icOOS": 0.0007,
+  "icXS": -0.0092,
+  "icPerSym": -0.01,
+  "icPerSymMedian": -0.0125,
+  "icDecay": {
+   "1": 0.009,
+   "2": 0.0055,
+   "4": 0.0029,
+   "8": 0.0061,
+   "24": -0.0074
+  },
+  "gapInOut": 0.036,
+  "randIC": {
+   "mean": 0.0011,
+   "std": 0.0212,
+   "percentile": 0.48
+  },
+  "lsSpread": -0.00032,
+  "lsSharpeOOS": -0.1,
+  "accepted": false,
+  "rejectReason": "单币种IC -0.0100 < 0.02",
+  "alpha": 0.6,
+  "tracker": {
+   "n": 0,
+   "icNew": null,
+   "icPrev": null,
+   "gate": "skipped(<30样本)"
+  }
  }
 ]
