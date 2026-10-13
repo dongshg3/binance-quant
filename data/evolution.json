@@ -54,5 +54,42 @@
   "icOOS": 0.3762,
   "lsSpread": 0.045373,
   "lsSharpeOOS": 10.45
+ },
+ {
+  "version": 3,
+  "trainedAt": "2026-10-13T04:54:34+00:00",
+  "symbols": 60,
+  "samples": 46658,
+  "fwdBars": 12,
+  "weights": {
+   "trend": 0.116,
+   "momentum": -0.4672,
+   "meanRev": 0.1008,
+   "volume": -0.149,
+   "volatility": -0.0302,
+   "position": -0.0368,
+   "futures": 0.1
+  },
+  "factorIC": {
+   "trend": -0.1126,
+   "momentum": -0.2861,
+   "meanRev": 0.1023,
+   "volume": -0.012,
+   "volatility": -0.0353,
+   "position": -0.0167
+  },
+  "icInSample": 0.4167,
+  "icOOS": 0.3756,
+  "lsSpread": 0.04534,
+  "lsSharpeOOS": 10.44,
+  "accepted": true,
+  "rejectReason": "",
+  "alpha": 0.6,
+  "tracker": {
+   "n": 0,
+   "icNew": null,
+   "icPrev": null,
+   "gate": "skipped(<30样本)"
+  }
  }
 ]
