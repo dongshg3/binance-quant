@@ -6,14 +6,14 @@
 <title>策略方法论 · 币安量化系统</title>
 <meta name="description" content="量化策略方法论：七因子模型、市场状态识别、预测方法、仓位管理与风险控制">
 <link rel="stylesheet" href="css/main.css">
-<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📈</text></svg>">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%232563eb' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M9 5v4'/><rect width='4' height='6' x='7' y='9' rx='1'/><path d='M9 15v2'/><path d='M17 3v2'/><rect width='4' height='8' x='15' y='5' rx='1'/><path d='M17 13v3'/><path d='M3 3v16a2 2 0 0 0 2 2h16'/></svg>">
 </head>
 <body>
 <div class="page">
 <div class="doc">
 
   <div class="panel">
-    <h3>📖 策略方法论 <span class="sub">Methodology v1.0</span></h3>
+    <h3><span data-icon="book"></span>策略方法论 <span class="sub">Methodology v1.0</span></h3>
     <p style="color:var(--text-dim);font-size:12px;">
       本文档完整公开本系统的量化框架：因子构成、评分方法、预测模型、仓位管理与风险控制。所有逻辑均可在 <code>js/lib/quant.js</code> 与 <code>js/lib/stats.js</code> 中审阅——开源、可复现、可审计。
     </p>
@@ -77,7 +77,7 @@
   <p>在当前已加载的样本内，统计历史上出现同方向/同级别信号后 12 根 K 线的实际表现（胜率、平均/中位收益）。这是最朴素的「这个信号在这个币种上灵不灵」检验。</p>
   <h4>7. BTC 联动分析</h4>
   <p>计算币种对 BTC 的 Beta、相关系数与相对强度（实际收益 − Beta 隐含收益）。相对强度持续为正的品种在反弹中通常跑赢大盘；高 Beta 品种在下跌市中需额外降仓。</p>
-  <p style="color:var(--accent);">⚠️ 所有预测均为概率性统计推断，样本内胜率不代表样本外表现。加密货币存在结构性突变，任何模型都可能失效。</p>
+  <p style="color:var(--accent);"><span data-icon="alert"></span>所有预测均为概率性统计推断，样本内胜率不代表样本外表现。加密货币存在结构性突变，任何模型都可能失效。</p>
 
   <h2>五、仓位与风险管理</h2>
   <ul>
@@ -93,7 +93,7 @@
   <p>滚动窗口逐 bar 推进：每根 K 线仅用其之前的数据计算因子（无前视偏差），按目标仓位调仓，扣除双边手续费与滑点，多单每 8 小时扣除资金费率。输出夏普、索提诺、最大回撤、卡玛、胜率、盈亏比、信号命中率，并与买入持有基准对比。</p>
   <h4>样本外验证（Walk-Forward）</h4>
   <p>回测自动按时间切分为前 70%（样本内）与后 30%（样本外）分别运行。若样本外夏普保持样本内的 50% 以上且为正，说明策略衰减可控；样本外显著恶化或为负则判定为过拟合，页面会明确警示。<b>看回测请永远先看样本外那一列。</b></p>
-  <p style="color:var(--accent);">⚠️ 回测局限：样本内参数、忽略流动性冲击与极端行情滑点、永续费率取近似常数。正期望回测 ≠ 正期望未来。</p>
+  <p style="color:var(--accent);"><span data-icon="alert"></span>回测局限：样本内参数、忽略流动性冲击与极端行情滑点、永续费率取近似常数。正期望回测 ≠ 正期望未来。</p>
 
   <h2>七、使用建议</h2>
   <ol>
