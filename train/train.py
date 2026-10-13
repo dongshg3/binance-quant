@@ -24,6 +24,8 @@ from datetime import datetime, timezone
 
 import numpy as np
 
+from futures_data import load_series, align_to_bars
+
 # ---------------- 配置 ----------------
 HOSTS = [
     "https://data-api.binance.vision/api/v3",   # 官方公共行情镜像（全球可达）
@@ -32,19 +34,20 @@ HOSTS = [
 ]
 TOP_N = int(os.environ.get("TQ_TOP_N", "60"))   # 按 24h 成交额取前 N 个币种
 INTERVAL = "1h"
-LIMIT = int(os.environ.get("TQ_LIMIT", "2000"))  # 每币种 K 线数（>1000 自动分页）
+LIMIT = int(os.environ.get("TQ_LIMIT", "4000"))  # 每币种 K 线数（>1000 自动分页，4000 ≈ 5.5 个月）
 FWD = 12                  # 标签：未来 12 bar 对数收益
 RIDGE_LAMBDA = 5.0
 MIN_BARS = 400
-MIN_SAMPLES = int(os.environ.get("TQ_MIN_SAMPLES", "20000"))
+MIN_SAMPLES = int(os.environ.get("TQ_MIN_SAMPLES", "100000"))
 EMBARGO = 200             # Purged Walk-Forward：训练/测试间挖空的 bar 数 = 最大指标回看窗口
 DECAY_HORIZONS = [1, 2, 4, 8, 24]  # IC 衰减曲线的预测视野
 MIN_TS_IC = 0.02          # 闸门：单币种时间序列 IC 下限（诚实口径）
 MAX_NEG_XS_IC = -0.02     # 闸门：横截面 IC 不得显著为负
-GROUPS = ["trend", "momentum", "meanRev", "volume", "volatility", "position", "htf"]  # 可学习组
+GROUPS = ["trend", "momentum", "meanRev", "volume", "volatility", "position", "htf", "futures"]  # 可学习组
 STATIC_WEIGHTS = {"trend": 0.22, "momentum": 0.18, "meanRev": 0.13, "volume": 0.13,
                   "volatility": 0.09, "position": 0.05, "htf": 0.10, "futures": 0.10}
-FUTURES_STATIC = 0.10     # futures 组需要逐 bar 资金费率历史，训练期固定为静态权重
+# 稳定币/指数合约：价格动态是脱锚噪音或合成指数，因子信号无意义，训练与扫描都排除
+EXCLUDE_BASE = {"USDC", "FDUSD", "TUSD", "USDP", "DAI", "BUSD", "USD1", "USDD", "USDE", "USDS", "BTCDOM"}
 EMA_ALPHA = 0.6           # 权重收缩：新权重 0.6 + 旧权重 0.4（防训练间抖动/过拟合）
 TRACKER_MIN_N = 30        # 实盘追踪样本下限，不足则闸门不启用
 TRACKER_TOLERANCE = 0.02  # 实盘 IC 允许退化容忍度
@@ -224,10 +227,16 @@ def map_htf(values, n, f):
     out[valid] = values[idx[valid]]
     return out
 
-# ---------------- 七因子引擎（与前端 computeFactors 同构，训练期不含 futures 组） ----------------
-def group_scores(ohlcv):
+# ---------------- 八因子引擎（与前端 computeFactors 同构） ----------------
+def group_scores(ohlcv, fut=None):
+    """fut = (fr_arr, ls_arr, oi_chg_arr) 由 futures_data.align_to_bars 产出；
+    为 None 时 futures 组全 0（与前端镜像降级模式一致：缺数据 = 中性）"""
     c = ohlcv[:, 4]; h = ohlcv[:, 2]; l = ohlcv[:, 3]; v = ohlcv[:, 5]
     n = len(c)
+    if fut:
+        fr_arr, ls_arr, oi_arr = fut
+    else:
+        fr_arr = ls_arr = oi_arr = [None] * n
     rsi = RSI(c); macdh = MACD_hist(c)
     ema9, ema21, ema50, ema200 = EMA(c, 9), EMA(c, 21), EMA(c, 50), EMA(c, 200)
     bbU, bbM, bbL = Boll(c)
@@ -299,6 +308,20 @@ def group_scores(ohlcv):
             elif slope > 0.02 and pslope < 0: obv_s = 0.3
             elif slope < -0.02 and pslope > 0: obv_s = -0.3
         out["volume"][i] = np.mean([vol_s, obv_s])
+        # futures（资金费率/多空比/OI 30h 变化率，阈值与前端逐字对齐）
+        fr, lsr, oic = fr_arr[i], ls_arr[i], oi_arr[i]
+        fr_s = 0.0
+        if fr is not None:
+            if fr > 0.001: fr_s = -1.0
+            elif fr > 0.0005: fr_s = -0.4
+            elif fr < -0.001: fr_s = 1.0
+            elif fr < -0.0005: fr_s = 0.4
+        ls_s = clamp((1.5 - lsr) / 1.5, -1, 1) if lsr is not None else 0.0
+        oi_s = 0.0
+        if oic is not None:
+            if oic > 0.03: oi_s = rdir * 0.8
+            elif oic < -0.03: oi_s = -rdir * 0.5
+        out["futures"][i] = np.mean([fr_s, ls_s, oi_s])
         # volatility（挤压）
         sq_s = 0.0
         if i >= 20 and not np.isnan(bbw[i]):
@@ -340,7 +363,7 @@ def spearman(x, y):
     return float((rx * ry).sum() / denom) if denom > 0 else 0.0
 
 # ---------------- 实盘追踪数据（模型选择闸门，绝不参与拟合） ----------------
-ALL_GROUPS = GROUPS + ["futures"]
+ALL_GROUPS = GROUPS  # futures 已是可学习组，闸门评估用全部 8 组
 
 def load_tracker():
     """读取 data/tracker/*.csv（浏览器导出的真实信号→结果记录）。
@@ -398,6 +421,8 @@ def get_symbols():
         sym = s["symbol"]
         if s.get("quoteAsset") != "USDT" or s.get("status") != "TRADING":
             continue
+        if s.get("baseAsset") in EXCLUDE_BASE:
+            continue
         if any(x in sym for x in ("UP", "DOWN", "BULL", "BEAR")):
             continue
         syms.append(sym)
@@ -405,12 +430,23 @@ def get_symbols():
     return syms[:TOP_N]
 
 def get_klines(sym):
-    """拉取 K 线，LIMIT>1000 时向历史分页；丢弃最后一根未收盘 bar（防标签/特征对齐偏差）"""
-    data = market_get(f"/klines?symbol={sym}&interval={INTERVAL}&limit={min(LIMIT, 1000)}", timeout=25)
-    if LIMIT > 1000 and len(data) == 1000:
-        end = int(data[0][0]) - 1
-        earlier = market_get(f"/klines?symbol={sym}&interval={INTERVAL}&limit={LIMIT - 1000}&endTime={end}", timeout=25)
-        data = earlier + data
+    """拉取 K 线，LIMIT>1000 自动向历史分页（每页最多 1000 根）；丢弃最后一根未收盘 bar"""
+    data = []
+    end = None
+    remaining = LIMIT
+    while remaining > 0:
+        lim = min(remaining, 1000)
+        url = f"/klines?symbol={sym}&interval={INTERVAL}&limit={lim}"
+        if end is not None:
+            url += f"&endTime={end}"
+        batch = market_get(url, timeout=25)
+        if not batch:
+            break
+        data = batch + data
+        end = int(batch[0][0]) - 1
+        remaining -= len(batch)
+        if len(batch) < lim:
+            break
     arr = np.array([[float(k[0]), float(k[1]), float(k[2]), float(k[3]), float(k[4]), float(k[5])] for k in data])
     return arr[:-1] if len(arr) else arr
 
@@ -429,8 +465,12 @@ def main():
             ohlcv = get_klines(sym)
             if len(ohlcv) < MIN_BARS:
                 continue
-            gs = group_scores(ohlcv)
-            c = ohlcv[:, 4]; t0 = ohlcv[:, 0]
+            # 合约因子历史（dump 下载失败静默降级为 None → futures 组中性 0）
+            t0 = ohlcv[:, 0]
+            funding, metrics = load_series(sym, t0[0], t0[-1])
+            fut = align_to_bars(t0, funding, metrics)
+            gs = group_scores(ohlcv, fut)
+            c = ohlcv[:, 4]
             n = len(c)
             for i in range(200, n - max_h):
                 X_rows.append([gs[g][i] for g in GROUPS])
@@ -511,9 +551,9 @@ def main():
     ls_rets = np.concatenate([top, -bot])
     ls_sharpe = float(ls_rets.mean() / ls_rets.std() * math.sqrt(8760 / FWD)) if ls_rets.std() > 0 else 0.0
 
-    # 权重映射：学习权重归一化到 0.90，futures 固定 0.10
+    # 权重映射：全部 8 个可学习组归一化到 L1 = 1.0
     absum = float(np.sum(np.abs(w_raw)))
-    scale = (1.0 - FUTURES_STATIC) / absum if absum > 0 else 0
+    scale = 1.0 / absum if absum > 0 else 0
     learned_weights = {g: float(w_raw[j]) * scale for j, g in enumerate(GROUPS)}
 
     # ---------------- 防过拟合：EMA 权重收缩 + 实盘闸门 ----------------
@@ -529,13 +569,12 @@ def main():
         except Exception:
             pass
 
-    # EMA 收缩：新 0.6 / 旧 0.4，再归一化（L1 = 0.90）
+    # EMA 收缩：新 0.6 / 旧 0.4，再归一化（L1 = 1.0）
     shrunk = {g: EMA_ALPHA * learned_weights[g] + (1 - EMA_ALPHA) * float(prev_weights.get(g, 0)) for g in GROUPS}
     absum2 = float(sum(abs(v) for v in shrunk.values()))
     if absum2 > 0:
-        shrunk = {g: v * (1.0 - FUTURES_STATIC) / absum2 for g, v in shrunk.items()}
+        shrunk = {g: v / absum2 for g, v in shrunk.items()}
     candidate = {g: round(shrunk[g], 4) for g in GROUPS}
-    candidate["futures"] = FUTURES_STATIC
 
     # 闸门 1：诚实口径下限——单币种时间序列 IC（择时能力）必须显著为正，
     # 且横截面 IC（选币能力）不得显著为负
@@ -558,8 +597,8 @@ def main():
             reject_reasons.append(f"实盘追踪IC退化 {tk_ic_new:.4f} < {tk_ic_prev:.4f} - {TRACKER_TOLERANCE}")
 
     final_weights = candidate if accepted else {g: round(float(prev_weights.get(g, 0)), 4) for g in ALL_GROUPS}
-    if "futures" not in final_weights:
-        final_weights["futures"] = FUTURES_STATIC
+    for g in GROUPS:
+        final_weights.setdefault(g, 0.0)
 
     tracker_info = {
         "n": len(tracker_rows),
