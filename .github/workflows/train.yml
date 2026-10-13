@@ -42,5 +42,10 @@ jobs:
             echo "模型无变化，跳过提交"
           else
             git commit -m "🤖 模型进化 v$(python -c "import json;print(json.load(open('data/model.json'))['version'])") · $(date -u +%Y-%m-%d\ %H:%M\ UTC)"
-            git push
+            # 训练期间网站可能部署了新提交 → 先 rebase 再推，避免非快进拒绝
+            for i in 1 2 3; do
+              git pull --rebase origin main && git push && break
+              echo "推送冲突，第 $i 次重试…"
+              sleep 5
+            done
           fi
