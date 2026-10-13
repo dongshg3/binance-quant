@@ -36,19 +36,50 @@ HOSTS = [
 TOP_N = int(os.environ.get("TQ_TOP_N", "60"))   # 按 24h 成交额取前 N 个币种
 INTERVAL = "1h"
 LIMIT = int(os.environ.get("TQ_LIMIT", "4000"))  # 每币种 K 线数（>1000 自动分页，4000 ≈ 5.5 个月）
-FWD = 12                  # 标签：未来 12 bar 对数收益
+FWD_SET = [2, 4, 8]       # 标签：短期多视野（未来 2/4/8 bar）波动率归一收益取均值
 RIDGE_LAMBDA = 5.0
 MIN_BARS = 400
 MIN_SAMPLES = int(os.environ.get("TQ_MIN_SAMPLES", "100000"))
 EMBARGO = 200             # Purged Walk-Forward：训练/测试间挖空的 bar 数 = 最大指标回看窗口
-DECAY_HORIZONS = [1, 2, 4, 8, 24]  # IC 衰减曲线的预测视野
-MIN_TS_IC = 0.02          # 闸门：单币种时间序列 IC 下限（诚实口径）
-MAX_NEG_XS_IC = -0.02     # 闸门：横截面 IC 不得显著为负
+DECAY_HORIZONS = [1, 2, 4, 8, 12, 24]  # IC 衰减曲线的预测视野（对原始收益，诚实对照）
+MIN_XS_IC = 0.02          # 闸门：横截面 IC（对工程化标签）下限
+MIN_NW_T = 2.0            # 闸门：XS IC 的 Newey-West t 统计量下限（显著性硬门槛）
+SEG_MIN_SAMPLES = 20000   # 分段模型最小样本数
+SEG_MIN_SYMS = 6          # 分段模型最少覆盖币种数
+DCOR_SUBSAMPLE = int(os.environ.get("TQ_DCOR_SUB", "3000"))  # 距离相关检验的子采样大小
+DCOR_PERMS = int(os.environ.get("TQ_DCOR_PERMS", "60"))      # 距离相关置换检验次数
 GROUPS = ["trend", "momentum", "meanRev", "volume", "volatility", "position", "htf", "futures"]  # 可学习组
 STATIC_WEIGHTS = {"trend": 0.22, "momentum": 0.18, "meanRev": 0.13, "volume": 0.13,
                   "volatility": 0.09, "position": 0.05, "htf": 0.10, "futures": 0.10}
 # 稳定币/指数合约：价格动态是脱锚噪音或合成指数，因子信号无意义，训练与扫描都排除
 EXCLUDE_BASE = {"USDC", "FDUSD", "TUSD", "USDP", "DAI", "BUSD", "USD1", "USDD", "USDE", "USDS", "BTCDOM"}
+# 板块分类（静态映射，覆盖高流动性币种；未命中 → other）
+# 不同板块的驱动结构不同：meme 由情绪和资金费率主导，major 由宏观 beta 主导，
+# 混在一个模型里会互相稀释 —— 分段训练让每类币用自己的权重
+CATEGORIES = {
+    "major":  {"BTC", "ETH"},
+    "l1":     {"SOL", "BNB", "ADA", "AVAX", "DOT", "TRX", "TON", "NEAR", "ATOM", "APT", "SUI",
+               "SEI", "INJ", "TIA", "ALGO", "VET", "ICP", "XRP", "XLM", "HBAR", "EGLD", "KAS",
+               "STX", "FTM", "S", "LTC", "BCH", "ETC", "CELO", "MINA", "ROSE", "ZIL", "ONE", "FLOW"},
+    "l2":     {"ARB", "OP", "POL", "MATIC", "STRK", "MANTA", "METIS", "ZK", "LINEA", "SCR", "BLAST"},
+    "defi":   {"UNI", "AAVE", "MKR", "CRV", "SNX", "LDO", "COMP", "SUSHI", "DYDX", "GMX", "JUP",
+               "RAY", "CAKE", "PENDLE", "ENA", "ETHFI", "REZ", "EIGEN", "ONDO", "AERO", "MORPHO",
+               "DRIFT", "JTO", "PYTH", "CVX", "BAL", "YFI", "KAVA", "OSMO", "RUNE", "INJ"},
+    "meme":   {"DOGE", "SHIB", "PEPE", "WIF", "BONK", "FLOKI", "MEME", "BOME", "NEIRO", "PNUT",
+               "ACT", "TRUMP", "PENGU", "DOGS", "POPCAT", "MEW", "MOODENG", "GOAT", "FARTCOIN",
+               "BRETT", "TURBO", "PEOPLE", "BABYDOGE", "WLD2", "SATS", "ORDI", "RATS", "HIPPO"},
+    "ai":     {"FET", "ASI", "RENDER", "TAO", "WLD", "AKT", "IO", "ARKM", "VIRTUAL", "AIXBT",
+               "AI16Z", "GRASS", "GRIFFAIN", "ZEREBRO", "COOKIE", "SWARMS", "ARC", "AIXBT"},
+    "gaming": {"AXS", "SAND", "MANA", "GALA", "ENJ", "PIXEL", "PORTAL", "BIGTIME", "SUPER",
+               "RONIN", "BEAM", "YGG", "ILV", "MAGIC", "PRIME", "XAI", "GMT"},
+    "infra":  {"LINK", "FIL", "AR", "GRT", "API3", "BAND", "TRB", "STORJ", "ANKR", "OCEAN",
+               "IOTA", "THETA", "HNT", "IOTX", "CKB", "GLM"},
+}
+CAT_OF_BASE = {}
+for _cat, _bases in CATEGORIES.items():
+    for _b in _bases:
+        CAT_OF_BASE.setdefault(_b, _cat)
+SIZE_TIERS = {"large": 30, "mid": 90}  # 按 24h 成交额排序：前 30 大盘 / 前 90 中盘 / 其余小盘
 EMA_ALPHA = 0.6           # 权重收缩：新权重 0.6 + 旧权重 0.4（防训练间抖动/过拟合）
 TRACKER_MIN_N = 30        # 实盘追踪样本下限，不足则闸门不启用
 TRACKER_TOLERANCE = 0.02  # 实盘 IC 允许退化容忍度
@@ -350,7 +381,19 @@ def group_scores(ohlcv, fut=None):
         parts = [htf_trend_map[i], htf_slope_map[i], htf_rsi_map[i], htf_macd_map[i]]
         parts = [p for p in parts if not np.isnan(p)]
         out["htf"][i] = float(np.mean(parts)) if parts else 0.0
-    return out
+    # aux：状态变量（不参与加权，仅用于条件 IC 分桶与波动率归一）
+    logret = np.full(n, np.nan)
+    logret[1:] = np.log(c[1:] / c[:-1])
+    r2 = np.where(np.isnan(logret), 0.0, logret) ** 2
+    sig = np.full(n, np.nan)  # EWMA 波动率（halflife 50 bar，纯因果）
+    hl = 50.0
+    alpha = 1.0 - math.exp(-math.log(2) / hl)
+    acc = 0.0
+    for i in range(n):
+        acc = alpha * r2[i] + (1 - alpha) * acc
+        sig[i] = math.sqrt(acc) if acc > 0 else np.nan
+    aux = {"adx": adx, "sig": np.where(sig < 1e-4, 1e-4, sig)}
+    return out, aux
 
 # ---------------- 统计工具 ----------------
 def spearman(x, y):
@@ -364,6 +407,60 @@ def spearman(x, y):
     rx -= rx.mean(); ry -= ry.mean()
     denom = math.sqrt((rx ** 2).sum() * (ry ** 2).sum())
     return float((rx * ry).sum() / denom) if denom > 0 else 0.0
+
+def _dcor_value(x, y):
+    """距离相关（Székely 2007）：dCor=0 当且仅当统计独立。
+    线性 IC≈0 时仍为非零 ⇒ 信息藏在线性模型够不到的高阶矩里。"""
+    n = len(x)
+    a = np.abs(x[:, None] - x[None, :])
+    b = np.abs(y[:, None] - y[None, :])
+    A = a - a.mean(axis=0) - a.mean(axis=1)[:, None] + a.mean()
+    B = b - b.mean(axis=0) - b.mean(axis=1)[:, None] + b.mean()
+    dcov2 = (A * B).mean()
+    dvx = (A * A).mean(); dvy = (B * B).mean()
+    if dvx <= 0 or dvy <= 0:
+        return 0.0
+    return float(math.sqrt(max(dcov2, 0.0) / math.sqrt(dvx * dvy)))
+
+def dcor_test(x, y, subsample=DCOR_SUBSAMPLE, perms=DCOR_PERMS, seed=7):
+    """带置换检验的 dCor：返回 (dcor, p值)。子采样控制 O(n²) 内存。"""
+    x = np.asarray(x, dtype=float); y = np.asarray(y, dtype=float)
+    mask = ~(np.isnan(x) | np.isnan(y))
+    x, y = x[mask], y[mask]
+    if len(x) < 200:
+        return None, None
+    rng = np.random.default_rng(seed)
+    if len(x) > subsample:
+        idx = rng.choice(len(x), subsample, replace=False)
+        x, y = x[idx], y[idx]
+    obs = _dcor_value(x, y)
+    cnt = 0
+    for _ in range(perms):
+        yp = y[rng.permutation(len(y))]
+        if _dcor_value(x, yp) >= obs:
+            cnt += 1
+    return obs, (cnt + 1) / (perms + 1)
+
+def newey_west_t(series, max_lag=None):
+    """Newey-West 调整的长记忆 t 统计量：HAC 标准误下的均值显著性。
+    |t|<2 ⇒ 无论均值多正都不能声称信息存在（IC 时序自相关会虚增普通 t 值）。"""
+    x = np.asarray(series, dtype=float)
+    x = x[~np.isnan(x)]
+    T = len(x)
+    if T < 30:
+        return None
+    m = x.mean()
+    u = x - m
+    if max_lag is None:
+        max_lag = int(math.floor(4 * (T / 100.0) ** (2.0 / 9.0)))
+    gamma0 = float((u * u).mean())
+    var = gamma0
+    for k in range(1, max_lag + 1):
+        gk = float((u[k:] * u[:-k]).mean())
+        var += 2 * (1 - k / (max_lag + 1)) * gk
+    if var <= 0:
+        return None
+    return float(m / math.sqrt(var / T))
 
 # ---------------- 实盘追踪数据（模型选择闸门，绝不参与拟合） ----------------
 ALL_GROUPS = GROUPS  # futures 已是可学习组，闸门评估用全部 8 组
@@ -412,13 +509,14 @@ def cross_sectional_ic(pred, y, ts, min_n=5):
     for k in range(len(y)):
         buckets.setdefault(int(ts[k]), []).append(k)
     ics = [spearman(pred[idx], y[idx]) for idx in buckets.values() if len(idx) >= min_n]
-    return (float(np.mean(ics)), len(ics)) if ics else (None, 0)
+    return (float(np.mean(ics)), len(ics), ics) if ics else (None, 0, [])
 
 # ---------------- 数据 ----------------
 def get_symbols():
     info = market_get("/exchangeInfo")
     tickers = market_get("/ticker/24hr", timeout=30)
     vol = {t["symbol"]: float(t.get("quoteVolume", 0)) for t in tickers}
+    base_of = {}
     syms = []
     for s in info["symbols"]:
         sym = s["symbol"]
@@ -429,8 +527,16 @@ def get_symbols():
         if any(x in sym for x in ("UP", "DOWN", "BULL", "BEAR")):
             continue
         syms.append(sym)
+        base_of[sym] = s.get("baseAsset", sym.replace("USDT", ""))
     syms.sort(key=lambda s: -vol.get(s, 0))
-    return syms[:TOP_N]
+    syms = syms[:TOP_N]
+    # 规模分层（按本次训练池内成交额排名）+ 板块分类 → symbolMeta
+    symbol_meta = {}
+    for rank, sym in enumerate(syms):
+        base = base_of.get(sym, sym.replace("USDT", ""))
+        size = "large" if rank < SIZE_TIERS["large"] else ("mid" if rank < SIZE_TIERS["mid"] else "small")
+        symbol_meta[sym] = {"size": size, "cat": CAT_OF_BASE.get(base, "other")}
+    return syms, symbol_meta
 
 def get_klines(sym):
     """拉取 K 线，LIMIT>1000 自动向历史分页（每页最多 1000 根）；丢弃最后一根未收盘 bar"""
@@ -456,10 +562,11 @@ def get_klines(sym):
 # ---------------- 主流程 ----------------
 def main():
     print(f"[train] {datetime.now(timezone.utc).isoformat()} 开始训练")
-    symbols = get_symbols()
+    symbols, symbol_meta = get_symbols()
     print(f"[train] 币种: {len(symbols)} 个")
 
-    X_rows, y_rows, t_rows, ts_rows, nn_rows, s_rows = [], [], [], [], [], []
+    X_rows, t_rows, ts_rows, nn_rows, s_rows = [], [], [], [], []
+    sg_rows, adx_rows, fr_rows = [], [], []  # 波动率 / ADX / 资金费率（标签工程与条件 IC 用）
     YH = {hh: [] for hh in DECAY_HORIZONS}
     used = 0
     max_h = max(DECAY_HORIZONS)
@@ -472,12 +579,16 @@ def main():
             t0 = ohlcv[:, 0]
             funding, metrics = load_series(sym, t0[0], t0[-1])
             fut = align_to_bars(t0, funding, metrics)
-            gs = group_scores(ohlcv, fut)
+            gs, aux = group_scores(ohlcv, fut)
+            sig_arr = aux["sig"]; adx_arr = aux["adx"]
+            fr_arr = fut[0] if fut else [None] * len(ohlcv)
             c = ohlcv[:, 4]
             n = len(c)
             for i in range(200, n - max_h):
                 X_rows.append([gs[g][i] for g in GROUPS])
-                y_rows.append(math.log(c[i + FWD] / c[i]))
+                sg_rows.append(float(sig_arr[i]))
+                adx_rows.append(float(adx_arr[i]) if not np.isnan(adx_arr[i]) else np.nan)
+                fr_rows.append(float(fr_arr[i]) if fr_arr[i] is not None else np.nan)
                 t_rows.append(i); ts_rows.append(t0[i]); nn_rows.append(n); s_rows.append(sym)
                 for hh in DECAY_HORIZONS:
                     YH[hh].append(math.log(c[i + hh] / c[i]))
@@ -485,11 +596,33 @@ def main():
             time.sleep(0.12)  # 礼貌限速
         except Exception as e:
             print(f"[train] {sym} 失败: {e}")
-    X = np.array(X_rows); y = np.array(y_rows); tt = np.array(t_rows)
+    X = np.array(X_rows); tt = np.array(t_rows)
     ts = np.array(ts_rows); nn = np.array(nn_rows); ss = np.array(s_rows)
-    print(f"[train] 样本: {len(y)} 条（{used} 个币种）")
-    if len(y) < MIN_SAMPLES:
+    sg = np.array(sg_rows); adx_v = np.array(adx_rows); fr_v = np.array(fr_rows)
+    YH = {hh: np.array(v) for hh, v in YH.items()}
+    print(f"[train] 样本: {len(ss)} 条（{used} 个币种）")
+    if len(ss) < MIN_SAMPLES:
         raise SystemExit("样本不足，放弃本次训练")
+
+    # ---------------- 标签工程 ----------------
+    # 1) 多视野短期标签：未来 2/4/8 bar 对数收益取均值（重叠视野平均降噪，避免单一视野樱桃挑选）
+    # 2) 波动率归一：y / σ_EWMA —— GLS 思想，消除高波动 regime 主导 OLS
+    # 3) 横截面中性化：按时间戳减组均值 —— 去掉不可预测的市场 beta（最大方差源），
+    #    与网站实际用途（扫描页同刻选币）对齐
+    # 4) 稳健截断：±5×1.4826×MAD —— 抗 crypto 极端离群
+    y_multi = np.mean([YH[hh] / sg for hh in FWD_SET], axis=0)
+    buckets = {}
+    for k in range(len(y_multi)):
+        buckets.setdefault(int(ts[k]), []).append(k)
+    y_neut = y_multi.copy()
+    for idx in buckets.values():
+        idx = np.array(idx)
+        y_neut[idx] = y_multi[idx] - y_multi[idx].mean()
+    med = np.median(y_neut)
+    mad = np.median(np.abs(y_neut - med)) * 1.4826
+    clip = 5 * mad if mad > 0 else np.std(y_neut) * 5
+    y = np.clip(y_neut, med - clip, med + clip)
+    print(f"[train] 标签工程: 视野{FWD_SET} · MAD截断±{clip:.4f} · σ中位 {np.median(sg):.5f}")
 
     # Purged Walk-Forward 70/30：按各币种内部时间切分，训练/测试间挖空 EMBARGO 根 bar
     # （EMA200 等指标有长记忆，不挖空会让测试集信息泄漏进训练特征）
@@ -517,7 +650,11 @@ def main():
     gap_in_out = ic_in - ic_oos
 
     # 诚实口径 1：横截面 IC（每个时间戳内对币种排序）——"选币能力"
-    ic_xs, xs_buckets = cross_sectional_ic(pred_te, yte, ts[test_mask])
+    ic_xs, xs_buckets, xs_ic_series = cross_sectional_ic(pred_te, yte, ts[test_mask])
+    # XS IC 的 Newey-West t：时序自相关调整后的显著性（闸门硬指标）
+    nw_t = newey_west_t(xs_ic_series)
+    # 诚实口径 1b：XS IC 对原始 4bar 收益（与历史版本可比的口径）
+    ic_xs_raw4, _, _ = cross_sectional_ic(pred_te, YH[4][test_mask], ts[test_mask])
     # 诚实口径 2：单币种时间序列 IC 取分布——"单币择时能力"
     ps_ics = []
     for s in np.unique(ss[test_mask]):
@@ -528,11 +665,45 @@ def main():
     ic_ps_mean = float(ps_ics.mean()); ic_ps_med = float(np.median(ps_ics))
     ic_ps_worst = float(ps_ics.min()); ic_ps_best = float(ps_ics.max())
 
-    # IC 衰减曲线：同一模型对不同视野标签的 OOS 相关（缓慢衰减=真实信号，暴跌=噪声）
+    # IC 衰减曲线：对原始收益的 OOS 相关（缓慢衰减=真实信号，暴跌=噪声）
     ic_decay = {}
     for hh in DECAY_HORIZONS:
-        yh = np.array(YH[hh])[test_mask]
-        ic_decay[str(hh)] = round(spearman(pred_te, yh), 4)
+        ic_decay[str(hh)] = round(spearman(pred_te, YH[hh][test_mask]), 4)
+
+    # ---------------- 信息存在性检验（回答"信息在不在"，而非"模型够不够"） ----------------
+    # 1) 距离相关 dCor：dCor=0 当且仅当统计独立。线性 IC≈0 而 dCor 显著非零
+    #    ⇒ 信息存在但藏在线性模型够不到的高阶矩；dCor≈0 ⇒ 换信息源而非换模型
+    dcor_res = {}
+    for j, g in enumerate(GROUPS):
+        dv, pv = dcor_test(Xte[:, j], yte)
+        if dv is not None:
+            dcor_res[g] = {"dcor": round(dv, 4), "p": round(pv, 3)}
+    dv_all, pv_all = dcor_test(pred_te, yte)
+    if dv_all is not None:
+        dcor_res["_composite"] = {"dcor": round(dv_all, 4), "p": round(pv_all, 3)}
+    print(f"[train] dCor: {json.dumps(dcor_res)}")
+
+    # 2) 条件 IC：按市场状态（ADX/波动率/资金费率 tercile）切桶。
+    #    无条件 IC≈0 但某桶内显著 ⇒ 信息是条件存在的 ⇒ 需要状态切换而非全局加权
+    def cond_ic(var_vals, name):
+        v = var_vals[test_mask]
+        valid = ~np.isnan(v)
+        out = {}
+        if valid.sum() < 3000:
+            return out
+        qs = np.quantile(v[valid], [1/3, 2/3])
+        labels = np.where(v <= qs[0], "低", np.where(v <= qs[1], "中", "高"))
+        for lab in ("低", "中", "高"):
+            m = valid & (labels == lab)
+            if m.sum() >= 1500:
+                out[lab] = round(spearman(pred_te[m], yte[m]), 4)
+        return out
+    conditional_ic = {
+        "byAdx": cond_ic(adx_v, "adx"),
+        "byVol": cond_ic(sg, "vol"),
+        "byFunding": cond_ic(fr_v, "fr"),
+    }
+    print(f"[train] 条件IC: {json.dumps(conditional_ic, ensure_ascii=False)}")
 
     # 随机权重对照：真模型混合 IC 落在随机分布的哪个分位（<90% 则未超越噪声）
     rng = np.random.default_rng(42)
@@ -547,12 +718,57 @@ def main():
     # 分因子 OOS IC
     factor_ic = {g: round(spearman(Xte[:, j], yte), 4) for j, g in enumerate(GROUPS)}
 
-    # 多空五分位价差（样本外）
+    # 多空五分位价差（样本外，标签为波动率归一单位）
     q = np.quantile(pred_te, [0.2, 0.8])
     top = yte[pred_te >= q[1]]; bot = yte[pred_te <= q[0]]
     spread = float(top.mean() - bot.mean()) if len(top) and len(bot) else 0.0
     ls_rets = np.concatenate([top, -bot])
-    ls_sharpe = float(ls_rets.mean() / ls_rets.std() * math.sqrt(8760 / FWD)) if ls_rets.std() > 0 else 0.0
+    mean_h = float(np.mean(FWD_SET))
+    ls_sharpe = float(ls_rets.mean() / ls_rets.std() * math.sqrt(8760 / mean_h)) if ls_rets.std() > 0 else 0.0
+
+    # ---------------- 分段专业化模型（规模 × 板块） ----------------
+    # meme 由情绪/资金费率驱动、major 由宏观 beta 驱动，混合训练会互相稀释。
+    # 每段独立岭回归（同一套工程化标签），样本不足自动跳过，前端按币种分段取权重。
+    segments = {}
+    seg_keys = [("size", v) for v in ("large", "mid", "small")]
+    seg_keys += [("cat", c) for c in sorted({m["cat"] for m in symbol_meta.values()})]
+    for kind, val in seg_keys:
+        members = {s for s, m in symbol_meta.items() if m[kind] == val}
+        seg_mask = np.array([s in members for s in ss])
+        tr_m = seg_mask & train_mask
+        te_m = seg_mask & test_mask
+        n_syms = len({s for s in ss[tr_m]})
+        if tr_m.sum() < SEG_MIN_SAMPLES or te_m.sum() < 4000 or n_syms < SEG_MIN_SYMS:
+            continue
+        mu_s = X[tr_m].mean(axis=0); sd_s = X[tr_m].std(axis=0); sd_s[sd_s == 0] = 1
+        Ztr_s = (X[tr_m] - mu_s) / sd_s
+        Zte_s = (X[te_m] - mu_s) / sd_s
+        A_s = Ztr_s.T @ Ztr_s + RIDGE_LAMBDA * np.eye(d)
+        w_std_s = np.linalg.solve(A_s, Ztr_s.T @ y[tr_m])
+        w_raw_s = w_std_s / sd_s
+        pred_s = Zte_s @ w_std_s
+        ic_xs_s, _, ics_s = cross_sectional_ic(pred_s, y[te_m], ts[te_m])
+        nw_s = newey_west_t(ics_s)
+        absum_s = float(np.sum(np.abs(w_raw_s)))
+        w_norm = {g: float(w_raw_s[j]) / absum_s for j, g in enumerate(GROUPS)} if absum_s > 0 else None
+        # 段内评分尺度（横截面标准差中位数，口径同全局 scoreScale）
+        w_vec_s = np.array([w_norm[g] for g in GROUPS]) if w_norm else np.zeros(d)
+        comp_s = X[seg_mask] @ w_vec_s
+        sb = {}
+        ts_seg = ts[seg_mask]
+        for k in range(len(comp_s)):
+            sb.setdefault(int(ts_seg[k]), []).append(comp_s[k])
+        xs_stds_s = [float(np.std(vv)) for vv in sb.values() if len(vv) >= 5]
+        scale_s = float(np.median(xs_stds_s)) if xs_stds_s else 1.0
+        good = (ic_xs_s is not None and ic_xs_s >= 0.015 and nw_s is not None and nw_s >= 1.5)
+        segments[f"{kind}:{val}"] = {
+            "weights": {g: round(w_norm[g], 4) for g in GROUPS} if w_norm else None,
+            "scoreScale": round(scale_s, 8) if scale_s > 1e-8 else 1.0,
+            "icXS": round(ic_xs_s, 4) if ic_xs_s is not None else None,
+            "nwT": round(nw_s, 2) if nw_s is not None else None,
+            "n": int(tr_m.sum()), "symbols": n_syms, "good": bool(good),
+        }
+        print(f"[train] 分段 {kind}:{val} n={tr_m.sum()} 币={n_syms} XS_IC={ic_xs_s if ic_xs_s is None else round(ic_xs_s, 4)} t={None if nw_s is None else round(nw_s, 2)} {'可用' if good else '观察'}")
 
     # 权重映射：全部 8 个可学习组归一化到 L1 = 1.0
     absum = float(np.sum(np.abs(w_raw)))
@@ -579,16 +795,16 @@ def main():
         shrunk = {g: v / absum2 for g, v in shrunk.items()}
     candidate = {g: round(shrunk[g], 4) for g in GROUPS}
 
-    # 闸门 1：诚实口径下限——单币种时间序列 IC（择时能力）必须显著为正，
-    # 且横截面 IC（选币能力）不得显著为负
+    # 闸门 1：信息显著性硬门槛——横截面 IC（选币能力，对工程化标签）必须为正且
+    # Newey-West t ≥ 2（时序自相关调整后的显著性，防止 IC 均值被自相关虚增）
     accepted = True
     reject_reasons = []
-    if ic_ps_mean < MIN_TS_IC:
+    if ic_xs is None or ic_xs < MIN_XS_IC:
         accepted = False
-        reject_reasons.append(f"单币种IC {ic_ps_mean:.4f} < {MIN_TS_IC}")
-    if ic_xs is not None and ic_xs < MAX_NEG_XS_IC:
+        reject_reasons.append(f"横截面IC {None if ic_xs is None else round(ic_xs, 4)} < {MIN_XS_IC}")
+    if nw_t is None or nw_t < MIN_NW_T:
         accepted = False
-        reject_reasons.append(f"横截面IC显著为负 {ic_xs:.4f}")
+        reject_reasons.append(f"XS IC 的 NW t {None if nw_t is None else round(nw_t, 2)} < {MIN_NW_T}（不显著）")
 
     # 闸门 2：实盘追踪 IC（仅模型选择，不参与拟合；样本不足则跳过）
     tracker_rows = load_tracker()
@@ -638,12 +854,14 @@ def main():
         "trainedAt": trained_at,
         "symbols": used,
         "samples": int(len(y)),
-        "fwdBars": FWD,
+        "fwdSet": FWD_SET,
         "weights": final_weights,
         "factorIC": factor_ic,
         "icInSample": round(ic_in, 4),
         "icOOS": round(ic_oos, 4),
         "icXS": round(ic_xs, 4) if ic_xs is not None else None,
+        "icXSRaw4": round(ic_xs_raw4, 4) if ic_xs_raw4 is not None else None,
+        "nwT": round(nw_t, 2) if nw_t is not None else None,
         "icPerSym": round(ic_ps_mean, 4),
         "icPerSymMedian": round(ic_ps_med, 4),
         "icDecay": ic_decay,
@@ -652,6 +870,9 @@ def main():
                    "percentile": round(rand_pct, 4)},
         "lsSpread": round(spread, 6),
         "lsSharpeOOS": round(ls_sharpe, 2),
+        "dcor": dcor_res,
+        "conditionalIC": conditional_ic,
+        "segments": {k: {kk: v[kk] for kk in ("icXS", "nwT", "n", "symbols", "good")} for k, v in segments.items()},
         "accepted": accepted,
         "rejectReason": "; ".join(reject_reasons),
         "alpha": EMA_ALPHA,
@@ -666,14 +887,18 @@ def main():
     model = {
         "version": version,
         "trainedAt": trained_at,
-        "engine": "ridge-v4-noleak",
-        "fwdBars": FWD,
+        "engine": "ridge-v5-seg",
+        "fwdSet": FWD_SET,
         "weights": final_weights,
         "scoreScale": round(score_scale, 8),
         "staticWeights": STATIC_WEIGHTS,
+        "segments": segments,
+        "symbolMeta": symbol_meta,
         "factorIC": factor_ic,
         "oos": {"ic": round(ic_oos, 4), "icInSample": round(ic_in, 4),
                 "icXS": round(ic_xs, 4) if ic_xs is not None else None,
+                "icXSRaw4": round(ic_xs_raw4, 4) if ic_xs_raw4 is not None else None,
+                "nwT": round(nw_t, 2) if nw_t is not None else None,
                 "icPerSymbolMean": round(ic_ps_mean, 4), "icPerSymbolMedian": round(ic_ps_med, 4),
                 "gapInOut": round(gap_in_out, 4),
                 "lsSpread": round(spread, 6), "lsSharpe": round(ls_sharpe, 2)},
@@ -683,6 +908,8 @@ def main():
                           "worst": round(ic_ps_worst, 4), "best": round(ic_ps_best, 4)},
             "randomIC": {"mean": round(float(rand_ics.mean()), 4), "std": round(float(rand_ics.std()), 4),
                          "percentile": round(rand_pct, 4)},
+            "dcor": dcor_res,
+            "conditionalIC": conditional_ic,
             "xsBuckets": xs_buckets,
             "embargo": EMBARGO,
         },
@@ -691,13 +918,14 @@ def main():
         "tracker": tracker_info,
         "meta": {"symbols": used, "samples": int(len(y)), "interval": INTERVAL,
                  "ridgeLambda": RIDGE_LAMBDA, "alpha": EMA_ALPHA, "embargo": EMBARGO,
-                 "note": "权重=岭回归学习×0.6+旧权重×0.4；横截面IC=选币能力(诚实口径)，单币种IC=择时能力，混合IC易被同涨同跌虚增仅供参考；实盘追踪仅用于闸门不参与拟合"},
+                 "label": f"mh{'-'.join(map(str, FWD_SET))}_volnorm_xsneutral_clip5mad",
+                 "note": "标签=短期多视野(2/4/8bar)均值×波动率归一×横截面中性×MAD截断；闸门=XS IC≥0.02且NW t≥2；分段模型按规模/板块独立训练，前端按币种分段取权重(good=true才启用)；dCor检验非线性信息存在性，条件IC按ADX/波动/资金费率分桶；实盘追踪仅用于闸门不参与拟合"},
     }
     with open(os.path.join(DATA_DIR, "model.json"), "w", encoding="utf-8") as f:
         json.dump(model, f, ensure_ascii=False, indent=1)
 
     status = "接受" if accepted else f"拒绝（{'; '.join(reject_reasons)}）"
-    print(f"[train] v{version} 完成 | 横截面IC {ic_xs if ic_xs is None else round(ic_xs, 4)} | 单币种IC 均值 {ic_ps_mean:.4f} 中位 {ic_ps_med:.4f} | 混合IC {ic_oos:.4f}(参考) | 更新{status}")
+    print(f"[train] v{version} 完成 | 横截面IC {ic_xs if ic_xs is None else round(ic_xs, 4)} (原始4bar口径 {ic_xs_raw4 if ic_xs_raw4 is None else round(ic_xs_raw4, 4)}) | NW t {None if nw_t is None else round(nw_t, 2)} | 单币种IC 均值 {ic_ps_mean:.4f} | 混合IC {ic_oos:.4f}(参考) | 更新{status}")
     print(f"[train] IC衰减 {json.dumps(ic_decay)} | 随机对照分位 {rand_pct:.1%} | 样本内外差距 {gap_in_out:.4f}")
     if tk_ic_new is not None:
         print(f"[train] 实盘追踪: n={len(tracker_rows)} IC 新 {tk_ic_new:.4f} / 旧 {tk_ic_prev:.4f}")
