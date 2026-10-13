@@ -8,6 +8,7 @@ export function renderNav(active) {
     { href: 'screener.html', id: 'screener', label: '全市场扫描' },
     { href: 'backtest.html', id: 'backtest', label: '回测中心' },
     { href: 'strategy.html', id: 'strategy', label: '策略方法论' },
+    { href: 'evolution.html', id: 'evolution', label: '模型进化' },
   ];
   const nav = document.createElement('div');
   nav.className = 'nav';
