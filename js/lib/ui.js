@@ -105,8 +105,14 @@ export function renderNav(active) {
   document.body.prepend(nav);
   hydrateIcons();
   staggerPanels();
-  // 策略竞技场后台 tick（10 分钟节流，失败静默，不影响页面）
+  // 策略竞技场后台 tick：页面打开即跑一轮（10 分钟节流，失败静默），
+  // 且只要任意页面保持打开，每 10 分钟自动再跑一轮——信号生成 / 回填结算 / 赛季进化持续迭代
   try { arenaAutoTick(); } catch (e) { /* 竞技场不可用不影响主站 */ }
+  if (!window.__bqArenaTimer) {
+    window.__bqArenaTimer = setInterval(() => {
+      try { arenaAutoTick(); } catch (e) { /* ignore */ }
+    }, 10 * 60 * 1000);
+  }
 }
 
 export function setNet(text, cls) {
