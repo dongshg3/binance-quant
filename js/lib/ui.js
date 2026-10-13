@@ -1,6 +1,7 @@
 // ============================================================
 // ui.js · 共享 UI：导航栏 / 图标库 / 动效助手 / 格式化 / 控件
 // ============================================================
+import { arenaAutoTick } from './arena.js';
 
 // ---------------- Lucide 开源图标（ISC License · lucide.dev） ----------------
 const ICON_PATHS = {
@@ -34,6 +35,9 @@ const ICON_PATHS = {
   radio: '<path d="M4.9 19.1C1 15.2 1 8.8 4.9 4.9"/><path d="M7.8 16.2c-2.3-2.3-2.3-6.1 0-8.5"/><circle cx="12" cy="12" r="2"/><path d="M16.2 7.8c2.3 2.3 2.3 6.1 0 8.5"/><path d="M19.1 4.9C23 8.8 23 15.1 19.1 19"/>',
   package: '<path d="m7.5 4.27 9 5.15"/><path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"/><path d="m3.3 7 8.7 5 8.7-5"/><path d="M12 22V12"/>',
   chartLine: '<path d="M3 3v16a2 2 0 0 0 2 2h16"/><path d="m19 9-5 5-4-4-3 3"/>',
+  swords: '<polyline points="14.5 17.5 3 6 3 3 6 3 17.5 14.5"/><line x1="13" x2="19" y1="19" y2="13"/><line x1="16" x2="20" y1="16" y2="20"/><line x1="19" x2="21" y1="21" y2="19"/><polyline points="14.5 6.5 18 3 21 3 21 6 17.5 9.5"/><line x1="5" x2="9" y1="14" y2="18"/><line x1="7" x2="4" y1="17" y2="20"/><line x1="3" x2="5" y1="19" y2="21"/>',
+  trophy: '<path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/><path d="M4 22h16"/><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22"/><path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22"/><path d="M18 2H6v7a6 6 0 0 0 12 0V2Z"/>',
+  crown: '<path d="M11.562 3.266a.5.5 0 0 1 .876 0L15.39 8.87a1 1 0 0 0 1.516.294L21.183 5.5a.5.5 0 0 1 .798.519l-2.834 10.246a1 1 0 0 1-.956.735H5.81a1 1 0 0 1-.957-.735L2.02 6.02a.5.5 0 0 1 .798-.519l4.276 3.664a1 1 0 0 0 1.516-.294z"/><path d="M5 21h14"/>',
 };
 
 export function icon(name, cls = '') {
@@ -86,6 +90,7 @@ export function renderNav(active) {
   const pages = [
     { href: 'index.html', id: 'dashboard', label: '深度分析', ic: 'candlestick' },
     { href: 'screener.html', id: 'screener', label: '全市场扫描', ic: 'radar' },
+    { href: 'arena.html', id: 'arena', label: '策略竞技场', ic: 'swords' },
     { href: 'backtest.html', id: 'backtest', label: '回测中心', ic: 'flask' },
     { href: 'strategy.html', id: 'strategy', label: '策略方法论', ic: 'book' },
     { href: 'evolution.html', id: 'evolution', label: '模型进化', ic: 'cpu' },
@@ -100,6 +105,8 @@ export function renderNav(active) {
   document.body.prepend(nav);
   hydrateIcons();
   staggerPanels();
+  // 策略竞技场后台 tick（10 分钟节流，失败静默，不影响页面）
+  try { arenaAutoTick(); } catch (e) { /* 竞技场不可用不影响主站 */ }
 }
 
 export function setNet(text, cls) {
