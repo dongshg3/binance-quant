@@ -47,12 +47,15 @@ export function signalOf(composite) {
 // 未命中或分段不达标时回退全局学习权重，再退静态权重
 function pickWeights(symbol) {
   if (MODEL && MODEL.weights) {
+    // 逐币独立模型（父段收缩后发布，通过 IC≥0.04 且 t≥2 采纳门槛）
+    const coin = symbol && MODEL.coinModels && MODEL.coinModels[symbol];
+    if (coin && coin.weights) return { weights: coin.weights, scale: coin.scoreScale, src: '逐币' };
     const meta = symbol && MODEL.symbolMeta && MODEL.symbolMeta[symbol];
     if (meta && MODEL.segments) {
       const catSeg = MODEL.segments['cat:' + meta.cat];
-      if (catSeg && catSeg.good && catSeg.weights) return { weights: catSeg.weights, scale: catSeg.scoreScale, src: `板块·${meta.cat}` };
+      if (catSeg && catSeg.good && catSeg.weights) return { weights: catSeg.weights, scale: catSeg.scoreScale, src: `板块·${meta.cat}${catSeg.flipped ? '·反向' : ''}` };
       const sizeSeg = MODEL.segments['size:' + meta.size];
-      if (sizeSeg && sizeSeg.good && sizeSeg.weights) return { weights: sizeSeg.weights, scale: sizeSeg.scoreScale, src: `规模·${meta.size}` };
+      if (sizeSeg && sizeSeg.good && sizeSeg.weights) return { weights: sizeSeg.weights, scale: sizeSeg.scoreScale, src: `规模·${meta.size}${sizeSeg.flipped ? '·反向' : ''}` };
     }
     return { weights: MODEL.weights, scale: MODEL.scoreScale, src: 'global' };
   }
