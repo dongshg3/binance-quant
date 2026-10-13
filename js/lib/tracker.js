@@ -57,6 +57,7 @@ export async function logSignal(snapshot) {
       fused: snapshot.fused,
       direction: snapshot.direction, // 1 多 / -1 空 / 0 观望
       weightSource: snapshot.weightSource || 'static',
+      origin: snapshot.origin || 'dashboard',
       groupAverages: snapshot.groupAverages,
       regime: snapshot.regime || '',
       outcomes: null, // 回填后: { ret4, ret12, ret24, mfe24, mae24, labeledAt }
@@ -158,6 +159,7 @@ export async function getStats() {
       pending: all.length - all.filter(r => r.outcomes).length,
       byDir,
       byWeightSource: groupCount(labeled, r => r.weightSource),
+      byOrigin: originBreakdown(labeled),
     };
   } catch (e) {
     return null;
@@ -168,6 +170,25 @@ function groupCount(rows, keyFn) {
   const m = {};
   for (const r of rows) { const k = keyFn(r); m[k] = (m[k] || 0) + 1; }
   return m;
+}
+
+// 按来源（深度分析页 / 扫描页）拆分 T+24bar 表现
+function originBreakdown(labeled) {
+  const out = {};
+  for (const r of labeled) {
+    const k = r.origin || 'dashboard';
+    const o = out[k] = out[k] || { n: 0, wins: 0, sum: 0 };
+    const signed = r.outcomes.ret24 * r.direction;
+    o.n++;
+    if (signed > 0) o.wins++;
+    o.sum += signed;
+  }
+  for (const k in out) {
+    out[k].winRate = out[k].wins / out[k].n;
+    out[k].avgRet = out[k].sum / out[k].n;
+    delete out[k].wins; delete out[k].sum;
+  }
+  return out;
 }
 
 // 导出全部记录为 CSV 并触发下载
