@@ -36,6 +36,12 @@
     </div>
   </div>
 
+  <!-- 过拟合诊断 -->
+  <div class="panel" style="margin-bottom:14px;">
+    <h3>🔬 诚实诊断（防过拟合） <span class="sub">Purged Walk-Forward · 横截面/单币种双口径 · IC 衰减 · 随机基准对照</span></h3>
+    <div id="diagContent"><div class="placeholder">等待 v5+ 模型产出诊断数据</div></div>
+  </div>
+
   <!-- 权重变迁 -->
   <div class="panel" style="margin-bottom:14px;">
     <h3>📈 权重变迁 <span class="sub">每次自动训练的组权重轨迹</span></h3>
@@ -44,17 +50,18 @@
 
   <!-- IC 衰减 / 样本外 -->
   <div class="panel" style="margin-bottom:14px;">
-    <h3>🎯 样本外 IC 轨迹 <span class="sub">Walk-Forward 70/30 切分 · 衡量模型是否真正学到东西</span></h3>
+    <h3>🎯 诚实 IC 轨迹 <span class="sub">横截面 IC（选币能力）+ 单币种 IC（择时能力）· Purged 70/30</span></h3>
     <div id="icChart" style="height:220px;"></div>
   </div>
 
   <!-- 训练历史 -->
   <div class="panel" style="margin-bottom:14px;">
-    <h3>🗂️ 训练运行历史 <span class="sub">GitHub Actions 每 6 小时自动训练</span></h3>
+    <h3>🗂️ 训练运行历史 <span class="sub">GitHub Actions 每 6 小时自动训练 · 展示诚实口径</span></h3>
     <table class="table" style="margin-top:6px;">
-      <thead><tr><th>版本</th><th>训练时间 (UTC)</th><th>币种数</th><th>样本数</th><th>样本内 IC</th><th>样本外 IC</th><th>实盘 IC</th><th>闸门</th><th>多空夏普</th></tr></thead>
+      <thead><tr><th>版本</th><th>训练时间 (UTC)</th><th>币种数</th><th>样本数</th><th>横截面 IC</th><th>单币种 IC</th><th>混合 IC*</th><th>实盘 IC</th><th>闸门</th></tr></thead>
       <tbody id="histBody"><tr><td colspan="9" style="color:var(--text-dim)">加载中…</td></tr></tbody>
     </table>
+    <div style="font-size:10px;color:var(--text-faint);margin-top:6px;">*混合 IC 容易被跨币种同涨同跌虚增，仅作参考；判断模型请以前两列为准。</div>
   </div>
 
   <!-- 浏览器信号追踪 -->
