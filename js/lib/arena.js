@@ -35,8 +35,28 @@ export const FAMILIES = {
   htfTrend:   { name: '高周期趋势', weights: { trend: 0.20, momentum: 0.05, meanRev: 0.05, volume: 0.05, volatility: 0.05, position: 0.05, htf: 0.50, futures: 0.05 } },
   random:     { name: '随机对照', weights: null },   // 每赛季重新随机：冠军的及格线
   staticRef:  { name: '静态对照', weights: { trend: 0.22, momentum: 0.18, meanRev: 0.13, volume: 0.13, volatility: 0.09, position: 0.05, htf: 0.10, futures: 0.10 } },
+  learned:    { name: '云端模型', weights: null },   // data/model.json 全局学习权重，随云端训练自动更新
 };
-const CONTROL_FAMILIES = new Set(['random', 'staticRef']); // 对照组：不淘汰、不复制
+const CONTROL_FAMILIES = new Set(['random', 'staticRef', 'learned']); // 基准组：不淘汰、不复制
+
+// 云端学习权重（6 小时缓存；竞技场里 learned 族选手的权重来源）
+async function fetchLearnedWeights() {
+  try {
+    const cache = JSON.parse(localStorage.getItem('bq_arena_model') || 'null');
+    if (cache && Date.now() - cache.time < 6 * 36e5) return cache;
+  } catch (e) { /* ignore */ }
+  try {
+    const res = await fetch('data/model.json?t=' + Date.now(), { cache: 'no-store' });
+    if (!res.ok) throw new Error('model.json HTTP ' + res.status);
+    const m = await res.json();
+    if (!m || !m.weights) throw new Error('model.json 无权重');
+    const out = { time: Date.now(), trainedAt: m.trainedAt, weights: m.weights };
+    try { localStorage.setItem('bq_arena_model', JSON.stringify(out)); } catch (e) { /* ignore */ }
+    return out;
+  } catch (e) {
+    try { return JSON.parse(localStorage.getItem('bq_arena_model') || 'null'); } catch (e2) { return null; }
+  }
+}
 
 // ---------------- IndexedDB ----------------
 let dbPromise = null;
@@ -106,14 +126,20 @@ async function ensurePools() {
     const existing = await getAll('players');
     const have = new Set(existing.map(p => `${p.interval}|${p.family}`));
     const adds = [];
+    const needLearned = Object.keys(ARENA_INTERVALS).some(iv => !have.has(`${iv}|learned`));
+    const learned = needLearned ? await fetchLearnedWeights() : null;
     for (const iv of Object.keys(ARENA_INTERVALS)) {
       for (const [fam, def] of Object.entries(FAMILIES)) {
         if (have.has(`${iv}|${fam}`)) continue;  // 该周期该族已存在（任何世代）
+        const w = fam === 'learned'
+          ? { ...(learned?.weights || FAMILIES.hybrid.weights) }
+          : (def.weights ? { ...def.weights } : randomWeights());
         adds.push({
           id: `${iv}_${fam}_g0_${rid()}`,
           interval: iv, family: fam, familyName: def.name,
           generation: 0, parentId: null,
-          weights: def.weights ? { ...def.weights } : randomWeights(),
+          weights: w,
+          modelTrainedAt: fam === 'learned' ? (learned?.trainedAt || null) : undefined,
           params: { horizon: ARENA_INTERVALS[iv].horizon, entryThreshold: ARENA_INTERVALS[iv].entryThreshold },
           status: 'active',
           createdAt: Date.now(), seasonStart: Date.now(),
@@ -354,6 +380,7 @@ async function maybeRunSeason(iv) {
     champion: { family: champion.p.family, name: champion.p.familyName, gen: champion.p.generation, stats: champion.ss },
     randomRank: ranked.findIndex(r => r.p.family === 'random') + 1,
     staticRank: ranked.findIndex(r => r.p.family === 'staticRef') + 1,
+    learnedRank: ranked.findIndex(r => r.p.family === 'learned') + 1,
     table: ranked.map(r => ({ family: r.p.family, name: r.p.familyName, gen: r.p.generation, n: r.ss.n, tStat: +r.ss.tStat.toFixed(2), meanRet: +r.ss.meanRet.toFixed(5), winRate: +r.ss.winRate.toFixed(3), retired: r.p.status === 'retired' })),
   };
   await txStore(db, 'seasons', 'readwrite', s => s.put(log));
@@ -371,6 +398,18 @@ export async function arenaAutoTick(force = false) {
     localStorage.setItem('bq_arena_lasttick', String(Date.now()));
 
     await ensurePools();
+    // learned 族选手跟随云端模型更新（每 6h 缓存刷新一次）
+    const lm = await fetchLearnedWeights();
+    if (lm && lm.weights) {
+      const db0 = await openDB();
+      for (const p of (await getAll('players')).filter(p => p.family === 'learned')) {
+        if (p.modelTrainedAt !== lm.trainedAt) {
+          p.weights = { ...lm.weights };
+          p.modelTrainedAt = lm.trainedAt;
+          await txStore(db0, 'players', 'readwrite', s => s.put(p));
+        }
+      }
+    }
     const filled = await backfill();
     // 币种池：按成交额 Top N，6 小时缓存
     let symbols = [];
