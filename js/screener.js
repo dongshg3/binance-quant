@@ -234,11 +234,17 @@ function renderBreadth() {
 
   const avgScore = Stats.mean(r.map(x => x.score));
   const gainers = r.filter(x => (x.change24h ?? 0) > 0).length;
+  // 评分分布监测：|score| 的分位数，用于对照固定阈值 0.15/0.35/0.5 在当前市场的实际含义
+  // scoreScale 已把评分锚定到训练期横截面标准差（0.13），阈值本义是 σ 单位（0.15≈1.2σ）
+  // 但市场离散度随状态漂移，分位数让「阈值是否过松/过紧」可观测
+  const absSorted = r.map(x => Math.abs(x.score)).sort((a, b) => a - b);
+  const q = p => absSorted[Math.min(absSorted.length - 1, Math.floor(p * absSorted.length))];
   const cells = [
     { k: '市场平均评分', v: fmtNum(avgScore, 3), cls: avgScore > 0.05 ? 'good' : avgScore < -0.05 ? 'bad' : '' },
     { k: '24h上涨家数占比', v: fmtPct(gainers / r.length, 1, false) },
     { k: '强多信号', v: r.filter(x => x.score >= 0.35).length, cls: 'good' },
     { k: '强空信号', v: r.filter(x => x.score <= -0.35).length, cls: 'bad' },
+    { k: '|评分| P90 / P99', v: `${fmtNum(q(0.9), 3)} / ${fmtNum(q(0.99), 3)}`, cls: q(0.9) > 0.15 ? '' : 'bad' },
     { k: '挤压蓄势 (BBW<0.6均值)', v: r.filter(x => x.squeeze < 0.6).length },
     { k: '放量 (量>1.5×均量)', v: r.filter(x => x.volRatio > 1.5).length },
   ];
