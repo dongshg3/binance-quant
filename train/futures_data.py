@@ -14,6 +14,7 @@ import io
 import os
 import time
 import urllib.request
+import urllib.error
 import zipfile
 from bisect import bisect_right
 from concurrent.futures import ThreadPoolExecutor
@@ -60,6 +61,11 @@ def _download(url, timeout=30, retries=3):
             req = urllib.request.Request(url, headers=UA)
             with urllib.request.urlopen(req, timeout=timeout) as r:
                 return r.read()
+        except urllib.error.HTTPError as e:
+            if e.code == 404:
+                raise  # 404 = 文件不存在（该日无此币种数据），重试无意义，立即失败
+            last = e
+            time.sleep(1.0 * (i + 1))
         except Exception as e:  # noqa
             last = e
             time.sleep(1.0 * (i + 1))
