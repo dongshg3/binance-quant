@@ -762,20 +762,103 @@ def main():
             sb.setdefault(int(ts_seg[k]), []).append(comp_s[k])
         xs_stds_s = [float(np.std(vv)) for vv in sb.values() if len(vv) >= 5]
         scale_s = float(np.median(xs_stds_s)) if xs_stds_s else 1.0
-        good = (ic_xs_s is not None and ic_xs_s >= 0.015 and nw_s is not None and nw_s >= 1.5)
+        # 采用判定（对称阈值）：显著为正 → 正向启用；显著为负 → 反向启用（取负权重）。
+        # IC=-0.03 且 t=-2.4 不是"无效"，是反向有效——和正信号一样有价值，弃用是浪费
+        flipped = False
+        good = False
+        if ic_xs_s is not None and nw_s is not None:
+            if ic_xs_s >= 0.015 and nw_s >= 2.0:
+                good = True
+            elif ic_xs_s <= -0.015 and nw_s <= -2.0 and w_norm is not None:
+                good = True
+                flipped = True
+                w_norm = {g: -w_norm[g] for g in GROUPS}  # 预测反向 = 权重取负
         segments[f"{kind}:{val}"] = {
             "weights": {g: round(w_norm[g], 4) for g in GROUPS} if w_norm else None,
             "scoreScale": round(scale_s, 8) if scale_s > 1e-8 else 1.0,
             "icXS": round(ic_xs_s, 4) if ic_xs_s is not None else None,
             "nwT": round(nw_s, 2) if nw_s is not None else None,
-            "n": int(tr_m.sum()), "symbols": n_syms, "good": bool(good),
+            "n": int(tr_m.sum()), "symbols": n_syms, "good": bool(good), "flipped": bool(flipped),
         }
-        print(f"[train] 分段 {kind}:{val} n={tr_m.sum()} 币={n_syms} XS_IC={ic_xs_s if ic_xs_s is None else round(ic_xs_s, 4)} t={None if nw_s is None else round(nw_s, 2)} {'可用' if good else '观察'}")
+        tag = "反向启用" if flipped else ("可用" if good else "观察")
+        print(f"[train] 分段 {kind}:{val} n={tr_m.sum()} 币={n_syms} XS_IC={ic_xs_s if ic_xs_s is None else round(ic_xs_s, 4)} t={None if nw_s is None else round(nw_s, 2)} {tag}")
+
+    # ---------------- 非线性对照实验：ExtraTrees vs Ridge ----------------
+    # dCor 显著 ⇒ 非线性成分存在，但不保证当前样本量能提取 —— 实验说了算。
+    # 判据：ET−Ridge > 0.01 且蒸馏后仍 > Ridge + 0.005 → 采纳蒸馏权重
+    # （蒸馏 = Ridge 拟合 ET 训练集预测 → 等效线性权重，前端零改动可用）
+    et_report = {}
+    distilled_global = None
+    try:
+        from sklearn.ensemble import ExtraTreesRegressor
+        ET_K = int(os.environ.get("TQ_ET_FOLDS", "5"))
+        ET_TREES = int(os.environ.get("TQ_ET_TREES", "300"))
+
+        def et_experiment(mask_all, name):
+            fr = tt / nn
+            r_ics, e_ics, d_ics = [], [], []
+            w_last = None
+            for f in range(ET_K):
+                lo, hi = f / ET_K, (f + 1) / ET_K
+                te_f = mask_all & (fr >= lo) & (fr < hi)
+                tr_f = mask_all & ((fr < lo - EMBARGO / nn) | (fr >= hi + EMBARGO / nn))
+                if te_f.sum() < 3000 or tr_f.sum() < 8000:
+                    continue
+                mu_f = X[tr_f].mean(axis=0); sd_f = X[tr_f].std(axis=0); sd_f[sd_f == 0] = 1
+                Ztr_f = (X[tr_f] - mu_f) / sd_f
+                Zte_f = (X[te_f] - mu_f) / sd_f
+                ytr_f = y[tr_f]
+                A_f = Ztr_f.T @ Ztr_f + RIDGE_LAMBDA * np.eye(d)
+                w_r = np.linalg.solve(A_f, Ztr_f.T @ ytr_f)
+                ic_r, _, _ = cross_sectional_ic(Zte_f @ w_r, y[te_f], ts[te_f])
+                et = ExtraTreesRegressor(n_estimators=ET_TREES, max_depth=5, min_samples_leaf=50,
+                                         max_features=0.5, n_jobs=-1, random_state=42)
+                et.fit(Ztr_f, ytr_f)
+                ic_e, _, _ = cross_sectional_ic(et.predict(Zte_f), y[te_f], ts[te_f])
+                w_d = np.linalg.solve(A_f, Ztr_f.T @ et.predict(Ztr_f))
+                ic_d, _, _ = cross_sectional_ic(Zte_f @ w_d, y[te_f], ts[te_f])
+                if ic_r is not None and ic_e is not None and ic_d is not None:
+                    r_ics.append(ic_r); e_ics.append(ic_e); d_ics.append(ic_d)
+                    w_last = w_d / sd_f
+            if not r_ics:
+                return None
+            rep = {"ridge": round(float(np.mean(r_ics)), 4), "et": round(float(np.mean(e_ics)), 4),
+                   "distilled": round(float(np.mean(d_ics)), 4), "folds": len(r_ics)}
+            rep["improvement"] = round(rep["et"] - rep["ridge"], 4)
+            rep["adopted"] = bool(rep["improvement"] > 0.01 and rep["distilled"] > rep["ridge"] + 0.005)
+            return rep, w_last
+
+        exp_targets = [("global", np.ones(len(y), dtype=bool), None)]
+        for k_, v_ in segments.items():
+            kind_, val_ = k_.split(":")
+            members_ = {s for s, m in symbol_meta.items() if m[kind_] == val_}
+            exp_targets.append((k_, np.array([s in members_ for s in ss]), k_))
+        for name, mask_e, seg_key in exp_targets:
+            r = et_experiment(mask_e, name)
+            if r is None:
+                continue
+            rep, w_dist = r
+            et_report[name] = rep
+            verdict = "采纳蒸馏" if rep["adopted"] else "保留Ridge"
+            print(f"[train] ET实验 {name}: Ridge={rep['ridge']} ET={rep['et']} 蒸馏={rep['distilled']} Δ={rep['improvement']} → {verdict}")
+            if rep["adopted"] and w_dist is not None:
+                absum_d = float(np.sum(np.abs(w_dist)))
+                if absum_d > 0:
+                    w_dn = {g: float(w_dist[j]) / absum_d for j, g in enumerate(GROUPS)}
+                    if seg_key is None:
+                        distilled_global = w_dn
+                    else:
+                        segments[seg_key]["weights"] = {g: round(w_dn[g], 4) for g in GROUPS}
+                        segments[seg_key]["modelType"] = "et-distilled"
+                        segments[seg_key]["good"] = True
+                        segments[seg_key]["flipped"] = False
+    except ImportError:
+        print("[train] sklearn 不可用，跳过非线性对照实验")
 
     # 权重映射：全部 8 个可学习组归一化到 L1 = 1.0
     absum = float(np.sum(np.abs(w_raw)))
     scale = 1.0 / absum if absum > 0 else 0
-    learned_weights = {g: float(w_raw[j]) * scale for j, g in enumerate(GROUPS)}
+    learned_weights = distilled_global if distilled_global is not None else {g: float(w_raw[j]) * scale for j, g in enumerate(GROUPS)}
 
     # ---------------- 防过拟合：EMA 权重收缩 + 实盘闸门 ----------------
     # 旧权重（上一版模型，无则静态）
@@ -796,6 +879,53 @@ def main():
     if absum2 > 0:
         shrunk = {g: v / absum2 for g, v in shrunk.items()}
     candidate = {g: round(shrunk[g], 4) for g in GROUPS}
+
+    # ---------------- 逐币独立模型（父段收缩防过拟合） ----------------
+    # 每个币种自己的时间序列独立岭回归；采纳门槛：OOS TS IC ≥ 0.04 且粗略 t ≥ 2。
+    # 通过的权重与父段权重 50/50 收缩（James-Stein 思想：单币噪声大，向分段均值收缩）
+    coin_models = {}
+    def parent_weights_of(sym):
+        meta = symbol_meta.get(sym, {})
+        cs = segments.get("cat:" + str(meta.get("cat")))
+        if cs and cs.get("good") and cs.get("weights"):
+            return cs["weights"]
+        zs = segments.get("size:" + str(meta.get("size")))
+        if zs and zs.get("good") and zs.get("weights"):
+            return zs["weights"]
+        return candidate
+    for sym in np.unique(ss):
+        m_c = ss == sym
+        tr_c = m_c & train_mask
+        te_c = m_c & test_mask
+        if tr_c.sum() < 1500 or te_c.sum() < 400:
+            continue
+        mu_c = X[tr_c].mean(axis=0); sd_c = X[tr_c].std(axis=0); sd_c[sd_c == 0] = 1
+        Ztr_c = (X[tr_c] - mu_c) / sd_c
+        Zte_c = (X[te_c] - mu_c) / sd_c
+        A_c = Ztr_c.T @ Ztr_c + RIDGE_LAMBDA * np.eye(d)
+        w_c = np.linalg.solve(A_c, Ztr_c.T @ y[tr_c])
+        ic_c = spearman(Zte_c @ w_c, y[te_c])
+        t_c = ic_c * math.sqrt(float(te_c.sum()))  # 粗略 t（标签重叠会高估，仅作筛选）
+        if ic_c < 0.04 or t_c < 2.0:
+            continue
+        w_c_raw = w_c / sd_c
+        absum_c = float(np.sum(np.abs(w_c_raw)))
+        if absum_c <= 0:
+            continue
+        w_cn = {g: float(w_c_raw[j]) / absum_c for j, g in enumerate(GROUPS)}
+        pw = parent_weights_of(sym)
+        w_pub = {g: 0.5 * w_cn[g] + 0.5 * float(pw.get(g, 0)) for g in GROUPS}
+        absum_p = sum(abs(v) for v in w_pub.values())
+        if absum_p > 0:
+            w_pub = {g: v / absum_p for g, v in w_pub.items()}
+        comp_c = X[m_c] @ np.array([w_pub[g] for g in GROUPS])
+        scale_c = float(np.std(comp_c))
+        coin_models[str(sym)] = {
+            "weights": {g: round(w_pub[g], 4) for g in GROUPS},
+            "scoreScale": round(scale_c, 8) if scale_c > 1e-8 else 1.0,
+            "ic": round(ic_c, 4), "t": round(t_c, 2), "n": int(te_c.sum()),
+        }
+    print(f"[train] 逐币模型: {len(coin_models)} 个通过采纳门槛（IC≥0.04 且 t≥2，父段50%收缩）")
 
     # 闸门 1：信息显著性硬门槛——横截面 IC（选币能力，对工程化标签）必须为正且
     # Newey-West t ≥ 2（时序自相关调整后的显著性，防止 IC 均值被自相关虚增）
@@ -874,7 +1004,10 @@ def main():
         "lsSharpeOOS": round(ls_sharpe, 2),
         "dcor": dcor_res,
         "conditionalIC": conditional_ic,
-        "segments": {k: {kk: v[kk] for kk in ("icXS", "nwT", "n", "symbols", "good")} for k, v in segments.items()},
+        "segments": {k: {kk: v[kk] for kk in ("icXS", "nwT", "n", "symbols", "good") if kk in v} | {"flipped": v.get("flipped", False), "modelType": v.get("modelType", "ridge")} for k, v in segments.items()},
+        "etExperiments": et_report,
+        "coinModels": {"adopted": len(coin_models),
+                       "icMean": round(float(np.mean([v["ic"] for v in coin_models.values()])), 4) if coin_models else None},
         "accepted": accepted,
         "rejectReason": "; ".join(reject_reasons),
         "alpha": EMA_ALPHA,
@@ -889,13 +1022,15 @@ def main():
     model = {
         "version": version,
         "trainedAt": trained_at,
-        "engine": "ridge-v5-seg",
+        "engine": "ridge-v6-seg-et-coin",
         "fwdSet": FWD_SET,
         "weights": final_weights,
         "scoreScale": round(score_scale, 8),
         "staticWeights": STATIC_WEIGHTS,
         "segments": segments,
         "symbolMeta": symbol_meta,
+        "coinModels": coin_models,
+        "etExperiments": et_report,
         "factorIC": factor_ic,
         "oos": {"ic": round(ic_oos, 4), "icInSample": round(ic_in, 4),
                 "icXS": round(ic_xs, 4) if ic_xs is not None else None,
