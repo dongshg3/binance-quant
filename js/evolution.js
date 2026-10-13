@@ -30,6 +30,8 @@ async function init() {
 
   renderModel(model);
   renderDiagnostics(model);
+  renderInfoTests(model);
+  renderSegments(model);
   renderWeightCompare(model);
   renderICTable(model);
   renderWeightChart(evo);
@@ -67,7 +69,8 @@ function renderModel(model) {
     { k: '单币种 IC（择时能力）', v: model.oos?.icPerSymbolMean != null ? `${fmtNum(model.oos.icPerSymbolMean, 4)} <small style="color:var(--text-faint)">中位 ${fmtNum(model.oos.icPerSymbolMedian, 4)}</small>` : '—', cls: model.oos?.icPerSymbolMean > 0.05 ? 'good' : '' },
     { k: '混合 IC（仅参考）', v: model.oos?.ic != null ? fmtNum(model.oos.ic, 4) : '—' },
     { k: '样本内外差距', v: model.oos?.gapInOut != null ? fmtNum(model.oos.gapInOut, 4) : '—', cls: model.oos?.gapInOut > 0.05 ? 'bad' : model.oos?.gapInOut < 0.02 ? 'good' : '' },
-    { k: '预测视野', v: `T+${model.fwdBars ?? 12} bar` },
+    { k: 'XS IC 显著性 (NW t)', v: model.oos?.nwT != null ? fmtNum(model.oos.nwT, 2) : '—', cls: model.oos?.nwT >= 2 ? 'good' : model.oos?.nwT != null ? 'bad' : '' },
+    { k: '预测视野', v: model.fwdSet ? `T+${model.fwdSet.join('/')} bar` : `T+${model.fwdBars ?? 12} bar` },
   ];
   // 实盘闸门信息（v2 引擎起）
   if (model.tracker) {
@@ -137,6 +140,88 @@ function renderDiagnostics(model) {
     </div>
     <div style="font-size:10px;color:var(--text-faint);margin-top:10px;line-height:1.6;">
       判定标准：真模型分位 &lt; 90% 意味着与随机权重无显著差异（学习无效）；单币种最差值为负属正常，但均值必须显著为正；IC 在 T+1 高而 T+4 暴跌 = 捕捉的是微观噪声而非信号。
+    </div>`;
+}
+
+// ---------------- 信息存在性检验 ----------------
+function renderInfoTests(model) {
+  const el = $('infoContent');
+  const dg = model && model.diagnostics;
+  if (!dg || !dg.dcor) { el.innerHTML = '<div class="placeholder">等待 v8+ 模型产出检验数据（下次云端训练后自动出现）</div>'; return; }
+
+  // ① dCor 表
+  const dcorRows = Object.entries(dg.dcor).map(([g, r]) => {
+    const name = g === '_composite' ? '综合评分' : (GROUP_NAMES[g] || g);
+    const sig = r.p <= 0.05;
+    return `<tr style="cursor:default">
+      <td>${name}</td>
+      <td style="font-weight:600" class="${r.dcor > 0.1 ? 'up' : ''}">${fmtNum(r.dcor, 4)}</td>
+      <td class="${sig ? 'up' : 'down'}">${fmtNum(r.p, 3)}</td>
+      <td>${sig ? '<span class="chip long">存在依赖</span>' : '<span class="chip short">未发现依赖</span>'}</td>
+    </tr>`;
+  }).join('');
+
+  // ② 条件 IC 表
+  const COND_NAMES = { byAdx: '按 ADX 分桶', byVol: '按波动率分桶', byFunding: '按资金费率分桶' };
+  const condRows = Object.entries(dg.conditionalIC || {}).map(([k, buckets]) => {
+    const cells = ['低', '中', '高'].map(lab => {
+      const v = buckets[lab];
+      return `<td class="${v > 0.02 ? 'up' : v < -0.02 ? 'down' : ''}">${v != null ? fmtNum(v, 4) : '—'}</td>`;
+    }).join('');
+    // 齐性直觉：桶间差异大 = 信息是条件存在的
+    const vals = ['低', '中', '高'].map(l => buckets[l]).filter(v => v != null);
+    const spreadV = vals.length >= 2 ? Math.max(...vals) - Math.min(...vals) : null;
+    const verdict = spreadV == null ? '<span class="chip flat">样本不足</span>'
+      : spreadV > 0.05 ? '<span class="chip long">条件差异显著</span>' : '<span class="chip flat">各状态差异小</span>';
+    return `<tr style="cursor:default"><td>${COND_NAMES[k] || k}</td>${cells}<td>${verdict}</td></tr>`;
+  }).join('');
+
+  const nwT = model.oos?.nwT;
+  el.innerHTML = `
+    <div style="font-size:12px;color:var(--text-dim);margin-bottom:6px;">① 距离相关 dCor（Székely 2007）：dCor=0 当且仅当统计独立 —— 线性 IC≈0 时回答"信息是否藏在线性够不到的地方"</div>
+    <table class="table">
+      <thead><tr><th>因子组</th><th>dCor</th><th>置换检验 p 值</th><th>判定</th></tr></thead>
+      <tbody>${dcorRows}</tbody>
+    </table>
+    <div style="font-size:12px;color:var(--text-dim);margin:14px 0 6px;">② 条件 IC（按市场状态 tercile 切桶）：无条件 IC≈0 但某桶显著 ≠0 ⇒ 信息只在特定状态存在</div>
+    <table class="table">
+      <thead><tr><th>状态变量</th><th>低桶</th><th>中桶</th><th>高桶</th><th>齐性判定</th></tr></thead>
+      <tbody>${condRows}</tbody>
+    </table>
+    <div style="font-size:10px;color:var(--text-faint);margin-top:10px;line-height:1.7;">
+      判读：dCor 全表 p &gt; 0.05 ⇒ 这套因子在当前市场没有可提取的信息（换信息源，不是换模型）；某状态桶 IC 显著 ⇒ 该状态下信号才可信，应配合状态过滤使用。当前 XS IC 的 Newey-West t = <b>${nwT != null ? fmtNum(nwT, 2) : '—'}</b>（|t| ≥ 2 才算统计显著）。
+    </div>`;
+}
+
+// ---------------- 分段专业化模型 ----------------
+function renderSegments(model) {
+  const el = $('segContent');
+  const segs = model && model.segments;
+  if (!segs || !Object.keys(segs).length) { el.innerHTML = '<div class="placeholder">等待 v8+ 模型产出分段数据（下次云端训练后自动出现）</div>'; return; }
+  const SEG_LABEL = { size: '规模', cat: '板块' };
+  const CAT_CN = { major: '主流大盘', l1: '一层公链', l2: '二层网络', defi: 'DeFi', meme: '模因币', ai: 'AI', gaming: '游戏', infra: '基础设施', other: '其他' };
+  const SIZE_CN = { large: '大盘', mid: '中盘', small: '小盘' };
+  const rows = Object.entries(segs).map(([k, s]) => {
+    const [kind, val] = k.split(':');
+    const name = kind === 'size' ? SIZE_CN[val] || val : CAT_CN[val] || val;
+    const good = s.good;
+    return `<tr style="cursor:default" class="${good ? '' : ''}">
+      <td><b>${name}</b> <span style="color:var(--text-faint);font-size:10px;">${SEG_LABEL[kind]}</span></td>
+      <td>${s.symbols}</td>
+      <td>${(s.n / 1000).toFixed(0)}k</td>
+      <td class="${s.icXS >= 0.015 ? 'up' : s.icXS < 0 ? 'down' : ''}" style="font-weight:600">${s.icXS != null ? fmtNum(s.icXS, 4) : '—'}</td>
+      <td class="${s.nwT >= 1.5 ? 'up' : ''}">${s.nwT != null ? fmtNum(s.nwT, 2) : '—'}</td>
+      <td>${good ? '<span class="chip long">已启用</span>' : '<span class="chip flat">观察中·用全局</span>'}</td>
+    </tr>`;
+  }).join('');
+  el.innerHTML = `
+    <table class="table">
+      <thead><tr><th>分段</th><th>币种数</th><th>训练样本</th><th>横截面 IC</th><th>NW t</th><th>前端使用</th></tr></thead>
+      <tbody>${rows}</tbody>
+    </table>
+    <div style="font-size:10px;color:var(--text-faint);margin-top:8px;line-height:1.7;">
+      启用标准：段内横截面 IC ≥ 0.015 且 NW t ≥ 1.5。未达标的分段前端自动回退全局权重——宁缺毋滥。
+      前端评分页每个币种按「板块分段 &gt; 规模分段 &gt; 全局」的优先级选用权重，模型徽标会显示当前生效的分段。
     </div>`;
 }
 
