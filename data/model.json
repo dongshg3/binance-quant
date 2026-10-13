@@ -1,16 +1,16 @@
 {
- "version": 4,
- "trainedAt": "2026-10-13T05:08:39+00:00",
- "engine": "ridge-v2-livegate",
+ "version": 5,
+ "trainedAt": "2026-10-13T05:36:11+00:00",
+ "engine": "ridge-v3-honest",
  "fwdBars": 12,
  "weights": {
-  "trend": 0.0792,
-  "momentum": -0.3978,
-  "meanRev": 0.1198,
-  "volume": -0.1232,
-  "volatility": -0.0315,
-  "position": -0.01,
-  "htf": -0.1385,
+  "trend": 0.0961,
+  "momentum": -0.3529,
+  "meanRev": 0.1317,
+  "volume": -0.1175,
+  "volatility": -0.0263,
+  "position": -0.0269,
+  "htf": -0.1486,
   "futures": 0.1
  },
  "staticWeights": {
@@ -24,19 +24,45 @@
   "futures": 0.1
  },
  "factorIC": {
-  "trend": -0.0997,
-  "momentum": -0.2908,
-  "meanRev": 0.0758,
-  "volume": -0.0165,
-  "volatility": -0.0177,
-  "position": -0.0143,
-  "htf": -0.1661
+  "trend": -0.1199,
+  "momentum": -0.2547,
+  "meanRev": 0.0927,
+  "volume": -0.0389,
+  "volatility": -0.029,
+  "position": -0.0177,
+  "htf": -0.2032
  },
  "oos": {
-  "ic": 0.4199,
-  "icInSample": 0.5117,
-  "lsSpread": 0.045099,
-  "lsSharpe": 12.62
+  "ic": 0.4122,
+  "icInSample": 0.454,
+  "icXS": 0.3603,
+  "icPerSymbolMean": 0.4274,
+  "icPerSymbolMedian": 0.4267,
+  "gapInOut": 0.0418,
+  "lsSpread": 0.045773,
+  "lsSharpe": 12.33
+ },
+ "diagnostics": {
+  "icDecay": {
+   "1": 0.3925,
+   "2": 0.49,
+   "4": 0.5084,
+   "8": 0.4884,
+   "24": 0.3092
+  },
+  "perSymbol": {
+   "mean": 0.4274,
+   "median": 0.4267,
+   "worst": -0.0766,
+   "best": 0.6226
+  },
+  "randomIC": {
+   "mean": -0.0027,
+   "std": 0.1488,
+   "percentile": 1.0
+  },
+  "xsBuckets": 375,
+  "embargo": 200
  },
  "accepted": true,
  "rejectReason": "",
@@ -48,10 +74,11 @@
  },
  "meta": {
   "symbols": 148,
-  "samples": 115694,
+  "samples": 258543,
   "interval": "1h",
   "ridgeLambda": 5.0,
   "alpha": 0.6,
-  "note": "权重=岭回归学习×0.6+旧权重×0.4（EMA收缩）；实盘追踪数据仅用于更新闸门，不参与拟合"
+  "embargo": 200,
+  "note": "权重=岭回归学习×0.6+旧权重×0.4；横截面IC=选币能力(诚实口径)，单币种IC=择时能力，混合IC易被同涨同跌虚增仅供参考；实盘追踪仅用于闸门不参与拟合"
  }
 }
