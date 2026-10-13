@@ -32,6 +32,8 @@ async function init() {
   renderDiagnostics(model);
   renderInfoTests(model);
   renderSegments(model);
+  renderEtExperiments(model);
+  renderCoinModels(model);
   renderWeightCompare(model);
   renderICTable(model);
   renderWeightChart(evo);
@@ -72,6 +74,19 @@ function renderModel(model) {
     { k: 'XS IC 显著性 (NW t)', v: model.oos?.nwT != null ? fmtNum(model.oos.nwT, 2) : '—', cls: model.oos?.nwT >= 2 ? 'good' : model.oos?.nwT != null ? 'bad' : '' },
     { k: '预测视野', v: model.fwdSet ? `T+${model.fwdSet.join('/')} bar` : `T+${model.fwdBars ?? 12} bar` },
   ];
+  // 逐币模型计数（v9+ 引擎）
+  if (model.coinModels && typeof model.coinModels === 'object') {
+    const cn = Object.keys(model.coinModels).length;
+    if (cn > 0) {
+      const ics = Object.values(model.coinModels).map(v => v.ic).filter(v => v != null);
+      const meanIc = ics.length ? ics.reduce((a, b) => a + b, 0) / ics.length : null;
+      cells.push({
+        k: '逐币独立模型',
+        v: `${cn} 个已启用 <small style="color:var(--text-faint)">IC 均 ${meanIc != null ? fmtNum(meanIc, 4) : '—'}</small>`,
+        cls: 'good',
+      });
+    }
+  }
   // 实盘闸门信息（v2 引擎起）
   if (model.tracker) {
     const t = model.tracker;
@@ -205,13 +220,18 @@ function renderSegments(model) {
     const [kind, val] = k.split(':');
     const name = kind === 'size' ? SIZE_CN[val] || val : CAT_CN[val] || val;
     const good = s.good;
+    const flipped = s.flipped;
+    const usage = good && flipped ? '<span class="chip trend">反向启用</span>'
+      : good ? '<span class="chip long">已启用</span>'
+      : '<span class="chip flat">观察中·用全局</span>';
+    const mt = s.modelType === 'et-distilled' ? ' <small class="chip range" title="非线性 ExtraTrees 对照实验胜出，知识蒸馏回线性权重">ET蒸馏</small>' : '';
     return `<tr style="cursor:default" class="${good ? '' : ''}">
-      <td><b>${name}</b> <span style="color:var(--text-faint);font-size:10px;">${SEG_LABEL[kind]}</span></td>
+      <td><b>${name}</b> <span style="color:var(--text-faint);font-size:10px;">${SEG_LABEL[kind]}</span>${mt}</td>
       <td>${s.symbols}</td>
       <td>${(s.n / 1000).toFixed(0)}k</td>
       <td class="${s.icXS >= 0.015 ? 'up' : s.icXS < 0 ? 'down' : ''}" style="font-weight:600">${s.icXS != null ? fmtNum(s.icXS, 4) : '—'}</td>
-      <td class="${s.nwT >= 1.5 ? 'up' : ''}">${s.nwT != null ? fmtNum(s.nwT, 2) : '—'}</td>
-      <td>${good ? '<span class="chip long">已启用</span>' : '<span class="chip flat">观察中·用全局</span>'}</td>
+      <td class="${Math.abs(s.nwT ?? 0) >= 1.5 ? 'up' : ''}">${s.nwT != null ? fmtNum(s.nwT, 2) : '—'}</td>
+      <td>${usage}</td>
     </tr>`;
   }).join('');
   el.innerHTML = `
@@ -220,8 +240,74 @@ function renderSegments(model) {
       <tbody>${rows}</tbody>
     </table>
     <div style="font-size:10px;color:var(--text-faint);margin-top:8px;line-height:1.7;">
-      启用标准：段内横截面 IC ≥ 0.015 且 NW t ≥ 1.5。未达标的分段前端自动回退全局权重——宁缺毋滥。
-      前端评分页每个币种按「板块分段 &gt; 规模分段 &gt; 全局」的优先级选用权重，模型徽标会显示当前生效的分段。
+      启用标准：|段内横截面 IC| ≥ 0.015 且 |NW t| ≥ 1.5。IC 显著为正 → 正向启用；IC 显著为负 → <b>反向启用</b>（权重取负使用，反向信号与正向信号等价有效，如 L1 公链板块）；
+      不显著 → 回退全局权重，宁缺毋滥。
+      前端评分页每个币种按「逐币模型 &gt; 板块分段 &gt; 规模分段 &gt; 全局」的优先级选用权重，模型徽标会显示当前生效的分段。
+    </div>`;
+}
+
+// ---------------- 非线性对照实验（ExtraTrees + 知识蒸馏） ----------------
+function renderEtExperiments(model) {
+  const el = $('etContent');
+  const exps = model && model.etExperiments;
+  if (!exps || !Object.keys(exps).length) { el.innerHTML = '<div class="placeholder">等待 v9+ 模型产出对照实验数据（下次云端训练后自动出现）</div>'; return; }
+  const NAME_CN = { global: '全局', 'size:large': '大盘', 'size:mid': '中盘', 'size:small': '小盘', 'cat:l1': 'L1 公链', 'cat:l2': 'L2 网络', 'cat:defi': 'DeFi', 'cat:meme': '模因币', 'cat:ai': 'AI', 'cat:gaming': '游戏', 'cat:infra': '基础设施', 'cat:other': '其他板块', 'cat:major': '主流大盘' };
+  const rows = Object.entries(exps).map(([k, r]) => {
+    const verdict = r.adopted ? '<span class="chip long">采纳·蒸馏上线</span>' : '<span class="chip flat">保留 Ridge</span>';
+    return `<tr style="cursor:default">
+      <td><b>${NAME_CN[k] || k}</b></td>
+      <td>${r.folds} 折</td>
+      <td class="${r.ridge > 0.015 ? 'up' : ''}">${fmtNum(r.ridge, 4)}</td>
+      <td class="${r.et > r.ridge + 0.005 ? 'up' : r.et < r.ridge - 0.005 ? 'down' : ''}" style="font-weight:600">${fmtNum(r.et, 4)}</td>
+      <td class="${r.distilled > r.ridge + 0.005 ? 'up' : ''}">${fmtNum(r.distilled, 4)}</td>
+      <td class="${r.improvement > 0.005 ? 'up' : r.improvement < -0.005 ? 'down' : ''}">${r.improvement > 0 ? '+' : ''}${fmtNum(r.improvement, 4)}</td>
+      <td>${verdict}</td>
+    </tr>`;
+  }).join('');
+  el.innerHTML = `
+    <table class="table">
+      <thead><tr><th>目标</th><th>Purged 折</th><th>Ridge IC</th><th>ExtraTrees IC</th><th>蒸馏后 IC</th><th>Δ (ET−Ridge)</th><th>判定</th></tr></thead>
+      <tbody>${rows}</tbody>
+    </table>
+    <div style="font-size:10px;color:var(--text-faint);margin-top:8px;line-height:1.7;">
+      采纳标准（实验说了算，非理论预设）：Δ &gt; 0.01 <b>且</b> 蒸馏后 IC 仍比 Ridge 高 0.005 以上。
+      采纳时不直接把树模型搬上前端，而是做<b>知识蒸馏</b>：用 ExtraTrees 在训练集上的预测再拟合一个 Ridge，把非线性行为压缩成等效线性权重——前端零改动即可使用。
+      大部分目标保留 Ridge 是正常且诚实的结果：样本量不足以支撑非线性模型的方差代价时，强行上树只会过拟合。
+    </div>`;
+}
+
+// ---------------- 逐币独立模型 ----------------
+function renderCoinModels(model) {
+  const el = $('coinContent');
+  const coins = model && model.coinModels;
+  if (!coins || !Object.keys(coins).length) { el.innerHTML = '<div class="placeholder">等待 v9+ 模型产出逐币模型数据（下次云端训练后自动出现）</div>'; return; }
+  const list = Object.entries(coins).sort((a, b) => (b[1].ic ?? 0) - (a[1].ic ?? 0));
+  const meanIc = list.reduce((s, [, v]) => s + (v.ic ?? 0), 0) / list.length;
+  const posN = list.filter(([, v]) => (v.ic ?? 0) > 0).length;
+  const rows = list.map(([sym, v]) => {
+    const base = sym.replace(/USDT$/, '');
+    return `<tr style="cursor:default">
+      <td><b>${base}</b></td>
+      <td class="${v.ic >= 0.04 ? 'up' : ''}" style="font-weight:600">${fmtNum(v.ic, 4)}</td>
+      <td class="${Math.abs(v.t ?? 0) >= 2 ? 'up' : ''}">${v.t != null ? fmtNum(v.t, 2) : '—'}</td>
+      <td>${v.n ?? '—'}</td>
+    </tr>`;
+  }).join('');
+  el.innerHTML = `
+    <div class="grid-metrics" style="margin-bottom:10px;">
+      <div class="metric good"><div class="k">已启用逐币模型</div><div class="v">${list.length} 个</div></div>
+      <div class="metric ${meanIc > 0.04 ? 'good' : ''}"><div class="k">样本外 IC 均值</div><div class="v">${fmtNum(meanIc, 4)}</div></div>
+      <div class="metric"><div class="k">IC 为正占比</div><div class="v">${fmtPct(posN / list.length, 1, false)}</div></div>
+    </div>
+    <div style="max-height:320px;overflow:auto;">
+      <table class="table">
+        <thead><tr><th>币种</th><th>样本外 IC</th><th>t 值</th><th>测试样本</th></tr></thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </div>
+    <div style="font-size:10px;color:var(--text-faint);margin-top:8px;line-height:1.7;">
+      采纳标准：训练样本 ≥ 1500、测试样本 ≥ 400、IC ≥ 0.04 且 t ≥ 2。
+      逐币权重与父分段（板块/规模）做 50/50 收缩融合，避免单币小样本过拟合；未通过门槛的币种自动使用分段或全局权重。
     </div>`;
 }
 
