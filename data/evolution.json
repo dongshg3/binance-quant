@@ -185,5 +185,60 @@
    "icPrev": null,
    "gate": "skipped(<30样本)"
   }
+ },
+ {
+  "version": 6,
+  "trainedAt": "2026-10-13T06:18:47+00:00",
+  "symbols": 148,
+  "samples": 258550,
+  "fwdBars": 12,
+  "weights": {
+   "trend": 0.1033,
+   "momentum": -0.3343,
+   "meanRev": 0.1371,
+   "volume": -0.115,
+   "volatility": -0.0241,
+   "position": -0.0341,
+   "htf": -0.1522,
+   "futures": 0.1
+  },
+  "factorIC": {
+   "trend": -0.1173,
+   "momentum": -0.2565,
+   "meanRev": 0.0929,
+   "volume": -0.0362,
+   "volatility": -0.0297,
+   "position": -0.0172,
+   "htf": -0.1997
+  },
+  "icInSample": 0.4546,
+  "icOOS": 0.414,
+  "icXS": 0.3641,
+  "icPerSym": 0.4285,
+  "icPerSymMedian": 0.4273,
+  "icDecay": {
+   "1": 0.3938,
+   "2": 0.4908,
+   "4": 0.509,
+   "8": 0.4904,
+   "24": 0.3099
+  },
+  "gapInOut": 0.0406,
+  "randIC": {
+   "mean": -0.0028,
+   "std": 0.1491,
+   "percentile": 1.0
+  },
+  "lsSpread": 0.045913,
+  "lsSharpeOOS": 12.52,
+  "accepted": true,
+  "rejectReason": "",
+  "alpha": 0.6,
+  "tracker": {
+   "n": 0,
+   "icNew": null,
+   "icPrev": null,
+   "gate": "skipped(<30样本)"
+  }
  }
 ]
