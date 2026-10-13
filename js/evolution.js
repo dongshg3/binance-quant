@@ -29,6 +29,7 @@ async function init() {
   if (!Array.isArray(evo)) evo = [];
 
   renderModel(model);
+  renderDiagnostics(model);
   renderWeightCompare(model);
   renderICTable(model);
   renderWeightChart(evo);
@@ -62,9 +63,10 @@ function renderModel(model) {
     { k: '训练时间', v: d.toLocaleString() + `（${ageH < 1 ? Math.round(ageH * 60) + ' 分钟' : ageH.toFixed(1) + ' 小时'}前）` },
     { k: '训练引擎', v: model.engine || 'ridge-v1' },
     { k: '训练币种 / 样本', v: `${model.meta?.symbols ?? '—'} / ${model.meta?.samples ?? '—'}` },
-    { k: '样本内 IC', v: model.oos?.icInSample != null ? fmtNum(model.oos.icInSample, 4) : '—' },
-    { k: '样本外 IC', v: model.oos?.ic != null ? fmtNum(model.oos.ic, 4) : '—', cls: model.oos?.ic > 0.05 ? 'good' : model.oos?.ic < 0.02 ? 'bad' : '' },
-    { k: '多空组合夏普 (OOS)', v: model.oos?.lsSharpe != null ? fmtNum(model.oos.lsSharpe, 2) : '—', cls: model.oos?.lsSharpe > 1 ? 'good' : '' },
+    { k: '横截面 IC（选币能力）', v: model.oos?.icXS != null ? fmtNum(model.oos.icXS, 4) : '—', cls: model.oos?.icXS > 0.02 ? 'good' : model.oos?.icXS < 0 ? 'bad' : '' },
+    { k: '单币种 IC（择时能力）', v: model.oos?.icPerSymbolMean != null ? `${fmtNum(model.oos.icPerSymbolMean, 4)} <small style="color:var(--text-faint)">中位 ${fmtNum(model.oos.icPerSymbolMedian, 4)}</small>` : '—', cls: model.oos?.icPerSymbolMean > 0.05 ? 'good' : '' },
+    { k: '混合 IC（仅参考）', v: model.oos?.ic != null ? fmtNum(model.oos.ic, 4) : '—' },
+    { k: '样本内外差距', v: model.oos?.gapInOut != null ? fmtNum(model.oos.gapInOut, 4) : '—', cls: model.oos?.gapInOut > 0.05 ? 'bad' : model.oos?.gapInOut < 0.02 ? 'good' : '' },
     { k: '预测视野', v: `T+${model.fwdBars ?? 12} bar` },
   ];
   // 实盘闸门信息（v2 引擎起）
@@ -86,7 +88,56 @@ function renderModel(model) {
   }
   $('modelSub').textContent = `GitHub Actions 每 6 小时自动重训并发布 · 前端打开即用最新权重`;
   $('modelMetrics').innerHTML = cells.map(c => `<div class="metric ${c.cls || ''}"><div class="k">${c.k}</div><div class="v">${c.v}</div></div>`).join('')
-    + `<div style="grid-column:1/-1;font-size:10px;color:var(--text-faint);line-height:1.6;">说明：IC 为池化截面（多币种混合）下的 Spearman 秩相关，样本早期数值偏高属正常现象，请重点关注其随训练次数增加的稳定性，而非绝对值。</div>`;
+    + `<div style="grid-column:1/-1;font-size:10px;color:var(--text-faint);line-height:1.6;">口径说明：横截面 IC = 同一时间戳内对币种排序的相关性（选币能力，诚实天花板约 0.05）；单币种 IC = 各币种内部时间序列相关的均值（择时能力）；混合 IC 把所有币种混在一起，会被同涨同跌严重虚增，仅作参考。样本内外差距 &gt; 0.05 提示过拟合。</div>`;
+}
+
+// ---------------- 过拟合诊断面板 ----------------
+function renderDiagnostics(model) {
+  const el = $('diagContent');
+  const dg = model && model.diagnostics;
+  if (!dg) { el.innerHTML = '<div class="placeholder">等待 v5+ 模型产出诊断数据（下次云端训练后自动出现）</div>'; return; }
+  // IC 衰减表
+  const decay = dg.icDecay || {};
+  const hs = Object.keys(decay).map(Number).sort((a, b) => a - b);
+  const decayCells = hs.map(h => {
+    const v = decay[h];
+    const prev = hs.indexOf(h) > 0 ? decay[hs[hs.indexOf(h) - 1]] : null;
+    const collapsing = prev != null && v < prev * 0.5;
+    return `<td class="${v > 0.02 ? 'up' : v < 0 ? 'down' : ''}" ${collapsing ? 'style="background:rgba(246,70,93,.08)"' : ''}>${fmtNum(v, 3)}</td>`;
+  }).join('');
+  const decayVerdict = (() => {
+    const first = decay[hs[0]], last = decay[hs[hs.length - 1]];
+    if (first == null || last == null) return '';
+    if (last <= 0) return '<span class="chip short">信号寿命短：长视野归零，仅适合短线择时</span>';
+    if (last >= first * 0.5) return '<span class="chip long">衰减缓慢：存在较持久的预测能力</span>';
+    return '<span class="chip range">中等衰减：信号集中在短视野</span>';
+  })();
+  const ps = dg.perSymbol || {};
+  const rc = dg.randomIC || {};
+  const randCls = rc.percentile >= 0.9 ? 'long' : rc.percentile >= 0.5 ? 'range' : 'short';
+  el.innerHTML = `
+    <div style="font-size:12px;color:var(--text-dim);margin-bottom:6px;">① IC 衰减曲线（同一模型对不同预测视野的样本外相关）</div>
+    <table class="table">
+      <thead><tr>${hs.map(h => `<th>T+${h} bar</th>`).join('')}<th>判定</th></tr></thead>
+      <tbody><tr style="cursor:default">${decayCells}<td>${decayVerdict}</td></tr></tbody>
+    </table>
+    <div style="font-size:12px;color:var(--text-dim);margin:14px 0 6px;">② 单币种 IC 分布（各币种独立计算，揭露个别币种是否拉抬整体）</div>
+    <div class="grid-metrics">
+      <div class="metric ${ps.mean > 0.05 ? 'good' : ''}"><div class="k">均值</div><div class="v">${fmtNum(ps.mean, 4)}</div></div>
+      <div class="metric"><div class="k">中位数</div><div class="v">${fmtNum(ps.median, 4)}</div></div>
+      <div class="metric ${ps.worst < 0 ? 'bad' : ''}"><div class="k">最差币种</div><div class="v">${fmtNum(ps.worst, 4)}</div></div>
+      <div class="metric"><div class="k">最好币种</div><div class="v">${fmtNum(ps.best, 4)}</div></div>
+    </div>
+    <div style="font-size:12px;color:var(--text-dim);margin:14px 0 6px;">③ 随机基准对照（200 组随机权重，真模型必须显著超越才算学到东西）</div>
+    <div class="grid-metrics">
+      <div class="metric"><div class="k">随机 IC 均值 ± σ</div><div class="v">${fmtNum(rc.mean, 4)} ± ${fmtNum(rc.std, 4)}</div></div>
+      <div class="metric ${randCls === 'long' ? 'good' : randCls === 'short' ? 'bad' : ''}"><div class="k">真模型分位</div><div class="v">${rc.percentile != null ? fmtPct(rc.percentile, 1, false) : '—'}</div></div>
+      <div class="metric"><div class="k">横截面时间桶</div><div class="v">${dg.xsBuckets ?? '—'}</div></div>
+      <div class="metric"><div class="k">Purged 缓冲 (embargo)</div><div class="v">${dg.embargo ?? '—'} bar</div></div>
+    </div>
+    <div style="font-size:10px;color:var(--text-faint);margin-top:10px;line-height:1.6;">
+      判定标准：真模型分位 &lt; 90% 意味着与随机权重无显著差异（学习无效）；单币种最差值为负属正常，但均值必须显著为正；IC 在 T+1 高而 T+4 暴跌 = 捕捉的是微观噪声而非信号。
+    </div>`;
 }
 
 // ---------------- 权重对比 ----------------
@@ -178,12 +229,15 @@ function renderICChart(evo) {
   });
   const times = evo.map(e => Math.floor(new Date(e.trainedAt).getTime() / 1000));
   const useIndex = new Set(times).size !== times.length;
-  const oos = chart.addLineSeries({ color: '#f0b90b', lineWidth: 2, title: '样本外 IC', priceLineVisible: false });
-  const ins = chart.addLineSeries({ color: '#848e9c', lineWidth: 1, lineStyle: 2, title: '样本内 IC', priceLineVisible: false });
+  const oos = chart.addLineSeries({ color: '#f0b90b', lineWidth: 2, title: '横截面 IC', priceLineVisible: false });
+  const ps = chart.addLineSeries({ color: '#0ecb81', lineWidth: 2, title: '单币种 IC', priceLineVisible: false });
+  const ins = chart.addLineSeries({ color: '#848e9c', lineWidth: 1, lineStyle: 2, title: '混合 IC(参考)', priceLineVisible: false });
   evo.forEach((e, i) => {
     const t = useIndex ? 1600000000 + i * 86400 : times[i];
-    if (e.icOOS != null) oos.update({ time: t, value: e.icOOS });
-    if (e.icInSample != null) ins.update({ time: t, value: e.icInSample });
+    const xs = e.icXS ?? null;
+    if (xs != null) oos.update({ time: t, value: xs });
+    if (e.icPerSym != null) ps.update({ time: t, value: e.icPerSym });
+    if (e.icOOS != null) ins.update({ time: t, value: e.icOOS });
   });
   if (useIndex) {
     chart.applyOptions({ timeScale: { tickMarkFormatter: t => 'v' + (Math.round((t - 1600000000) / 86400) + 1) } });
@@ -201,11 +255,11 @@ function renderHistory(evo) {
       <td>${new Date(e.trainedAt).toLocaleString()}</td>
       <td>${e.symbols ?? '—'}</td>
       <td>${e.samples ?? '—'}</td>
-      <td>${e.icInSample != null ? fmtNum(e.icInSample, 4) : '—'}</td>
-      <td class="${e.icOOS > 0.05 ? 'up' : ''}" style="font-weight:600">${e.icOOS != null ? fmtNum(e.icOOS, 4) : '—'}</td>
+      <td class="${(e.icXS ?? 0) > 0.02 ? 'up' : (e.icXS ?? 0) < 0 ? 'down' : ''}" style="font-weight:600">${e.icXS != null ? fmtNum(e.icXS, 4) : '—'}</td>
+      <td class="${(e.icPerSym ?? 0) > 0.05 ? 'up' : ''}">${e.icPerSym != null ? fmtNum(e.icPerSym, 4) : '—'}</td>
+      <td style="color:var(--text-dim)">${e.icOOS != null ? fmtNum(e.icOOS, 4) : '—'}</td>
       <td>${e.tracker?.icNew != null ? fmtNum(e.tracker.icNew, 4) : '—'}</td>
       <td>${e.accepted == null ? '—' : e.accepted ? '<span class="chip long">接受</span>' : '<span class="chip short">拒绝</span>'}</td>
-      <td>${e.lsSharpeOOS != null ? fmtNum(e.lsSharpeOOS, 2) : '—'}</td>
     </tr>`).join('');
 }
 
