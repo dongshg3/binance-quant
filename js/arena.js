@@ -39,7 +39,7 @@ async function render() {
     const rows = blk.players.map((p, i) => {
       const isCtrl = CONTROL.has(p.family);
       const champ = p.isChampion ? `<span class="chip trend" style="padding:1px 7px;">${icon('crown')}冠军</span>` : '';
-      const ctrlTag = isCtrl ? '<span class="chip flat" style="padding:1px 7px;">对照</span>' : '';
+      const ctrlTag = isCtrl ? `<span class="chip ${p.family === 'learned' ? 'trend' : 'flat'}" style="padding:1px 7px;">${p.family === 'learned' ? '云端' : '对照'}</span>` : '';
       return `<tr class="${isCtrl ? 'row-control' : ''}">
         <td style="color:var(--text-faint)">${i + 1}</td>
         <td><b>${p.familyName}</b> <span style="color:var(--text-faint);font-size:10px;">g${p.generation}</span> ${champ}${ctrlTag}</td>
