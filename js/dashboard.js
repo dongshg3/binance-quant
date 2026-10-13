@@ -88,7 +88,7 @@ async function reload() {
     if (tk.status === 'fulfilled') extra.takerRatio = tk.value;
   }
 
-  const factors = computeFactors(state.candles, extra);
+  const factors = computeFactors(state.candles, extra, state.symbol);
   if (!factors) { setNet('数据不足', ''); return; }
   const pos = computePosition(factors.composite, state.candles, state.interval);
 
@@ -370,7 +370,7 @@ async function computeMTF() {
   return Promise.all(INTERVALS.map(async iv => {
     try {
       const candles = await fetchKlines(state.symbol, iv, 200, state.market);
-      const f = computeFactors(candles, null);
+      const f = computeFactors(candles, null, state.symbol);
       if (!f) return { iv, score: null };
       return { iv, score: f.composite, raw: f.rawIndicators };
     } catch (e) { return { iv, score: null }; }
@@ -480,7 +480,7 @@ let quietTimer = null;
 function reloadQuiet() {
   clearTimeout(quietTimer);
   quietTimer = setTimeout(async () => {
-    const factors = computeFactors(state.candles, null);
+    const factors = computeFactors(state.candles, null, state.symbol);
     if (!factors) return;
     const pos = computePosition(factors.composite, state.candles, state.interval);
     renderOverview(factors, pos, {});
