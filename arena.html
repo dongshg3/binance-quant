@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>策略竞技场 · 币安量化系统</title>
-<meta name="description" content="多周期策略选手池：8 策略族 × 4 周期全自动模拟实盘，赛季末自然选择进化，随机对照组实时校验 alpha 存在性">
+<meta name="description" content="多周期策略选手池：7 策略族 + 4 组基准（随机 / 静态 / 云端全局 / 云端逐币）× 4 周期全自动模拟实盘，赛季末自然选择进化，随机对照组实时校验 alpha 存在性">
 <link rel="stylesheet" href="css/main.css">
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%232563eb' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M9 5v4'/><rect width='4' height='6' x='7' y='9' rx='1'/><path d='M9 15v2'/><path d='M17 3v2'/><rect width='4' height='8' x='15' y='5' rx='1'/><path d='M17 13v3'/><path d='M3 3v16a2 2 0 0 0 2 2h16'/></svg>">
 </head>
@@ -13,12 +13,13 @@
 
   <!-- 总览 -->
   <div class="panel" style="margin-bottom:14px;">
-    <h3><span data-icon="swords"></span>策略竞技场 <span class="sub">8 策略族 × 4 周期 · 全自动模拟实盘 · 赛季制自然选择</span></h3>
+    <h3><span data-icon="swords"></span>策略竞技场 <span class="sub">7 策略族 + 4 组基准 · 4 周期 · 全自动模拟实盘 · 赛季制自然选择</span></h3>
     <div class="grid-metrics" id="arenaMetrics"><div class="placeholder" style="grid-column:1/-1;">正在打开竞技场…</div></div>
     <div style="font-size:11px;color:var(--text-dim);line-height:1.8;margin-top:10px;">
       机制：K 线收盘时冻结信号 → 下一根开盘入场 → 到期结算（含手续费滑点）→ 赛季末按样本外战绩淘汰末位 30%、复制变异强者。
       <b>随机对照组</b>与<b>静态对照组</b>永在场：冠军若跑不赢随机组，说明当前市场没有可交易的 alpha——这比任何预测都诚实。
-      数据只存在本浏览器，打开任意页面即自动运行，零 token 零服务器。
+      <b>云端模型组</b>（全局权重）与<b>逐币模型组</b>（34 个单币种专训权重）同步参赛：它们的长期排名就是云端训练成果的实盘裁判。
+      数据只存在本浏览器，任意页面保持打开即每 10 分钟自动运行一轮，零 token 零服务器。
     </div>
   </div>
 
