@@ -32,17 +32,20 @@ HOSTS = [
 ]
 TOP_N = int(os.environ.get("TQ_TOP_N", "60"))   # 按 24h 成交额取前 N 个币种
 INTERVAL = "1h"
-LIMIT = int(os.environ.get("TQ_LIMIT", "1000"))  # 每币种 K 线数
+LIMIT = int(os.environ.get("TQ_LIMIT", "2000"))  # 每币种 K 线数（>1000 自动分页）
 FWD = 12                  # 标签：未来 12 bar 对数收益
 RIDGE_LAMBDA = 5.0
 MIN_BARS = 400
 MIN_SAMPLES = int(os.environ.get("TQ_MIN_SAMPLES", "20000"))
+EMBARGO = 200             # Purged Walk-Forward：训练/测试间挖空的 bar 数 = 最大指标回看窗口
+DECAY_HORIZONS = [1, 2, 4, 8, 24]  # IC 衰减曲线的预测视野
+MIN_TS_IC = 0.02          # 闸门：单币种时间序列 IC 下限（诚实口径）
+MAX_NEG_XS_IC = -0.02     # 闸门：横截面 IC 不得显著为负
 GROUPS = ["trend", "momentum", "meanRev", "volume", "volatility", "position", "htf"]  # 可学习组
 STATIC_WEIGHTS = {"trend": 0.22, "momentum": 0.18, "meanRev": 0.13, "volume": 0.13,
                   "volatility": 0.09, "position": 0.05, "htf": 0.10, "futures": 0.10}
 FUTURES_STATIC = 0.10     # futures 组需要逐 bar 资金费率历史，训练期固定为静态权重
 EMA_ALPHA = 0.6           # 权重收缩：新权重 0.6 + 旧权重 0.4（防训练间抖动/过拟合）
-MIN_OOS_IC = 0.02         # 市场样本外 IC 下限，低于则拒绝更新
 TRACKER_MIN_N = 30        # 实盘追踪样本下限，不足则闸门不启用
 TRACKER_TOLERANCE = 0.02  # 实盘 IC 允许退化容忍度
 
@@ -376,6 +379,15 @@ def tracker_ic(weights, rows):
     rets = [r["ret24"] for r in rows]
     return spearman(np.array(comps), np.array(rets))
 
+def cross_sectional_ic(pred, y, ts, min_n=5):
+    """横截面 IC：每个时间戳内对币种排序求 Spearman，再取平均。
+    这是"选币能力"的诚实口径——混合 IC 会被跨币种同涨同跌严重虚增。"""
+    buckets = {}
+    for k in range(len(y)):
+        buckets.setdefault(int(ts[k]), []).append(k)
+    ics = [spearman(pred[idx], y[idx]) for idx in buckets.values() if len(idx) >= min_n]
+    return (float(np.mean(ics)), len(ics)) if ics else (None, 0)
+
 # ---------------- 数据 ----------------
 def get_symbols():
     info = market_get("/exchangeInfo")
@@ -393,8 +405,14 @@ def get_symbols():
     return syms[:TOP_N]
 
 def get_klines(sym):
-    data = market_get(f"/klines?symbol={sym}&interval={INTERVAL}&limit={LIMIT}", timeout=25)
-    return np.array([[float(k[0]), float(k[1]), float(k[2]), float(k[3]), float(k[4]), float(k[5])] for k in data])
+    """拉取 K 线，LIMIT>1000 时向历史分页；丢弃最后一根未收盘 bar（防标签/特征对齐偏差）"""
+    data = market_get(f"/klines?symbol={sym}&interval={INTERVAL}&limit={min(LIMIT, 1000)}", timeout=25)
+    if LIMIT > 1000 and len(data) == 1000:
+        end = int(data[0][0]) - 1
+        earlier = market_get(f"/klines?symbol={sym}&interval={INTERVAL}&limit={LIMIT - 1000}&endTime={end}", timeout=25)
+        data = earlier + data
+    arr = np.array([[float(k[0]), float(k[1]), float(k[2]), float(k[3]), float(k[4]), float(k[5])] for k in data])
+    return arr[:-1] if len(arr) else arr
 
 # ---------------- 主流程 ----------------
 def main():
@@ -402,32 +420,38 @@ def main():
     symbols = get_symbols()
     print(f"[train] 币种: {len(symbols)} 个")
 
-    X_rows, y_rows, t_rows = [], [], []
+    X_rows, y_rows, t_rows, ts_rows, nn_rows, s_rows = [], [], [], [], [], []
+    YH = {hh: [] for hh in DECAY_HORIZONS}
     used = 0
+    max_h = max(DECAY_HORIZONS)
     for sym in symbols:
         try:
             ohlcv = get_klines(sym)
             if len(ohlcv) < MIN_BARS:
                 continue
             gs = group_scores(ohlcv)
-            c = ohlcv[:, 4]
+            c = ohlcv[:, 4]; t0 = ohlcv[:, 0]
             n = len(c)
-            for i in range(200, n - FWD):
+            for i in range(200, n - max_h):
                 X_rows.append([gs[g][i] for g in GROUPS])
                 y_rows.append(math.log(c[i + FWD] / c[i]))
-                t_rows.append(i)
+                t_rows.append(i); ts_rows.append(t0[i]); nn_rows.append(n); s_rows.append(sym)
+                for hh in DECAY_HORIZONS:
+                    YH[hh].append(math.log(c[i + hh] / c[i]))
             used += 1
             time.sleep(0.12)  # 礼貌限速
         except Exception as e:
             print(f"[train] {sym} 失败: {e}")
     X = np.array(X_rows); y = np.array(y_rows); tt = np.array(t_rows)
+    ts = np.array(ts_rows); nn = np.array(nn_rows); ss = np.array(s_rows)
     print(f"[train] 样本: {len(y)} 条（{used} 个币种）")
     if len(y) < MIN_SAMPLES:
         raise SystemExit("样本不足，放弃本次训练")
 
-    # Walk-Forward 70/30：按每个币种内部的时间顺序切分（t_rows 是 bar 序号）
-    train_mask = tt < LIMIT * 0.7
-    test_mask = ~train_mask
+    # Purged Walk-Forward 70/30：按各币种内部时间切分，训练/测试间挖空 EMBARGO 根 bar
+    # （EMA200 等指标有长记忆，不挖空会让测试集信息泄漏进训练特征）
+    train_mask = tt < (0.7 * nn)
+    test_mask = tt >= (0.7 * nn + EMBARGO)
     Xtr, ytr = X[train_mask], y[train_mask]
     Xte, yte = X[test_mask], y[test_mask]
 
@@ -442,11 +466,40 @@ def main():
     # 还原到原始量纲
     w_raw = w_std / sd
 
-    # 样本内/外 IC
+    # 样本内/外 IC（混合口径——仅作参考，会被跨币种同涨同跌虚增）
     pred_tr = Ztr @ w_std
     pred_te = Zte @ w_std
     ic_in = spearman(pred_tr, ytr)
     ic_oos = spearman(pred_te, yte)
+    gap_in_out = ic_in - ic_oos
+
+    # 诚实口径 1：横截面 IC（每个时间戳内对币种排序）——"选币能力"
+    ic_xs, xs_buckets = cross_sectional_ic(pred_te, yte, ts[test_mask])
+    # 诚实口径 2：单币种时间序列 IC 取分布——"单币择时能力"
+    ps_ics = []
+    for s in np.unique(ss[test_mask]):
+        m = ss[test_mask] == s
+        if m.sum() >= 50:
+            ps_ics.append(spearman(pred_te[m], yte[m]))
+    ps_ics = np.array(ps_ics) if ps_ics else np.array([0.0])
+    ic_ps_mean = float(ps_ics.mean()); ic_ps_med = float(np.median(ps_ics))
+    ic_ps_worst = float(ps_ics.min()); ic_ps_best = float(ps_ics.max())
+
+    # IC 衰减曲线：同一模型对不同视野标签的 OOS 相关（缓慢衰减=真实信号，暴跌=噪声）
+    ic_decay = {}
+    for hh in DECAY_HORIZONS:
+        yh = np.array(YH[hh])[test_mask]
+        ic_decay[str(hh)] = round(spearman(pred_te, yh), 4)
+
+    # 随机权重对照：真模型混合 IC 落在随机分布的哪个分位（<90% 则未超越噪声）
+    rng = np.random.default_rng(42)
+    rand_ics = []
+    for _ in range(200):
+        wr = rng.normal(size=d)
+        wr = wr / np.abs(wr).sum()
+        rand_ics.append(spearman(Zte @ wr, yte))
+    rand_ics = np.array(rand_ics)
+    rand_pct = float((rand_ics < ic_oos).mean())
 
     # 分因子 OOS IC
     factor_ic = {g: round(spearman(Xte[:, j], yte), 4) for j, g in enumerate(GROUPS)}
@@ -484,12 +537,16 @@ def main():
     candidate = {g: round(shrunk[g], 4) for g in GROUPS}
     candidate["futures"] = FUTURES_STATIC
 
-    # 闸门 1：市场样本外 IC 下限
+    # 闸门 1：诚实口径下限——单币种时间序列 IC（择时能力）必须显著为正，
+    # 且横截面 IC（选币能力）不得显著为负
     accepted = True
     reject_reasons = []
-    if ic_oos < MIN_OOS_IC:
+    if ic_ps_mean < MIN_TS_IC:
         accepted = False
-        reject_reasons.append(f"市场样本外IC {ic_oos:.4f} < {MIN_OOS_IC}")
+        reject_reasons.append(f"单币种IC {ic_ps_mean:.4f} < {MIN_TS_IC}")
+    if ic_xs is not None and ic_xs < MAX_NEG_XS_IC:
+        accepted = False
+        reject_reasons.append(f"横截面IC显著为负 {ic_xs:.4f}")
 
     # 闸门 2：实盘追踪 IC（仅模型选择，不参与拟合；样本不足则跳过）
     tracker_rows = load_tracker()
@@ -530,6 +587,13 @@ def main():
         "factorIC": factor_ic,
         "icInSample": round(ic_in, 4),
         "icOOS": round(ic_oos, 4),
+        "icXS": round(ic_xs, 4) if ic_xs is not None else None,
+        "icPerSym": round(ic_ps_mean, 4),
+        "icPerSymMedian": round(ic_ps_med, 4),
+        "icDecay": ic_decay,
+        "gapInOut": round(gap_in_out, 4),
+        "randIC": {"mean": round(float(rand_ics.mean()), 4), "std": round(float(rand_ics.std()), 4),
+                   "percentile": round(rand_pct, 4)},
         "lsSpread": round(spread, 6),
         "lsSharpeOOS": round(ls_sharpe, 2),
         "accepted": accepted,
@@ -546,25 +610,38 @@ def main():
     model = {
         "version": version,
         "trainedAt": trained_at,
-        "engine": "ridge-v2-livegate",
+        "engine": "ridge-v3-honest",
         "fwdBars": FWD,
         "weights": final_weights,
         "staticWeights": STATIC_WEIGHTS,
         "factorIC": factor_ic,
         "oos": {"ic": round(ic_oos, 4), "icInSample": round(ic_in, 4),
+                "icXS": round(ic_xs, 4) if ic_xs is not None else None,
+                "icPerSymbolMean": round(ic_ps_mean, 4), "icPerSymbolMedian": round(ic_ps_med, 4),
+                "gapInOut": round(gap_in_out, 4),
                 "lsSpread": round(spread, 6), "lsSharpe": round(ls_sharpe, 2)},
+        "diagnostics": {
+            "icDecay": ic_decay,
+            "perSymbol": {"mean": round(ic_ps_mean, 4), "median": round(ic_ps_med, 4),
+                          "worst": round(ic_ps_worst, 4), "best": round(ic_ps_best, 4)},
+            "randomIC": {"mean": round(float(rand_ics.mean()), 4), "std": round(float(rand_ics.std()), 4),
+                         "percentile": round(rand_pct, 4)},
+            "xsBuckets": xs_buckets,
+            "embargo": EMBARGO,
+        },
         "accepted": accepted,
         "rejectReason": "; ".join(reject_reasons),
         "tracker": tracker_info,
         "meta": {"symbols": used, "samples": int(len(y)), "interval": INTERVAL,
-                 "ridgeLambda": RIDGE_LAMBDA, "alpha": EMA_ALPHA,
-                 "note": "权重=岭回归学习×0.6+旧权重×0.4（EMA收缩）；实盘追踪数据仅用于更新闸门，不参与拟合"},
+                 "ridgeLambda": RIDGE_LAMBDA, "alpha": EMA_ALPHA, "embargo": EMBARGO,
+                 "note": "权重=岭回归学习×0.6+旧权重×0.4；横截面IC=选币能力(诚实口径)，单币种IC=择时能力，混合IC易被同涨同跌虚增仅供参考；实盘追踪仅用于闸门不参与拟合"},
     }
     with open(os.path.join(DATA_DIR, "model.json"), "w", encoding="utf-8") as f:
         json.dump(model, f, ensure_ascii=False, indent=1)
 
     status = "接受" if accepted else f"拒绝（{'; '.join(reject_reasons)}）"
-    print(f"[train] v{version} 完成 | IC 样本内 {ic_in:.4f} / 样本外 {ic_oos:.4f} | 多空夏普(OOS) {ls_sharpe:.2f} | 更新{status}")
+    print(f"[train] v{version} 完成 | 横截面IC {ic_xs if ic_xs is None else round(ic_xs, 4)} | 单币种IC 均值 {ic_ps_mean:.4f} 中位 {ic_ps_med:.4f} | 混合IC {ic_oos:.4f}(参考) | 更新{status}")
+    print(f"[train] IC衰减 {json.dumps(ic_decay)} | 随机对照分位 {rand_pct:.1%} | 样本内外差距 {gap_in_out:.4f}")
     if tk_ic_new is not None:
         print(f"[train] 实盘追踪: n={len(tracker_rows)} IC 新 {tk_ic_new:.4f} / 旧 {tk_ic_prev:.4f}")
     print(f"[train] 权重: {json.dumps(final_weights, ensure_ascii=False)}")
