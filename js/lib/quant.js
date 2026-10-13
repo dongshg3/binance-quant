@@ -170,6 +170,12 @@ export function computeFactors(candles, extraData) {
     groupAverages[g] = avg;
     composite += (weights[g] != null ? weights[g] : FACTOR_WEIGHTS[g]) * avg;
   }
+  // 评分尺度标定：学习权重含正负号会系统性压缩评分绝对值（排序能力不受影响），
+  // 按训练时发布的 scoreScale（横截面标准差）把显示评分标定回标准差 0.13，
+  // 让 0.15/0.35 信号阈值在任何版本权重下保持一致的统计含义（约 1.2σ / 2.7σ）
+  if (MODEL && MODEL.weights && MODEL.scoreScale > 0) {
+    composite = composite / MODEL.scoreScale * 0.13;
+  }
 
   const er = efficiencyRatio(c, 20);
   const hurstV = hurst(c);
