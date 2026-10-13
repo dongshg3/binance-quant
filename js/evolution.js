@@ -3,15 +3,15 @@
 // ============================================================
 import { GROUP_NAMES } from './lib/quant.js';
 import { getStats, exportCSV } from './lib/tracker.js';
-import { renderNav, setNet, fmtPct, fmtNum, disclaimerHTML } from './lib/ui.js';
+import { renderNav, setNet, fmtPct, fmtNum, disclaimerHTML, icon, swapHTML } from './lib/ui.js';
 
 renderNav('evolution');
 document.getElementById('disclaimerSlot').innerHTML = disclaimerHTML();
 const $ = id => document.getElementById(id);
 
 const GROUP_COLORS = {
-  trend: '#f0b90b', momentum: '#2196f3', meanRev: '#0ecb81',
-  volume: '#b37feb', volatility: '#f6465d', position: '#2ebd85', htf: '#ff7043', futures: '#848e9c',
+  trend: '#2563eb', momentum: '#7c3aed', meanRev: '#16a34a',
+  volume: '#0891b2', volatility: '#dc2626', position: '#d97706', htf: '#db2777', futures: '#64748b',
 };
 const GROUP_ORDER = ['trend', 'momentum', 'meanRev', 'volume', 'volatility', 'position', 'htf', 'futures'];
 
@@ -79,7 +79,7 @@ function renderModel(model) {
     });
     cells.push({
       k: '更新闸门',
-      v: model.accepted !== false ? '✓ 本次已接受' : `✗ 已拒绝`,
+      v: model.accepted !== false ? `${icon('check')} 本次已接受` : `${icon('x')} 已拒绝`,
       cls: model.accepted !== false ? 'good' : 'bad',
     });
     if (model.accepted === false && model.rejectReason) {
@@ -158,7 +158,7 @@ function renderWeightCompare(model) {
           <div class="fbar" style="margin-bottom:3px;" title="学习权重 ${lw.toFixed(4)}"><div class="mid"></div><div class="fill ${lw >= 0 ? 'pos' : 'neg'}" style="width:${wL}%"></div></div>
           <div class="fbar" style="opacity:0.35;" title="静态权重 ${sw.toFixed(4)}"><div class="mid"></div><div class="fill ${sw >= 0 ? 'pos' : 'neg'}" style="width:${wS}%"></div></div>
         </div>
-        <span class="val">${fmtNum(lw, 3)} <small style="color:var(--text-faint)">vs ${fmtNum(sw, 2)}</small> <small class="${delta > 0 ? 'up' : delta < 0 ? 'down' : ''}">${delta >= 0 ? '▲' : '▼'}${Math.abs(delta).toFixed(2)}</small></span>
+        <span class="val">${fmtNum(lw, 3)} <small style="color:var(--text-faint)">vs ${fmtNum(sw, 2)}</small> <small class="${delta > 0 ? 'up' : delta < 0 ? 'down' : ''}">${icon(delta >= 0 ? 'trendUp' : 'trendDown')}${Math.abs(delta).toFixed(2)}</small></span>
       </div>`;
   }).join('') + '<div style="font-size:10px;color:var(--text-faint);margin-top:8px;">上条（实色）= 学习权重，下条（半透明）= 静态权重。负权重 = 该因子反向使用（数值越高越看空）。</div>';
 }
@@ -187,10 +187,10 @@ function renderWeightChart(evo) {
   if (!evo.length) { el.innerHTML = '<div class="placeholder">首次训练后开始出现轨迹（每 6 小时一次）</div>'; return; }
   const chart = LightweightCharts.createChart(el, {
     height: 260,
-    layout: { background: { color: 'transparent' }, textColor: '#848e9c' },
-    grid: { vertLines: { color: '#1e2329' }, horzLines: { color: '#1e2329' } },
-    rightPriceScale: { borderColor: '#2b3139' },
-    timeScale: { borderColor: '#2b3139', timeVisible: true },
+    layout: { background: { color: 'transparent' }, textColor: '#5b6472' },
+    grid: { vertLines: { color: '#eef0f4' }, horzLines: { color: '#eef0f4' } },
+    rightPriceScale: { borderColor: '#d8dee7' },
+    timeScale: { borderColor: '#d8dee7', timeVisible: true },
   });
   // x 轴用训练时间；若多条记录时间相同（本地测试）则退化为版本序号
   const times = evo.map(e => Math.floor(new Date(e.trainedAt).getTime() / 1000));
@@ -222,16 +222,16 @@ function renderICChart(evo) {
   if (!evo.length) { el.innerHTML = '<div class="placeholder">首次训练后开始出现轨迹</div>'; return; }
   const chart = LightweightCharts.createChart(el, {
     height: 220,
-    layout: { background: { color: 'transparent' }, textColor: '#848e9c' },
-    grid: { vertLines: { color: '#1e2329' }, horzLines: { color: '#1e2329' } },
-    rightPriceScale: { borderColor: '#2b3139' },
-    timeScale: { borderColor: '#2b3139', timeVisible: true },
+    layout: { background: { color: 'transparent' }, textColor: '#5b6472' },
+    grid: { vertLines: { color: '#eef0f4' }, horzLines: { color: '#eef0f4' } },
+    rightPriceScale: { borderColor: '#d8dee7' },
+    timeScale: { borderColor: '#d8dee7', timeVisible: true },
   });
   const times = evo.map(e => Math.floor(new Date(e.trainedAt).getTime() / 1000));
   const useIndex = new Set(times).size !== times.length;
-  const oos = chart.addLineSeries({ color: '#f0b90b', lineWidth: 2, title: '横截面 IC', priceLineVisible: false });
-  const ps = chart.addLineSeries({ color: '#0ecb81', lineWidth: 2, title: '单币种 IC', priceLineVisible: false });
-  const ins = chart.addLineSeries({ color: '#848e9c', lineWidth: 1, lineStyle: 2, title: '混合 IC(参考)', priceLineVisible: false });
+  const oos = chart.addLineSeries({ color: '#2563eb', lineWidth: 2, title: '横截面 IC', priceLineVisible: false });
+  const ps = chart.addLineSeries({ color: '#16a34a', lineWidth: 2, title: '单币种 IC', priceLineVisible: false });
+  const ins = chart.addLineSeries({ color: '#94a3b8', lineWidth: 1, lineStyle: 2, title: '混合 IC(参考)', priceLineVisible: false });
   evo.forEach((e, i) => {
     const t = useIndex ? 1600000000 + i * 86400 : times[i];
     const xs = e.icXS ?? null;
