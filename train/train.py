@@ -20,6 +20,7 @@ import os
 import time
 import urllib.request
 import urllib.error
+from urllib.parse import quote
 from datetime import datetime, timezone
 
 import numpy as np
@@ -192,7 +193,8 @@ def StochRSI(c, rsiP=14, stochP=14, kP=3):
     out = np.full(len(c), np.nan)
     first = np.where(~np.isnan(st))[0]
     if len(first) and len(k):
-        off = first[0]
+        # 关键：压缩数组的第 j 个有效 SMA 值对应绝对位置 off+kP-1+j（防未来函数）
+        off = first[0] + (kP - 1)
         kk = k[~np.isnan(k)]
         out[off:off + len(kk)] = kk
     return out
@@ -205,7 +207,8 @@ def MACD_hist(c, f=12, s=26, sig=9):
     h = np.full(len(c), np.nan)
     idx = np.where(~np.isnan(ml))[0]
     if len(idx) and len(sl):
-        off = idx[0]
+        # 关键：信号线第 j 个有效值对应绝对位置 off+sig-1+j（防未来函数）
+        off = idx[0] + (sig - 1)
         ss = sl[~np.isnan(sl)]
         h[off:off + len(ss)] = ml[off:off + len(ss)] - ss
     return h
@@ -436,7 +439,7 @@ def get_klines(sym):
     remaining = LIMIT
     while remaining > 0:
         lim = min(remaining, 1000)
-        url = f"/klines?symbol={sym}&interval={INTERVAL}&limit={lim}"
+        url = f"/klines?symbol={quote(sym)}&interval={INTERVAL}&limit={lim}"
         if end is not None:
             url += f"&endTime={end}"
         batch = market_get(url, timeout=25)
@@ -663,7 +666,7 @@ def main():
     model = {
         "version": version,
         "trainedAt": trained_at,
-        "engine": "ridge-v3-honest",
+        "engine": "ridge-v4-noleak",
         "fwdBars": FWD,
         "weights": final_weights,
         "scoreScale": round(score_scale, 8),
