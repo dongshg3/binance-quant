@@ -67,6 +67,23 @@ function renderModel(model) {
     { k: '多空组合夏普 (OOS)', v: model.oos?.lsSharpe != null ? fmtNum(model.oos.lsSharpe, 2) : '—', cls: model.oos?.lsSharpe > 1 ? 'good' : '' },
     { k: '预测视野', v: `T+${model.fwdBars ?? 12} bar` },
   ];
+  // 实盘闸门信息（v2 引擎起）
+  if (model.tracker) {
+    const t = model.tracker;
+    cells.push({
+      k: '实盘追踪 IC',
+      v: t.icNew != null ? `${fmtNum(t.icNew, 4)} <small style="color:var(--text-faint)">n=${t.n} · 旧 ${fmtNum(t.icPrev, 4)}</small>` : `样本积累中 <small style="color:var(--text-faint)">n=${t.n}/30</small>`,
+      cls: t.icNew != null && t.icNew > 0.05 ? 'good' : '',
+    });
+    cells.push({
+      k: '更新闸门',
+      v: model.accepted !== false ? '✓ 本次已接受' : `✗ 已拒绝`,
+      cls: model.accepted !== false ? 'good' : 'bad',
+    });
+    if (model.accepted === false && model.rejectReason) {
+      cells.push({ k: '拒绝原因', v: `<small>${model.rejectReason}</small>`, cls: 'bad' });
+    }
+  }
   $('modelSub').textContent = `GitHub Actions 每 6 小时自动重训并发布 · 前端打开即用最新权重`;
   $('modelMetrics').innerHTML = cells.map(c => `<div class="metric ${c.cls || ''}"><div class="k">${c.k}</div><div class="v">${c.v}</div></div>`).join('')
     + `<div style="grid-column:1/-1;font-size:10px;color:var(--text-faint);line-height:1.6;">说明：IC 为池化截面（多币种混合）下的 Spearman 秩相关，样本早期数值偏高属正常现象，请重点关注其随训练次数增加的稳定性，而非绝对值。</div>`;
@@ -177,7 +194,7 @@ function renderICChart(evo) {
 
 // ---------------- 训练历史表 ----------------
 function renderHistory(evo) {
-  if (!evo.length) { $('histBody').innerHTML = '<tr><td colspan="7" style="color:var(--text-dim)">暂无训练记录</td></tr>'; return; }
+  if (!evo.length) { $('histBody').innerHTML = '<tr><td colspan="9" style="color:var(--text-dim)">暂无训练记录</td></tr>'; return; }
   $('histBody').innerHTML = evo.slice().reverse().slice(0, 20).map(e => `
     <tr style="cursor:default">
       <td><b>v${e.version}</b></td>
@@ -186,6 +203,8 @@ function renderHistory(evo) {
       <td>${e.samples ?? '—'}</td>
       <td>${e.icInSample != null ? fmtNum(e.icInSample, 4) : '—'}</td>
       <td class="${e.icOOS > 0.05 ? 'up' : ''}" style="font-weight:600">${e.icOOS != null ? fmtNum(e.icOOS, 4) : '—'}</td>
+      <td>${e.tracker?.icNew != null ? fmtNum(e.tracker.icNew, 4) : '—'}</td>
+      <td>${e.accepted == null ? '—' : e.accepted ? '<span class="chip long">接受</span>' : '<span class="chip short">拒绝</span>'}</td>
       <td>${e.lsSharpeOOS != null ? fmtNum(e.lsSharpeOOS, 2) : '—'}</td>
     </tr>`).join('');
 }
