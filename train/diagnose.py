@@ -14,6 +14,19 @@ from train import group_scores, spearman, get_symbols, get_klines, GROUPS, RIDGE
 TOP = int(os.environ.get("TQ_TOP_N", "30"))
 EMBARGO = 200  # 最大指标回看窗口（EMA200）
 
+def spearman5(x, y):
+    """横截面小桶专用：样本 ≥5 即计算（train.spearman 的 30 阈值会把小时间桶整体归零）"""
+    x = np.asarray(x); y = np.asarray(y)
+    mask = ~(np.isnan(x) | np.isnan(y))
+    x, y = x[mask], y[mask]
+    if len(x) < 5:
+        return None
+    rx = np.argsort(np.argsort(x)).astype(float)
+    ry = np.argsort(np.argsort(y)).astype(float)
+    rx -= rx.mean(); ry -= ry.mean()
+    denom = np.sqrt((rx ** 2).sum() * (ry ** 2).sum())
+    return float((rx * ry).sum() / denom) if denom > 0 else None
+
 def main():
     symbols = get_symbols()[:TOP]
     print(f"[diag] {len(symbols)} 个币种")
@@ -60,7 +73,7 @@ def main():
         buckets = {}
         for i in range(len(y_)):
             buckets.setdefault(int(ts[mask][i]), []).append(i)
-        xs_ics = [spearman(p_[idx], y_[idx]) for idx in buckets.values() if len(idx) >= 5]
+        xs_ics = [v for v in (spearman5(p_[idx], y_[idx]) for idx in buckets.values() if len(idx) >= 5) if v is not None]
         xs = float(np.mean(xs_ics)) if xs_ics else float('nan')
         # 3) 单币种时间序列 IC 取平均
         print(f"{name}: 混合IC {pooled:.4f} | 横截面IC {xs:.4f} | 时间桶数 {len(xs_ics)}")
