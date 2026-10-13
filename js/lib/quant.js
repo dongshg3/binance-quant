@@ -6,7 +6,25 @@ import {
   VWAP, OBV, Keltner, Fib, efficiencyRatio, logLinReg, holtForecast, hurst,
 } from './stats.js';
 
-export const FACTOR_WEIGHTS = { trend: 0.25, momentum: 0.20, meanRev: 0.15, volume: 0.15, volatility: 0.10, position: 0.05, futures: 0.10 };
+export const FACTOR_WEIGHTS = { trend: 0.22, momentum: 0.18, meanRev: 0.13, volume: 0.13, volatility: 0.09, position: 0.05, htf: 0.10, futures: 0.10 };
+export const GROUP_NAMES = { trend: '趋势', momentum: '动量', meanRev: '均值回归', volume: '量能', volatility: '波动率', position: '位置', htf: '高周期', futures: '合约数据' };
+
+// ---------------- 高周期重采样（无未来函数） ----------------
+// 把基础周期收盘价重采样到 f 倍周期（1h→4h/日线），只保留已完成的 bar
+function resampleCloses(arr, f) {
+  const m = Math.floor(arr.length / f), out = [];
+  for (let j = 0; j < m; j++) out.push(arr[(j + 1) * f - 1]);
+  return out;
+}
+// 大周期第 j 个完整 bar 覆盖基础 bar [j*f, (j+1)*f)，基础 bar i 只能看到 i//f - 1
+function mapHtf(resampledValues, len, f) {
+  const out = new Array(len).fill(null);
+  for (let i = 0; i < len; i++) {
+    const j = Math.floor(i / f) - 1;
+    if (j >= 0 && j < resampledValues.length) out[i] = resampledValues[j];
+  }
+  return out;
+}
 
 // ---------------- 学习模型注入 ----------------
 // 由 model.js 拉取 data/model.json 后调用 setModel() 注入云端训练出的权重。
@@ -14,7 +32,6 @@ export const FACTOR_WEIGHTS = { trend: 0.25, momentum: 0.20, meanRev: 0.15, volu
 let MODEL = null;
 export function setModel(m) { MODEL = m; }
 export function getModelInfo() { return MODEL; }
-export const GROUP_NAMES = { trend: '趋势', momentum: '动量', meanRev: '均值回归', volume: '量能', volatility: '波动率', position: '位置', futures: '合约数据' };
 
 // ---------------- 信号分级 ----------------
 export function signalOf(composite) {
@@ -107,6 +124,16 @@ export function computeFactors(candles, extraData) {
     return 0;
   })();
 
+  // 高周期共振（4× = 4h、24× = 日线；仅用已完成的大周期 bar）
+  const c4 = resampleCloses(c, 4), c24 = resampleCloses(c, 24);
+  const emaD = EMA(c24, 20);
+  const dTrendMap = mapHtf(c24.map((x, j) => emaD[j] == null ? null : Math.sign(x - emaD[j])), c.length, 24);
+  const dSlopeMap = mapHtf(emaD.map((x, j) => (x == null || j < 3 || emaD[j - 3] == null) ? null : Math.sign(x - emaD[j - 3]) * 0.5), c.length, 24);
+  const rsi4Map = mapHtf(RSI(c4, 14).map(x => x == null ? null : C((50 - x) / 20, -1, 1)), c.length, 4);
+  const macd4Map = mapHtf(MACD(c4).histogram.map(x => x == null ? null : Math.sign(x) * 0.5), c.length, 4);
+  const htfParts = [dTrendMap[n], dSlopeMap[n], rsi4Map[n], macd4Map[n]].filter(x => x != null);
+  const htfScore = htfParts.length ? Stats.mean(htfParts) : 0;
+
   let fundingScore = 0, lsRatioScore = 0, oiScore = 0;
   if (extraData) {
     if (extraData.fundingRate != null) {
@@ -131,6 +158,7 @@ export function computeFactors(candles, extraData) {
     volume: [volScore, obvScore],
     volatility: [squeezeScore],
     position: [fibScore],
+    htf: [htfScore],
     futures: [fundingScore, lsRatioScore, oiScore],
   };
 
