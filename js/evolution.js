@@ -209,7 +209,16 @@ async function renderTracker() {
   for (const src in (stats.byWeightSource || {})) {
     cells.push({ k: `权重来源 ${src}`, v: stats.byWeightSource[src] });
   }
-  $('trackerMetrics').innerHTML = cells.map(c => `<div class="metric"><div class="k">${c.k}</div><div class="v">${c.v}</div></div>`).join('');
+  const ORIGIN_NAMES = { dashboard: '深度分析页', screener: '全市场扫描' };
+  for (const src in (stats.byOrigin || {})) {
+    const o = stats.byOrigin[src];
+    cells.push({
+      k: `${ORIGIN_NAMES[src] || src} · T+24胜率`,
+      v: `${fmtPct(o.winRate, 1, false)} <small style="color:var(--text-faint)">n=${o.n} · 均 ${fmtPct(o.avgRet, 2)}</small>`,
+      cls: o.winRate > 0.52 && o.n >= 20 ? 'good' : o.winRate < 0.48 && o.n >= 20 ? 'bad' : '',
+    });
+  }
+  $('trackerMetrics').innerHTML = cells.map(c => `<div class="metric ${c.cls || ''}"><div class="k">${c.k}</div><div class="v">${c.v}</div></div>`).join('');
 
   const horizons = [4, 12, 24];
   const dirNames = { long: '做多信号', short: '做空信号', all: '全部' };
