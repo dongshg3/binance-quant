@@ -50,8 +50,20 @@
 
   <!-- 分段专业化模型 -->
   <div class="panel" style="margin-bottom:14px;">
-    <h3><span data-icon="layers"></span>分段专业化模型 <span class="sub">规模分层 × 板块分类独立训练 · 前端按币种自动选用达标分段</span></h3>
+    <h3><span data-icon="layers"></span>分段专业化模型 <span class="sub">规模分层 × 板块分类独立训练 · 前端按币种自动选用达标分段 · 显著负 IC 反向启用</span></h3>
     <div id="segContent"><div class="placeholder">等待 v8+ 模型产出分段数据</div></div>
+  </div>
+
+  <!-- 非线性对照实验 -->
+  <div class="panel" style="margin-bottom:14px;">
+    <h3><span data-icon="flask"></span>非线性对照实验 <span class="sub">Ridge vs ExtraTrees（随机森林族）· Purged K 折同条件对比 · 胜出则知识蒸馏回线性权重</span></h3>
+    <div id="etContent"><div class="placeholder">等待 v9+ 模型产出对照实验数据</div></div>
+  </div>
+
+  <!-- 逐币独立模型 -->
+  <div class="panel" style="margin-bottom:14px;">
+    <h3><span data-icon="target"></span>逐币独立模型 <span class="sub">单币种独立训练 · 与父分段 50/50 收缩融合防过拟合 · 前端评分优先使用</span></h3>
+    <div id="coinContent"><div class="placeholder">等待 v9+ 模型产出逐币模型数据</div></div>
   </div>
 
   <!-- 权重变迁 -->
