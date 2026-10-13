@@ -7,7 +7,7 @@
 <meta name="description" content="多因子策略历史回测：夏普、最大回撤、盈亏比、信号命中率，对比买入持有">
 <script src="https://unpkg.com/lightweight-charts@4.1.0/dist/lightweight-charts.standalone.production.js"></script>
 <link rel="stylesheet" href="css/main.css">
-<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📈</text></svg>">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%232563eb' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M9 5v4'/><rect width='4' height='6' x='7' y='9' rx='1'/><path d='M9 15v2'/><path d='M17 3v2'/><rect width='4' height='8' x='15' y='5' rx='1'/><path d='M17 13v3'/><path d='M3 3v16a2 2 0 0 0 2 2h16'/></svg>">
 </head>
 <body>
 <div class="page">
@@ -27,22 +27,22 @@
     <label>K线数 <input id="limitInput" type="number" value="1000" step="100" style="width:80px"></label>
     <label>费率% <input id="feeInput" type="number" value="0.05" step="0.01" style="width:65px"></label>
     <label>滑点% <input id="slipInput" type="number" value="0.02" step="0.01" style="width:65px"></label>
-    <button id="runBtn" class="primary">▶ 运行回测</button>
+    <button id="runBtn" class="primary"><span data-icon="play"></span>运行回测</button>
     <span style="font-size:11px;color:var(--text-dim)" id="btStatus"></span>
   </div>
 
   <!-- 绩效指标 -->
   <div class="panel" style="margin-bottom:14px;">
-    <h3>📈 策略绩效 <span class="sub" id="btSub">尚未运行</span></h3>
+    <h3><span data-icon="trendUp"></span>策略绩效 <span class="sub" id="btSub">尚未运行</span></h3>
     <div class="grid-metrics" id="btMetrics"><div class="placeholder" style="grid-column:1/-1;">选择参数后点击「运行回测」</div></div>
   </div>
 
   <!-- 净值曲线 -->
   <div class="chart-wrap" style="margin-bottom:14px;">
     <div style="font-size:12px;color:var(--text-dim);margin-bottom:8px;">
-      <span style="color:#f0b90b;">—</span> 策略净值 &nbsp;&nbsp;
-      <span style="color:#2196f3;">—</span> 买入持有基准 &nbsp;&nbsp;
-      <span style="color:#f6465d;">—</span> 回撤(右轴)
+      <span style="color:#2563eb;">—</span> 策略净值 &nbsp;&nbsp;
+      <span style="color:#94a3b8;">—</span> 买入持有基准 &nbsp;&nbsp;
+      <span style="color:#dc2626;">—</span> 回撤(右轴)
     </div>
     <div id="eqChart" class="chart-box" style="height:340px;"></div>
   </div>
@@ -50,7 +50,7 @@
   <div class="row cols-2">
     <!-- 样本外验证 -->
     <div class="panel">
-      <h3>🔬 样本外验证 <span class="sub">前 70% 训练 · 后 30% 验证，检验过拟合</span></h3>
+      <h3><span data-icon="flask"></span>样本外验证 <span class="sub">前 70% 训练 · 后 30% 验证 检验过拟合</span></h3>
       <table>
         <thead><tr><th>指标</th><th style="text-align:right">样本内 (70%)</th><th style="text-align:right">样本外 (30%)</th></tr></thead>
         <tbody id="oosBody"><tr><td colspan="3" class="placeholder">尚未运行</td></tr></tbody>
@@ -59,7 +59,7 @@
     </div>
     <!-- 基准对比 -->
     <div class="panel">
-      <h3>⚖️ 与买入持有对比</h3>
+      <h3><span data-icon="scale"></span>与买入持有对比</h3>
       <table>
         <thead><tr><th>指标</th><th style="text-align:right">多因子策略</th><th style="text-align:right">买入持有</th></tr></thead>
         <tbody id="compareBody"><tr><td colspan="3" class="placeholder">尚未运行</td></tr></tbody>
@@ -70,7 +70,7 @@
   <div class="row" style="grid-template-columns:1fr;">
     <!-- 调仓记录 -->
     <div class="panel">
-      <h3>📋 调仓记录 <span class="sub" id="tradeCount"></span></h3>
+      <h3><span data-icon="clipboard"></span>调仓记录 <span class="sub" id="tradeCount"></span></h3>
       <div class="scroll-table" style="max-height:320px;">
         <table>
           <thead><tr><th>时间</th><th>方向</th><th>仓位变化</th><th style="text-align:right">价格</th><th style="text-align:right">评分</th></tr></thead>
