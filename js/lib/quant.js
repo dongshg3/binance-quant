@@ -7,6 +7,13 @@ import {
 } from './stats.js';
 
 export const FACTOR_WEIGHTS = { trend: 0.25, momentum: 0.20, meanRev: 0.15, volume: 0.15, volatility: 0.10, position: 0.05, futures: 0.10 };
+
+// ---------------- 学习模型注入 ----------------
+// 由 model.js 拉取 data/model.json 后调用 setModel() 注入云端训练出的权重。
+// 未加载（首次访问/离线/训练未产出）时回退到上面的静态 FACTOR_WEIGHTS。
+let MODEL = null;
+export function setModel(m) { MODEL = m; }
+export function getModelInfo() { return MODEL; }
 export const GROUP_NAMES = { trend: '趋势', momentum: '动量', meanRev: '均值回归', volume: '量能', volatility: '波动率', position: '位置', futures: '合约数据' };
 
 // ---------------- 信号分级 ----------------
@@ -127,12 +134,13 @@ export function computeFactors(candles, extraData) {
     futures: [fundingScore, lsRatioScore, oiScore],
   };
 
+  const weights = (MODEL && MODEL.weights) ? MODEL.weights : FACTOR_WEIGHTS;
   const groupAverages = {};
   let composite = 0;
   for (const g in groups) {
     const avg = Stats.mean(groups[g]);
     groupAverages[g] = avg;
-    composite += FACTOR_WEIGHTS[g] * avg;
+    composite += (weights[g] != null ? weights[g] : FACTOR_WEIGHTS[g]) * avg;
   }
 
   const er = efficiencyRatio(c, 20);
@@ -141,6 +149,7 @@ export function computeFactors(candles, extraData) {
 
   return {
     composite, groupAverages, groups,
+    weightSource: MODEL ? `learned-v${MODEL.version || '?'}` : 'static',
     rawIndicators: {
       price, atr, rsi: rsiArr[n], macdH: histogram[n], adx: adx[n], pdi: pdi[n], mdi: mdi[n],
       stochRsi: stoch[n], volRatio, squeeze,
