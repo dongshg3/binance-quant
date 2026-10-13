@@ -1,6 +1,6 @@
 node_modules/
 dist/
-.DS_Store
-Thumbs.db
-*.log
-.env
+data_cache/
+__pycache__/
+*.pyc
+vite-test.log
