@@ -143,9 +143,11 @@ def derive_stats(agg):
 
 
 def rank_key(stats):
-    """赛季排名分数（与浏览器版一致）"""
+    """赛季排名分数：带符号 t 值（稳定盈利者居前，稳定亏损者居末）。
+    注：浏览器旧版用 |t|，会把稳定亏损的选手排到第一并加冕冠军——
+    其信号原样展示等于反向指标被当成正策略，且进化会淘汰弱者留下亏者，已修正。"""
     if stats["n"] >= 8:
-        return stats["tStat"] * (1 if (stats["meanRet"] or 0) >= 0 else -1)
+        return stats["tStat"]
     return -999 + stats["n"] * 0.01
 
 # ---------------- 选手 ----------------

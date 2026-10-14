@@ -62,7 +62,9 @@ function deriveStats(agg) {
 }
 
 function rankScore(st) {
-  return st.tStat * Math.sign(st.meanRet || 0);
+  // 带符号 t 值：稳定盈利居前、稳定亏损居末（旧版 |t| 会把稳定亏损者排第一，已修正）
+  const n = st.n || 0;
+  return n >= 8 ? (st.tStat || 0) : -999 + n * 0.01;
 }
 
 // ---------------- 页面数据接口 ----------------
