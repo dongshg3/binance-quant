@@ -3,6 +3,7 @@
 // ============================================================
 import { GROUP_NAMES } from './lib/quant.js';
 import { getStats, exportCSV } from './lib/tracker.js';
+import { getCoinLiveStats } from './lib/arena.js';
 import { renderNav, setNet, fmtPct, fmtNum, disclaimerHTML, icon, swapHTML } from './lib/ui.js';
 
 renderNav('evolution');
@@ -33,7 +34,7 @@ async function init() {
   renderInfoTests(model);
   renderSegments(model);
   renderEtExperiments(model);
-  renderCoinModels(model);
+  renderCoinModels(model).catch(() => {});
   renderWeightCompare(model);
   renderICTable(model);
   renderWeightChart(evo);
@@ -276,38 +277,103 @@ function renderEtExperiments(model) {
     </div>`;
 }
 
-// ---------------- 逐币独立模型 ----------------
-function renderCoinModels(model) {
+// ---------------- 逐币独立模型（训练指标 + 竞技场实盘战绩对照） ----------------
+// Spearman 秩相关（小样本内联实现，用于 训练IC vs 实盘收益 的一致性检验）
+function spearman(xs, ys) {
+  const n = xs.length;
+  if (n < 3) return null;
+  const rank = arr => {
+    const idx = arr.map((v, i) => [v, i]).sort((a, b) => a[0] - b[0]);
+    const r = new Array(n);
+    let i = 0;
+    while (i < n) {
+      let j = i;
+      while (j + 1 < n && idx[j + 1][0] === idx[i][0]) j++;
+      const avg = (i + j) / 2 + 1;
+      for (let k = i; k <= j; k++) r[idx[k][1]] = avg;
+      i = j + 1;
+    }
+    return r;
+  };
+  const rx = rank(xs), ry = rank(ys);
+  const mx = rx.reduce((a, b) => a + b, 0) / n, my = ry.reduce((a, b) => a + b, 0) / n;
+  let cov = 0, vx = 0, vy = 0;
+  for (let i = 0; i < n; i++) { cov += (rx[i] - mx) * (ry[i] - my); vx += (rx[i] - mx) ** 2; vy += (ry[i] - my) ** 2; }
+  return vx > 0 && vy > 0 ? cov / Math.sqrt(vx * vy) : null;
+}
+
+async function renderCoinModels(model) {
   const el = $('coinContent');
   const coins = model && model.coinModels;
   if (!coins || !Object.keys(coins).length) { el.innerHTML = '<div class="placeholder">等待 v9+ 模型产出逐币模型数据（下次云端训练后自动出现）</div>'; return; }
+  let live = null;
+  try { live = await getCoinLiveStats(); } catch (e) { live = null; }
+  const bySym = live ? live.bySym : {};
+  const ov = live ? live.overall : null;
+
   const list = Object.entries(coins).sort((a, b) => (b[1].ic ?? 0) - (a[1].ic ?? 0));
   const meanIc = list.reduce((s, [, v]) => s + (v.ic ?? 0), 0) / list.length;
   const posN = list.filter(([, v]) => (v.ic ?? 0) > 0).length;
+
   const rows = list.map(([sym, v]) => {
     const base = sym.replace(/USDT$/, '');
+    const lv = bySym[sym];
+    let liveCells, verdict;
+    if (!lv || !lv.signals) {
+      liveCells = '<td colspan="3" style="color:var(--text-faint)">尚未触发信号</td>';
+      verdict = '<span class="chip flat">未触发</span>';
+    } else if (lv.n < 8) {
+      liveCells = `<td>${lv.n} <small style="color:var(--text-faint)">/待${lv.pending}</small></td><td>—</td><td>—</td>`;
+      verdict = '<span class="chip flat">样本积累中</span>';
+    } else {
+      const good = lv.meanRet > 0;
+      liveCells = `<td>${lv.n} <small style="color:var(--text-faint)">/待${lv.pending}</small></td>
+        <td class="${lv.winRate > 0.52 ? 'up' : lv.winRate < 0.48 ? 'down' : ''}">${fmtPct(lv.winRate, 1, false)}</td>
+        <td class="${good ? 'up' : 'down'}" style="font-weight:600">${fmtPct(lv.totalRet, 2)}</td>`;
+      verdict = good
+        ? `<span class="chip long">兑现 t=${lv.tStat != null ? fmtNum(lv.tStat, 1) : '—'}</span>`
+        : `<span class="chip short">背离 t=${lv.tStat != null ? fmtNum(lv.tStat, 1) : '—'}</span>`;
+    }
     return `<tr style="cursor:default">
       <td><b>${base}</b></td>
       <td class="${v.ic >= 0.04 ? 'up' : ''}" style="font-weight:600">${fmtNum(v.ic, 4)}</td>
       <td class="${Math.abs(v.t ?? 0) >= 2 ? 'up' : ''}">${v.t != null ? fmtNum(v.t, 2) : '—'}</td>
       <td>${v.n ?? '—'}</td>
+      ${liveCells}
+      <td>${verdict}</td>
     </tr>`;
   }).join('');
+
+  // 训练 IC vs 实盘收益 的跨币种一致性（Spearman）：>0 说明训练优势在实盘兑现
+  const pairs = list
+    .map(([sym, v]) => [v.ic, bySym[sym] && bySym[sym].n >= 1 ? bySym[sym].meanRet : null])
+    .filter(p => p[1] != null);
+  const rho = pairs.length >= 5 ? spearman(pairs.map(p => p[0]), pairs.map(p => p[1])) : null;
+
+  const liveMetrics = ov ? `
+      <div class="metric"><div class="k">实盘信号（逐币族）</div><div class="v">${ov.signals} <small style="color:var(--text-faint)">已结算 ${ov.n}</small></div></div>
+      <div class="metric ${ov.n >= 8 ? (ov.winRate > 0.52 ? 'good' : ov.winRate < 0.48 ? 'bad' : '') : ''}"><div class="k">实盘胜率</div><div class="v">${ov.winRate != null ? fmtPct(ov.winRate, 1, false) : '—'}</div></div>
+      <div class="metric ${ov.totalRet > 0 ? 'good' : ov.totalRet < 0 ? 'bad' : ''}"><div class="k">实盘合计净收益</div><div class="v">${ov.totalRet != null ? fmtPct(ov.totalRet, 2) : '—'}</div></div>
+      <div class="metric ${rho > 0.3 ? 'good' : rho < 0 ? 'bad' : ''}"><div class="k">训练IC × 实盘收益一致性</div><div class="v">${rho != null ? `ρ=${fmtNum(rho, 2)}` : '样本不足'} <small style="color:var(--text-faint)">${pairs.length} 币</small></div></div>` : '';
+
   el.innerHTML = `
     <div class="grid-metrics" style="margin-bottom:10px;">
       <div class="metric good"><div class="k">已启用逐币模型</div><div class="v">${list.length} 个</div></div>
       <div class="metric ${meanIc > 0.04 ? 'good' : ''}"><div class="k">样本外 IC 均值</div><div class="v">${fmtNum(meanIc, 4)}</div></div>
       <div class="metric"><div class="k">IC 为正占比</div><div class="v">${fmtPct(posN / list.length, 1, false)}</div></div>
+      ${liveMetrics}
     </div>
-    <div style="max-height:320px;overflow:auto;">
+    <div style="max-height:360px;overflow:auto;">
       <table class="table">
-        <thead><tr><th>币种</th><th>样本外 IC</th><th>t 值</th><th>测试样本</th></tr></thead>
+        <thead><tr><th>币种</th><th>训练IC</th><th>t 值</th><th>测试样本</th><th>实盘结算</th><th>实盘胜率</th><th>实盘净收益</th><th>兑现判定</th></tr></thead>
         <tbody>${rows}</tbody>
       </table>
     </div>
     <div style="font-size:10px;color:var(--text-faint);margin-top:8px;line-height:1.7;">
       采纳标准：训练样本 ≥ 1500、测试样本 ≥ 400、IC ≥ 0.04 且 t ≥ 2。
-      逐币权重与父分段（板块/规模）做 50/50 收缩融合，避免单币小样本过拟合；未通过门槛的币种自动使用分段或全局权重。
+      逐币权重与父分段（板块/规模）做 50/50 收缩融合，避免单币小样本过拟合；未通过门槛的币种自动使用分段或全局权重。<br>
+      实盘战绩来自「策略竞技场」逐币族选手（全自动模拟实盘，含手续费滑点）：结算 ≥ 8 笔且净收益为正 = <b>兑现</b>（训练优势在实盘复现），为负 = <b>背离</b>；
+      「训练IC × 实盘收益一致性」ρ &gt; 0 说明 IC 排名能预测实盘排名——这是整套逐币训练是否有效的最终裁判。
     </div>`;
 }
 
