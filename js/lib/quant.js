@@ -6,8 +6,8 @@ import {
   VWAP, OBV, Keltner, Fib, efficiencyRatio, logLinReg, holtForecast, hurst,
 } from './stats.js';
 
-export const FACTOR_WEIGHTS = { trend: 0.22, momentum: 0.18, meanRev: 0.13, volume: 0.13, volatility: 0.09, position: 0.05, htf: 0.10, futures: 0.10 };
-export const GROUP_NAMES = { trend: '趋势', momentum: '动量', meanRev: '均值回归', volume: '量能', volatility: '波动率', position: '位置', htf: '高周期', futures: '合约数据' };
+export const FACTOR_WEIGHTS = { trend: 0.22, momentum: 0.18, meanRev: 0.13, volume: 0.13, volatility: 0.09, position: 0.05, htf: 0.10, futures: 0.10, news: 0.05 };
+export const GROUP_NAMES = { trend: '趋势', momentum: '动量', meanRev: '均值回归', volume: '量能', volatility: '波动率', position: '位置', htf: '高周期', futures: '合约数据', news: '消息面' };
 
 // ---------------- 高周期重采样（无未来函数） ----------------
 // 把基础周期收盘价重采样到 f 倍周期（1h→4h/日线），只保留已完成的 bar
@@ -190,6 +190,22 @@ export function computeFactors(candles, extraData, symbol) {
     }
   }
 
+  // 消息面（云端每小时快照：FGI 恐慌贪婪指数 + 该币新闻情绪/热度，VADER 打分）
+  // 研究依据：极端情绪做逆向（FGI z-score），温和币面情绪顺势，过热报道降温
+  let newsScore = 0;
+  const nw = extraData && extraData.news;
+  if (nw) {
+    const parts = [];
+    if (nw.fgiZ != null) parts.push(C(-nw.fgiZ / 2, -1, 1) * 0.6);        // 极端贪婪偏空 · 极端恐慌偏多
+    if (nw.coinSent != null && (nw.coinBuzz ?? 0) >= 2) {
+      let s = C(nw.coinSent, -1, 1) * 0.6;                                  // 温和情绪顺势
+      if ((nw.coinBuzzRel ?? 0) > 3 && nw.coinSent > 0.5) s = -0.3;         // 报道过热 → 降温
+      else if ((nw.coinBuzzRel ?? 0) > 3 && nw.coinSent < -0.5) s = 0.3;    // 恐慌过杀 → 反弹
+      parts.push(s);
+    }
+    newsScore = parts.length ? Stats.mean(parts) : 0;
+  }
+
   const groups = {
     trend: [emaScore, ema200Score, adxScore, keltnerScore],
     momentum: [rsiScore, macdScore, stochScore, divergenceScore],
@@ -200,6 +216,8 @@ export function computeFactors(candles, extraData, symbol) {
     htf: [htfScore],
     futures: [fundingScore, lsRatioScore, oiScore],
   };
+  // 消息面有数据才入组：学习权重尚无 news 键时自动回退静态权重 0.05（实盘追踪积累后再进云端训练）
+  if (nw) groups.news = [newsScore];
 
   const picked = pickWeights(symbol);
   const weights = picked.weights;
