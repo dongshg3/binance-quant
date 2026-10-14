@@ -7,6 +7,7 @@ import { computeFactors, computePosition, detectRegime, signalOf, monteCarloCone
 import { renderNav, setNet, fmtPrice, fmtPct, fmtPct100, fmtNum, fmtVol, clsBySign, getParams, buildSymbolPicker, disclaimerHTML, icon, pop } from './lib/ui.js';
 import { loadModel, modelBadgeHTML } from './lib/model.js';
 import { logSignal, labelOutcomes } from './lib/tracker.js';
+import { newsFactorFor, getNewsSnapshot } from './lib/news.js';
 
 renderNav('dashboard');
 document.getElementById('disclaimerSlot').innerHTML = disclaimerHTML();
@@ -90,6 +91,25 @@ async function reload() {
     if (fh.status === 'fulfilled') extra.fundingHist = fh.value;
   }
 
+  // 消息面因子（云端每小时快照，现货/合约通用；静默失败不影响主流程）
+  let newsView = null;
+  try {
+    const snap = await getNewsSnapshot();
+    const nf = newsFactorFor(snap, state.symbol);
+    if (nf) extra.news = nf;
+    if (snap) {
+      const base = state.symbol.replace(/USDT$/, '');
+      const coin = snap.coins && snap.coins[base];
+      newsView = {
+        updatedAt: snap.updatedAt,
+        ageH: snap.updatedAt ? (Date.now() - new Date(snap.updatedAt).getTime()) / 36e5 : null,
+        fgi: snap.fgi || null, globalSent: snap.globalSent ?? null, totalItems: snap.totalItems ?? 0,
+        coinSent: coin?.sent ?? null, coinBuzz: coin?.buzz ?? 0, coinBuzzRel: coin?.buzzRel ?? 0,
+        top: coin?.top || [],
+      };
+    }
+  } catch (e) { /* 消息面不可用不影响主流程 */ }
+
   const factors = computeFactors(state.candles, extra, state.symbol);
   if (!factors) { setNet('数据不足', ''); return; }
   const pos = computePosition(factors.composite, state.candles, state.interval);
@@ -118,6 +138,7 @@ async function reload() {
   renderTradePlan(factors, pos, fused);
   renderRisk(factors, pos);
   renderFutures(extra);
+  renderNews(newsView);
   renderForecast(factors, fused);
   renderCondStats(factors);
   renderChart(factors);
@@ -296,6 +317,36 @@ function renderFutures(extra) {
   $('futuresMetrics').innerHTML = cells.map(c => `<div class="metric ${c.cls || ''}"><div class="k">${c.k}</div><div class="v">${c.v}</div></div>`).join('')
     + crowdWarn
     + (mirror ? '<div style="grid-column:1/-1;font-size:10px;color:var(--text-faint);margin-top:4px;">镜像数据模式下合约专属数据不可用（资金费率 / 多空比 / 持仓量需直连币安合约 API）</div>' : '');
+}
+
+// ---------------- 消息面（云端每小时自动抓取：RSS 五源 + Reddit + FGI，VADER 情绪打分） ----------------
+function renderNews(nv) {
+  const panel = $('newsPanel');
+  if (!panel) return;
+  if (!nv) { panel.style.display = 'none'; return; }
+  panel.style.display = '';
+  const fgi = nv.fgi;
+  const fgiCls = fgi ? (fgi.value >= 75 ? 'bad' : fgi.value <= 25 ? 'good' : '') : '';
+  const coinCls = nv.coinSent == null ? '' : nv.coinSent > 0.15 ? 'good' : nv.coinSent < -0.15 ? 'bad' : '';
+  const cells = [
+    fgi ? { k: '恐慌贪婪指数', v: `${fgi.value} <small style="color:var(--text-faint)">${fgi.label} · 24h ${fgi.delta24h > 0 ? '+' : ''}${fgi.delta24h}</small>`, cls: fgiCls } : null,
+    fgi ? { k: 'FGI 拥挤度 z', v: `${fmtNum(fgi.z, 2)} <small style="color:var(--text-faint)">vs 30天均值 ${fgi.mean30}</small>`, cls: Math.abs(fgi.z) >= 2 ? 'bad' : '' } : null,
+    { k: '全局新闻情绪', v: nv.globalSent != null ? fmtNum(nv.globalSent, 3) : '—', cls: nv.globalSent > 0.1 ? 'good' : nv.globalSent < -0.1 ? 'bad' : '' },
+    { k: '本币报道热度', v: nv.coinBuzz > 0 ? `${nv.coinBuzz} 篇 <small style="color:var(--text-faint)">全市场分位 ×${fmtNum(nv.coinBuzzRel, 1)}</small>` : '近 48h 无报道' },
+    { k: '本币新闻情绪', v: nv.coinSent != null ? fmtNum(nv.coinSent, 2) : '—', cls: coinCls },
+  ].filter(Boolean);
+  const headlines = nv.top.length
+    ? `<div style="margin-top:8px;">${nv.top.map(h => `
+        <div style="font-size:11px;line-height:1.6;padding:5px 0;border-top:1px solid var(--border,#eef0f4);">
+          <span class="chip ${h.s > 0 ? 'long' : 'short'}" style="padding:0 6px;font-size:10px;">${h.s > 0 ? '利多' : '利空'} ${h.s}</span>
+          <span style="color:var(--text-dim)">[${h.src}]</span> ${h.t}
+        </div>`).join('')}</div>`
+    : '';
+  $('newsMetrics').innerHTML = cells.map(c => `<div class="metric ${c.cls || ''}"><div class="k">${c.k}</div><div class="v">${c.v}</div></div>`).join('')
+    + `<div style="grid-column:1/-1;font-size:10px;color:var(--text-faint);line-height:1.6;">
+        ${nv.totalItems} 条/48h · 更新于 ${nv.ageH != null ? (nv.ageH < 1 ? Math.round(nv.ageH * 60) + ' 分钟' : nv.ageH.toFixed(1) + ' 小时') : '—'}前（每小时自动抓取）·
+        消息面当前为静态权重 0.05 参与综合评分，随实盘追踪样本积累后进入云端训练学习权重
+      </div>` + headlines;
 }
 
 // ---------------- 预测 ----------------
