@@ -7,20 +7,52 @@
 <meta name="description" content="多周期策略选手池：7 策略族 + 4 组基准（随机 / 静态 / 云端全局 / 云端逐币）× 4 周期全自动模拟实盘，赛季末自然选择进化，随机对照组实时校验 alpha 存在性">
 <link rel="stylesheet" href="css/main.css">
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%232563eb' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M9 5v4'/><rect width='4' height='6' x='7' y='9' rx='1'/><path d='M9 15v2'/><path d='M17 3v2'/><rect width='4' height='8' x='15' y='5' rx='1'/><path d='M17 13v3'/><path d='M3 3v16a2 2 0 0 0 2 2h16'/></svg>">
+<style>
+  /* 选手详情展开：grid-rows 平滑形变过渡 */
+  tr.player-row { cursor: pointer; transition: background .2s ease; }
+  tr.player-row:hover { background: var(--bg-soft, #f4f6fb); }
+  tr.player-row.expanded { background: var(--bg-soft, #f4f6fb); }
+  tr.player-row td { border-bottom: none; }
+  .pd-wrap { display: grid; grid-template-rows: 0fr; transition: grid-template-rows .38s cubic-bezier(.4,0,.2,1); }
+  .pd-wrap.open { grid-template-rows: 1fr; }
+  .pd-inner { overflow: hidden; min-height: 0; }
+  .pd-content { padding: 4px 6px 16px; opacity: 0; transform: translateY(-6px); transition: opacity .3s ease .08s, transform .3s ease .08s; }
+  .pd-wrap.open .pd-content { opacity: 1; transform: translateY(0); }
+  .pd-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 12px; }
+  .pd-box { background: var(--bg-soft, #f7f8fc); border: 1px solid var(--border, #e5e9f2); border-radius: 10px; padding: 10px 12px; }
+  .pd-box h5 { margin: 0 0 8px; font-size: 11px; color: var(--text-dim); font-weight: 600; letter-spacing: .04em; display: flex; align-items: center; gap: 5px; }
+  .wbar-row { display: flex; align-items: center; gap: 8px; margin: 3px 0; font-size: 11px; }
+  .wbar-name { width: 52px; color: var(--text-dim); text-align: right; flex-shrink: 0; }
+  .wbar-track { flex: 1; height: 8px; position: relative; background: var(--border, #e8ecf4); border-radius: 4px; }
+  .wbar-center { position: absolute; left: 50%; top: -1px; bottom: -1px; width: 1px; background: var(--text-faint, #b8c0d0); }
+  .wbar-fill { position: absolute; top: 0; bottom: 0; border-radius: 4px; transition: width .5s ease, left .5s ease; }
+  .wbar-val { width: 48px; font-size: 10px; color: var(--text-faint); flex-shrink: 0; }
+  .pos-row { display: flex; justify-content: space-between; align-items: center; padding: 5px 0; border-bottom: 1px dashed var(--border, #e8ecf4); font-size: 11px; gap: 6px; flex-wrap: wrap; }
+  .pos-row:last-child { border-bottom: none; }
+  .lineage { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; font-size: 11px; }
+  .lineage .lg-node { padding: 2px 8px; border-radius: 6px; background: var(--bg-soft, #eef1f8); border: 1px solid var(--border, #e2e7f2); }
+  .lineage .lg-node.me { background: var(--accent); color: #fff; border-color: var(--accent); }
+  .lineage .lg-node.dead { opacity: .45; text-decoration: line-through; }
+  .lineage .lg-arrow { color: var(--text-faint); }
+  .cloud-badge { display: inline-flex; align-items: center; gap: 5px; font-size: 11px; color: var(--accent); }
+  .cloud-badge .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--accent); animation: pulseDot 2s infinite; }
+  @keyframes pulseDot { 0%,100% { opacity: 1; } 50% { opacity: .35; } }
+</style>
 </head>
 <body>
 <div class="page">
 
   <!-- 总览 -->
   <div class="panel" style="margin-bottom:14px;">
-    <h3><span data-icon="swords"></span>策略竞技场 <span class="sub">7 策略族 + 4 组基准 · 4 周期 · 全自动模拟实盘 · 赛季制自然选择</span></h3>
-    <div class="grid-metrics" id="arenaMetrics"><div class="placeholder" style="grid-column:1/-1;">正在打开竞技场…</div></div>
+    <h3><span data-icon="swords"></span>策略竞技场 <span class="sub">7 策略族 + 4 组基准 · 4 周期 · 云端全自动模拟实盘 · 赛季制自然选择</span></h3>
+    <div class="grid-metrics" id="arenaMetrics"><div class="placeholder" style="grid-column:1/-1;">正在读取云端竞技场状态…</div></div>
     <div style="font-size:11px;color:var(--text-dim);line-height:1.8;margin-top:10px;">
-      机制：K 线收盘时冻结信号 → 下一根开盘入场 → 到期结算（含手续费滑点）→ 赛季末按样本外战绩淘汰末位 30%、复制变异强者。
+      机制：K 线收盘后冻结信号 → 下一根开盘入场 → 到期结算（含手续费滑点）→ 赛季末按样本外战绩淘汰末位 30%、复制变异强者。
       <b>随机对照组</b>与<b>静态对照组</b>永在场：冠军若跑不赢随机组，说明当前市场没有可交易的 alpha——这比任何预测都诚实。
-      <b>云端模型组</b>（全局权重）与<b>逐币模型组</b>（34 个单币种专训权重）同步参赛：它们的长期排名就是云端训练成果的实盘裁判。
-      数据只存在本浏览器，任意页面保持打开即每 10 分钟自动运行一轮，零 token 零服务器。
+      <b>云端模型组</b>（全局权重）与<b>逐币模型组</b>（42 个单币种专训权重）同步参赛：它们的长期排名就是云端训练成果的实盘裁判。
+      引擎运行在云端（每 30 分钟一轮），<b>不开网站也持续运行</b>，进程不受任何人控制；点击选手行可查看其持仓、操作记录、策略权重与迭代谱系。
     </div>
+    <div style="margin-top:8px;"><span class="cloud-badge"><span class="dot"></span><span id="cloudStatus">云端引擎运行状态读取中…</span></span></div>
   </div>
 
   <!-- 冠军信号（机会窗口） -->
@@ -36,16 +68,6 @@
   <div class="panel" style="margin-bottom:14px;">
     <h3><span data-icon="history"></span>赛季日志 <span class="sub">自然选择的完整记录</span></h3>
     <div id="seasonLog"><div class="placeholder">首个赛季结束后出现（15m 赛季 3 天 · 1h 赛季 7 天）</div></div>
-  </div>
-
-  <!-- 操作 -->
-  <div class="panel" style="margin-bottom:14px;">
-    <h3><span data-icon="sliders"></span>控制台</h3>
-    <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
-      <button id="tickBtn" class="primary"><span data-icon="play"></span>立即运行一轮</button>
-      <button id="resetBtn"><span data-icon="refresh"></span>重置竞技场</button>
-      <span style="font-size:11px;color:var(--text-dim);" id="ctrlStatus">自动模式：打开任意页面每 10 分钟运行一轮</span>
-    </div>
   </div>
 
   <div id="disclaimerSlot"></div>

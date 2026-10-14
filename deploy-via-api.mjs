@@ -13,7 +13,7 @@ const OWNER = 'dongshg3', REPO = 'binance-quant';
 const ROOT = process.cwd();
 const EXCLUDE = ['.git', 'node_modules', 'dist', 'deploy-via-api.mjs', '.repo-create.json', '__pycache__', 'data_cache'];
 // 机器人（GitHub Actions）拥有的数据产物：远程为准
-const BOT_OWNED = ['data/model.json', 'data/evolution.json', 'data/news.json', 'data/news_history.json'];
+const BOT_OWNED = ['data/model.json', 'data/evolution.json', 'data/news.json', 'data/news_history.json', 'data/arena/state.json'];
 
 const headers = {
   'Authorization': `token ${TOKEN}`,

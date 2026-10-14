@@ -1,7 +1,7 @@
 // ============================================================
 // ui.js · 共享 UI：导航栏 / 图标库 / 动效助手 / 格式化 / 控件
 // ============================================================
-import { arenaAutoTick } from './arena.js';
+// 注：策略竞技场已迁移云端（GitHub Actions 每 30 分钟），浏览器不再承担 tick。
 
 // ---------------- Lucide 开源图标（ISC License · lucide.dev） ----------------
 const ICON_PATHS = {
@@ -105,14 +105,6 @@ export function renderNav(active) {
   document.body.prepend(nav);
   hydrateIcons();
   staggerPanels();
-  // 策略竞技场后台 tick：页面打开即跑一轮（10 分钟节流，失败静默），
-  // 且只要任意页面保持打开，每 10 分钟自动再跑一轮——信号生成 / 回填结算 / 赛季进化持续迭代
-  try { arenaAutoTick(); } catch (e) { /* 竞技场不可用不影响主站 */ }
-  if (!window.__bqArenaTimer) {
-    window.__bqArenaTimer = setInterval(() => {
-      try { arenaAutoTick(); } catch (e) { /* ignore */ }
-    }, 10 * 60 * 1000);
-  }
 }
 
 export function setNet(text, cls) {
