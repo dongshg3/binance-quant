@@ -493,6 +493,33 @@ export async function getChampionSignals(limit = 12) {
     .slice(0, limit);
 }
 
+// ---------------- 逐币模型实盘战绩（供「模型进化」页对照训练 IC） ----------------
+export async function getCoinLiveStats() {
+  const sigs = await getAll('signals');
+  const coinSigs = sigs.filter(s => s.family === 'coin' && s.status !== 'invalid');
+  const agg = (list) => {
+    const filled = list.filter(s => s.status === 'filled' && s.netReturn != null);
+    const rets = filled.map(s => s.netReturn);
+    const n = rets.length;
+    const mean = n ? rets.reduce((a, b) => a + b, 0) / n : null;
+    const sd = n ? Math.sqrt(rets.reduce((a, x) => a + (x - mean) ** 2, 0) / n) : null;
+    return {
+      signals: list.length,
+      pending: list.length - filled.length,
+      n,
+      winRate: n ? rets.filter(r => r > 0).length / n : null,
+      totalRet: n ? rets.reduce((a, b) => a + b, 0) : null,
+      meanRet: mean,
+      tStat: n > 1 && sd > 0 ? mean / (sd / Math.sqrt(n)) : null,
+    };
+  };
+  const bySym = {};
+  for (const s of coinSigs) (bySym[s.symbol] = bySym[s.symbol] || []).push(s);
+  const out = {};
+  for (const sym in bySym) out[sym] = agg(bySym[sym]);
+  return { bySym: out, overall: agg(coinSigs) };
+}
+
 export async function resetArena() {
   const db = await openDB();
   for (const store of ['players', 'signals', 'seasons']) {
