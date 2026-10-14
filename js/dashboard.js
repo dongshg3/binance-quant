@@ -2,7 +2,7 @@
 // dashboard.js · 单币种深度分析 + 预测
 // ============================================================
 import { Stats, EMA } from './lib/stats.js';
-import { loadAllSymbols, loadTickers, fetchKlines, fetchFundingRate, fetchLongShortRatio, fetchOpenInterestChange, fetchTakerRatio, connectKlineWS, pollKlines, getDataMode } from './lib/api.js';
+import { loadAllSymbols, loadTickers, fetchKlines, fetchFundingRate, fetchFundingHistory, fetchLongShortRatio, fetchOpenInterestChange, fetchTakerRatio, connectKlineWS, pollKlines, getDataMode } from './lib/api.js';
 import { computeFactors, computePosition, detectRegime, signalOf, monteCarloCone, conditionalStats, pointForecast, regChannel, riskLevels, buildTradePlan, extremeGroups, fuseMTF, signalConfidence, garchVolForecast, btcLinkage, GROUP_NAMES } from './lib/quant.js';
 import { renderNav, setNet, fmtPrice, fmtPct, fmtPct100, fmtNum, fmtVol, clsBySign, getParams, buildSymbolPicker, disclaimerHTML, icon, pop } from './lib/ui.js';
 import { loadModel, modelBadgeHTML } from './lib/model.js';
@@ -76,16 +76,18 @@ async function reload() {
   // 合约扩展数据（并行、容错）
   const extra = {};
   if (state.market === 'futures') {
-    const [fr, ls, oi, tk] = await Promise.allSettled([
+    const [fr, ls, oi, tk, fh] = await Promise.allSettled([
       fetchFundingRate(state.symbol),
       fetchLongShortRatio(state.symbol),
       fetchOpenInterestChange(state.symbol),
       fetchTakerRatio(state.symbol),
+      fetchFundingHistory(state.symbol),
     ]);
     if (fr.status === 'fulfilled') extra.fundingRate = fr.value;
     if (ls.status === 'fulfilled') extra.lsRatio = ls.value;
     if (oi.status === 'fulfilled') extra.oiChange = oi.value;
     if (tk.status === 'fulfilled') extra.takerRatio = tk.value;
+    if (fh.status === 'fulfilled') extra.fundingHist = fh.value;
   }
 
   const factors = computeFactors(state.candles, extra, state.symbol);
@@ -261,13 +263,38 @@ function renderFutures(extra) {
   panel.style.display = '';
   const fr = extra.fundingRate;
   const mirror = getDataMode() === 'mirror';
+  // 拥挤度 z-score：「极端」是相对该币自身近期分布而言，不是绝对阈值（约 30 天 ≈ 90 次 funding）
+  let crowdCell = null, crowdWarn = '';
+  const hist = extra.fundingHist;
+  if (hist && hist.length >= 10 && fr != null) {
+    const m = hist.reduce((a, b) => a + b, 0) / hist.length;
+    const sd = Math.sqrt(hist.reduce((s, x) => s + (x - m) ** 2, 0) / hist.length);
+    if (sd > 0) {
+      const z = (fr - m) / sd;
+      const oiRising = extra.oiChange != null && extra.oiChange > 0.03;
+      const az = Math.abs(z);
+      const label = az < 1 ? '平衡' : az < 2 ? (z > 0 ? '偏多拥挤' : '偏空拥挤') : (z > 0 ? '多头极端拥挤' : '空头极端拥挤');
+      crowdCell = {
+        k: '资金费率拥挤度 z',
+        v: `${fmtNum(z, 2)} · ${label}`,
+        cls: az >= 2 ? 'bad' : az >= 1 ? '' : 'good',
+      };
+      // 研究结论：极端拥挤 + 持仓量扩张 = 挤压危险区（过滤器：收紧风控，而非反向开仓信号）
+      if (az >= 2 && oiRising) {
+        crowdWarn = `<div style="grid-column:1/-1;font-size:11px;line-height:1.7;padding:8px 10px;border-radius:6px;background:rgba(246,70,93,.07);border:1px solid rgba(246,70,93,.25);">
+          ${icon('alert')} <b>挤压危险区</b>：${z > 0 ? '多头' : '空头'}极端拥挤（z=${fmtNum(z, 1)}）且持仓量 30 期扩张 ${fmtPct(extra.oiChange, 1)}——清算连锁风险升高，建议收紧止损、减小仓位，而不是逆势重仓。</div>`;
+      }
+    }
+  }
   const cells = [
     { k: '资金费率', v: fr != null ? fmtPct(fr, 4) : '—', cls: fr > 0.0005 ? 'bad' : fr < -0.0005 ? 'good' : '' },
     { k: '多空账户比', v: extra.lsRatio != null ? fmtNum(extra.lsRatio, 2) : '—' },
     { k: '持仓量30期变化', v: extra.oiChange != null ? fmtPct(extra.oiChange, 2) : '—', cls: clsBySign(extra.oiChange) },
     { k: '主动买卖比', v: extra.takerRatio != null ? fmtNum(extra.takerRatio, 2) : '—', cls: extra.takerRatio > 1.05 ? 'good' : extra.takerRatio < 0.95 ? 'bad' : '' },
   ];
+  if (crowdCell) cells.push(crowdCell);
   $('futuresMetrics').innerHTML = cells.map(c => `<div class="metric ${c.cls || ''}"><div class="k">${c.k}</div><div class="v">${c.v}</div></div>`).join('')
+    + crowdWarn
     + (mirror ? '<div style="grid-column:1/-1;font-size:10px;color:var(--text-faint);margin-top:4px;">镜像数据模式下合约专属数据不可用（资金费率 / 多空比 / 持仓量需直连币安合约 API）</div>' : '');
 }
 
