@@ -7,6 +7,7 @@ import { computeFactors, computePosition, detectRegime, signalOf, buildTradePlan
 import { renderNav, setNet, fmtPrice, fmtPct100, fmtPct, fmtNum, fmtVol, clsBySign, goDashboard, disclaimerHTML, icon, swapHTML } from './lib/ui.js';
 import { loadModel, getModel } from './lib/model.js';
 import { logSignal, labelOutcomes } from './lib/tracker.js';
+import { getNewsSnapshot, newsFactorFor } from './lib/news.js';
 
 renderNav('screener');
 document.getElementById('disclaimerSlot').innerHTML = disclaimerHTML();
@@ -113,8 +114,9 @@ async function scanMarket() {
   $('scanBtn').innerHTML = icon('loader', 'spin') + '扫描中…';
   $('scanProgressWrap').style.display = 'block';
 
-  // 刷新 ticker + 资金费率
+  // 刷新 ticker + 资金费率 + 消息面快照
   try { state.tickers = await loadTickers(state.market); } catch (e) {}
+  try { state.newsSnap = await getNewsSnapshot(); } catch (e) { state.newsSnap = null; }
   if (state.market === 'futures') {
     try {
       state.funding = await fetchAllPremiumIndex();
@@ -141,9 +143,13 @@ async function scanMarket() {
         const candles = await fetchKlines(sym, state.interval, 120, state.market);
         if (candles.length >= 60) {
           // 合约市场把资金费率喂给因子引擎（futures 因子组参与学习权重，不传则评分系统性缺失一组信号）
-          const extra = state.market === 'futures' && state.funding[sym]
-            ? { fundingRate: state.funding[sym].fundingRate } : null;
-          const f = computeFactors(candles, extra, sym);
+          const extra = {};
+          if (state.market === 'futures' && state.funding[sym]) extra.fundingRate = state.funding[sym].fundingRate;
+          // 消息面因子（云端每小时快照：FGI + 该币新闻情绪/热度，静态权重 0.05 参与评分）
+          const nf = newsFactorFor(state.newsSnap, sym);
+          if (nf) extra.news = nf;
+          const extraArg = Object.keys(extra).length ? extra : null;
+          const f = computeFactors(candles, extraArg, sym);
           if (f) {
             const pos = computePosition(f.composite, candles, state.interval);
             const tk = state.tickers[sym] || {};
@@ -173,7 +179,7 @@ async function scanMarket() {
               position: pos.size,
               direction: pos.direction,
               regime: detectRegime(f.rawIndicators),
-              funding: extra ? extra.fundingRate : null,
+              funding: extra.fundingRate ?? null,
               edgeKind: edge.kind, edgeKey: edge.key, edgeFlipped: edge.flipped, edgeIC: edge.ic,
             });
           }
