@@ -114,6 +114,12 @@ export async function fetchLongShortRatio(symbol, period = '1h') {
   if (Array.isArray(d) && d.length) return parseFloat(d[d.length - 1].longShortRatio);
   return null;
 }
+// 资金费率历史（约 limit/3 天）：拥挤度必须与自身近期分布比较，而非绝对阈值
+export async function fetchFundingHistory(symbol, limit = 90) {
+  const d = await fetchJSON(`${API.futuresRest}/fundingRate?symbol=${symbol}&limit=${limit}`, 8000);
+  if (Array.isArray(d) && d.length >= 10) return d.map(x => parseFloat(x.fundingRate));
+  return null;
+}
 export async function fetchOpenInterestChange(symbol, period = '1h') {
   const d = await fetchJSON(`${API.futuresDataRest}/openInterestHist?symbol=${symbol}&period=${period}&limit=30`, 8000);
   if (Array.isArray(d) && d.length >= 2) {
