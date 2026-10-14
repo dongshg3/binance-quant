@@ -116,13 +116,18 @@
       </div>
       <!-- 因子拆解 -->
       <div class="panel" style="margin-bottom:14px;">
-        <h3><span data-icon="sliders"></span>因子拆解 <span class="sub">八因子加权评分</span></h3>
+        <h3><span data-icon="sliders"></span>因子拆解 <span class="sub">九因子加权评分（消息面为静态权重学习中）</span></h3>
         <div id="factorBars"></div>
       </div>
       <!-- 合约数据 -->
       <div class="panel" id="futuresPanel">
         <h3><span data-icon="database"></span>合约市场数据</h3>
         <div class="grid-metrics" id="futuresMetrics" style="grid-template-columns:repeat(2,1fr);"></div>
+      </div>
+      <!-- 消息面 -->
+      <div class="panel" id="newsPanel" style="display:none;">
+        <h3><span data-icon="radio"></span>消息面 <span class="sub">RSS 五源 + Reddit · VADER 情绪 · 每小时自动抓取</span></h3>
+        <div class="grid-metrics" id="newsMetrics" style="grid-template-columns:repeat(2,1fr);"></div>
       </div>
     </div>
   </div>
