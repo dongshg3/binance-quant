@@ -52,7 +52,10 @@ GROUPS = ["trend", "momentum", "meanRev", "volume", "volatility", "position", "h
 STATIC_WEIGHTS = {"trend": 0.22, "momentum": 0.18, "meanRev": 0.13, "volume": 0.13,
                   "volatility": 0.09, "position": 0.05, "htf": 0.10, "futures": 0.10}
 # 稳定币/指数合约：价格动态是脱锚噪音或合成指数，因子信号无意义，训练与扫描都排除
-EXCLUDE_BASE = {"USDC", "FDUSD", "TUSD", "USDP", "DAI", "BUSD", "USD1", "USDD", "USDE", "USDS", "BTCDOM"}
+# 含新一代法币稳定币（RLUSD/BFUSD/XUSD/U 等）：钉住 1 美元，"高 IC" 是噪声伪影，
+# 入场交易只会白付手续费（竞技场逐币族曾在 RLUSD/U 上每笔净亏 0.14% 手续费）
+EXCLUDE_BASE = {"USDC", "FDUSD", "TUSD", "USDP", "DAI", "BUSD", "USD1", "USDD", "USDE", "USDS", "BTCDOM",
+                "RLUSD", "BFUSD", "XUSD", "U", "PYUSD", "USDG", "AUSD", "GUSD", "EURC", "AEUR", "EURI", "LUSD"}
 # 板块分类（静态映射，覆盖高流动性币种；未命中 → other）
 # 不同板块的驱动结构不同：meme 由情绪和资金费率主导，major 由宏观 beta 主导，
 # 混在一个模型里会互相稀释 —— 分段训练让每类币用自己的权重

@@ -66,7 +66,9 @@ async function marketGet(market, path, timeoutMs) {
 
 // 全部可交易币种（合约 = 全部 USDT 永续；镜像降级时 = 全部 USDT 现货）
 // 稳定币/指数合约：价格动态是脱锚噪音或合成指数，因子信号无意义，全站排除
-export const EXCLUDED_BASES = new Set(['USDC', 'FDUSD', 'TUSD', 'USDP', 'DAI', 'BUSD', 'USD1', 'USDD', 'USDE', 'USDS', 'BTCDOM']);
+// 含新一代法币稳定币（RLUSD/BFUSD/XUSD/U 等，与 train.py EXCLUDE_BASE 保持一致）
+export const EXCLUDED_BASES = new Set(['USDC', 'FDUSD', 'TUSD', 'USDP', 'DAI', 'BUSD', 'USD1', 'USDD', 'USDE', 'USDS', 'BTCDOM',
+  'RLUSD', 'BFUSD', 'XUSD', 'U', 'PYUSD', 'USDG', 'AUSD', 'GUSD', 'EURC', 'AEUR', 'EURI', 'LUSD']);
 
 export async function loadAllSymbols(market = 'futures') {
   const data = await marketGet(market, '/exchangeInfo', 10000);

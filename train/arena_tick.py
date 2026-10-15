@@ -45,7 +45,7 @@ FEE_RT = 0.0005 * 2 + 0.0002 * 2          # 往返手续费 + 滑点（与浏览
 SYMBOL_TTL = 6 * 3600 * 1000              # 币种池 6 小时刷新
 KEEP_FILLED = 500                          # state.json 保留的已结算信号数
 KEEP_INVALID = 50
-GEN_BACKFILL_BARS = 3                      # 信号生成最多回填的已收盘 bar 数
+GEN_BACKFILL_BARS = 8                      # 信号生成最多回填的已收盘 bar 数（GitHub 定时队列常延迟数小时，需覆盖 tick 间隔）
 KLINES_LIMIT = 140                         # 同时满足因子计算（>=80）与结算窗口（horizon<=30+3）
 
 ARENA_INTERVALS = {

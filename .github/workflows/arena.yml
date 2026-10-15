@@ -5,16 +5,17 @@ name: arena-tick
 # 不开网站也持续运行；选手进程不会被浏览器关闭打断
 on:
   schedule:
-    - cron: '8,38 * * * *'
+    # 每 15 分钟一个触发槽（GitHub 定时队列延迟严重，密集槽位提高成活率）
+    - cron: '5,20,35,50 * * * *'
   workflow_dispatch:
 
 permissions:
   contents: write
 
-# 防止上一次 tick 尚未完成时下一次叠加运行
+# 防止排队堆积：新运行到来时取消还在跑的旧运行（状态只在最后原子提交，中断安全）
 concurrency:
   group: arena-tick
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 jobs:
   arena:
