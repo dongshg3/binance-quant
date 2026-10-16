@@ -5,6 +5,7 @@ import { GROUP_NAMES } from './lib/quant.js';
 import { getStats, exportCSV } from './lib/tracker.js';
 import { getCoinLiveStats } from './lib/arena.js';
 import { renderNav, setNet, fmtPct, fmtNum, disclaimerHTML, icon, swapHTML } from './lib/ui.js';
+import { renderNlStatus } from './lib/nlstatus.js';
 
 renderNav('evolution');
 document.getElementById('disclaimerSlot').innerHTML = disclaimerHTML();
@@ -554,3 +555,5 @@ async function renderTracker() {
 }
 
 init();
+// 零 Token 自动迭代状态面板（data/nl_status.json）。独立渲染，取不到产物时只影响本区块。
+renderNlStatus();

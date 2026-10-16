@@ -60,6 +60,12 @@
     <div id="etContent"><div class="placeholder">等待 v9+ 模型产出对照实验数据</div></div>
   </div>
 
+  <!-- 零 Token 自动迭代（非线性模型）· 数据来自 data/nl_status.json，由本机常驻进程自动更新 -->
+  <div class="panel" style="margin-bottom:14px;">
+    <h3><span data-icon="cpu"></span>零 Token 自动迭代（非线性模型） <span class="sub">本机常驻进程逐代搜索 · 每代只消耗本地 CPU，不调用任何外部模型接口 · 产物自动推送后由本页读取</span></h3>
+    <div id="nlStatusContent"><div class="placeholder">正在读取自动迭代产物…</div></div>
+  </div>
+
   <!-- 逐币独立模型 -->
   <div class="panel" style="margin-bottom:14px;">
     <h3><span data-icon="target"></span>逐币独立模型 <span class="sub">单币种独立训练 · 50/50 收缩融合防过拟合 · 右半部分接入竞技场逐币族实盘战绩对照</span></h3>
