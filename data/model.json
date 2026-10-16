@@ -1,6 +1,6 @@
 {
- "version": 18,
- "trainedAt": "2026-10-15T21:55:56+00:00",
+ "version": 19,
+ "trainedAt": "2026-10-16T05:01:58+00:00",
  "engine": "ridge-v6-seg-et-coin",
  "fwdSet": [
   2,
@@ -17,7 +17,7 @@
   "htf": 0.1861,
   "futures": 0.1681
  },
- "scoreScale": 0.12167726,
+ "scoreScale": 0.12168369,
  "staticWeights": {
   "trend": 0.22,
   "momentum": 0.18,
@@ -31,113 +31,113 @@
  "segments": {
   "size:large": {
    "weights": {
-    "trend": 0.081,
-    "momentum": 0.2819,
-    "meanRev": -0.1403,
-    "volume": -0.1069,
-    "volatility": -0.01,
-    "position": -0.2135,
-    "htf": 0.146,
-    "futures": -0.0204
+    "trend": 0.0558,
+    "momentum": 0.3088,
+    "meanRev": -0.1816,
+    "volume": -0.0824,
+    "volatility": -0.0321,
+    "position": -0.2083,
+    "htf": 0.0536,
+    "futures": 0.0773
    },
-   "scoreScale": 0.08797525,
-   "icXS": -0.0111,
-   "nwT": -0.94,
-   "n": 72387,
+   "scoreScale": 0.08279844,
+   "icXS": -0.0192,
+   "nwT": -1.69,
+   "n": 72412,
    "symbols": 30,
    "good": false,
    "flipped": false
   },
   "size:mid": {
    "weights": {
-    "trend": 0.0845,
-    "momentum": 0.1384,
-    "meanRev": -0.0111,
-    "volume": -0.2388,
-    "volatility": -0.201,
-    "position": -0.1065,
-    "htf": 0.0194,
-    "futures": 0.2003
+    "trend": 0.1176,
+    "momentum": 0.1885,
+    "meanRev": 0.0542,
+    "volume": -0.2357,
+    "volatility": -0.2021,
+    "position": -0.07,
+    "htf": -0.0317,
+    "futures": 0.1002
    },
-   "scoreScale": 0.10794785,
-   "icXS": 0.0168,
-   "nwT": 2.25,
-   "n": 139967,
+   "scoreScale": 0.119808,
+   "icXS": 0.0218,
+   "nwT": 2.71,
+   "n": 139355,
    "symbols": 60,
    "good": true,
    "flipped": false
   },
   "size:small": {
    "weights": {
-    "trend": -0.0126,
-    "momentum": -0.3244,
-    "meanRev": 0.1959,
-    "volume": -0.0666,
-    "volatility": 0.0067,
-    "position": -0.1211,
-    "htf": 0.1352,
-    "futures": 0.1374
+    "trend": 0.0086,
+    "momentum": -0.3575,
+    "meanRev": 0.1731,
+    "volume": -0.0931,
+    "volatility": 0.0192,
+    "position": -0.1131,
+    "htf": 0.1182,
+    "futures": 0.1172
    },
-   "scoreScale": 0.10009877,
-   "icXS": 0.0236,
-   "nwT": 2.55,
-   "n": 141655,
+   "scoreScale": 0.08650885,
+   "icXS": 0.0175,
+   "nwT": 1.91,
+   "n": 142883,
    "symbols": 59,
-   "good": true,
+   "good": false,
    "flipped": false
   },
   "cat:defi": {
    "weights": {
-    "trend": -0.1911,
-    "momentum": -0.2027,
-    "meanRev": -0.0082,
-    "volume": 0.0886,
-    "volatility": 0.0406,
-    "position": 0.1713,
-    "htf": 0.0513,
-    "futures": -0.2461
+    "trend": 0.1877,
+    "momentum": 0.221,
+    "meanRev": 0.0186,
+    "volume": -0.0742,
+    "volatility": -0.0433,
+    "position": -0.1453,
+    "htf": -0.0,
+    "futures": 0.3099
    },
-   "scoreScale": 0.07566975,
-   "icXS": -0.0294,
-   "nwT": -2.13,
-   "n": 40316,
-   "symbols": 16,
-   "good": true,
-   "flipped": true
+   "scoreScale": 0.0771296,
+   "icXS": -0.0234,
+   "nwT": -1.82,
+   "n": 42921,
+   "symbols": 17,
+   "good": false,
+   "flipped": false
   },
   "cat:l1": {
    "weights": {
-    "trend": -0.1936,
-    "momentum": -0.2317,
-    "meanRev": 0.0217,
-    "volume": 0.1588,
-    "volatility": 0.016,
-    "position": 0.2808,
-    "htf": 0.0349,
-    "futures": -0.0625
+    "trend": 0.1884,
+    "momentum": 0.2002,
+    "meanRev": 0.0008,
+    "volume": -0.1348,
+    "volatility": -0.008,
+    "position": -0.2474,
+    "htf": -0.1746,
+    "futures": 0.0457
    },
-   "scoreScale": 0.08914892,
-   "icXS": -0.0275,
-   "nwT": -2.04,
+   "scoreScale": 0.08361378,
+   "icXS": -0.0185,
+   "nwT": -1.44,
    "n": 59800,
    "symbols": 23,
-   "good": true,
-   "flipped": true
+   "good": false,
+   "flipped": false
   },
   "cat:meme": {
    "weights": {
-    "trend": 0.1452,
-    "momentum": -0.1943,
-    "meanRev": 0.1093,
-    "volume": -0.0632,
-    "volatility": -0.1172,
-    "position": -0.2103,
-    "htf": 0.0712,
-    "futures": -0.0894
+    "trend": 0.1349,
+    "momentum": -0.1733,
+    "meanRev": 0.0968,
+    "volume": -0.0604,
+    "volatility": -0.1049,
+    "position": -0.2266,
+    "htf": 0.1182,
+    "futures": -0.0848
    },
-   "scoreScale": 0.05729225,
-   "icXS": 0.0258,
-   "nwT": 1.52,
+   "scoreScale": 0.05864843,
+   "icXS": 0.0125,
+   "nwT": 0.68,
    "n": 20800,
    "symbols": 8,
    "good": false,
@@ -145,20 +145,20 @@
   },
   "cat:other": {
    "weights": {
-    "trend": -0.0788,
-    "momentum": -0.2435,
-    "meanRev": 0.1053,
-    "volume": -0.1496,
-    "volatility": -0.069,
-    "position": -0.0717,
-    "htf": 0.1223,
-    "futures": 0.1596
+    "trend": -0.0542,
+    "momentum": -0.3329,
+    "meanRev": 0.1301,
+    "volume": -0.1767,
+    "volatility": -0.0683,
+    "position": -0.0601,
+    "htf": 0.0615,
+    "futures": 0.1162
    },
-   "scoreScale": 0.10611932,
-   "icXS": 0.0218,
-   "nwT": 2.62,
-   "n": 183693,
-   "symbols": 83,
+   "scoreScale": 0.10450133,
+   "icXS": 0.0207,
+   "nwT": 2.42,
+   "n": 181729,
+   "symbols": 82,
    "good": true,
    "flipped": false
   }
@@ -196,10 +196,6 @@
    "size": "large",
    "cat": "l1"
   },
-  "SUIUSDT": {
-   "size": "large",
-   "cat": "l1"
-  },
   "STRKUSDT": {
    "size": "large",
    "cat": "l2"
@@ -207,6 +203,14 @@
   "UNIUSDT": {
    "size": "large",
    "cat": "defi"
+  },
+  "SUIUSDT": {
+   "size": "large",
+   "cat": "l1"
+  },
+  "HYPEUSDT": {
+   "size": "large",
+   "cat": "other"
   },
   "ENAUSDT": {
    "size": "large",
@@ -216,13 +220,9 @@
    "size": "large",
    "cat": "other"
   },
-  "HYPEUSDT": {
+  "INJUSDT": {
    "size": "large",
-   "cat": "other"
-  },
-  "PUMPUSDT": {
-   "size": "large",
-   "cat": "other"
+   "cat": "l1"
   },
   "SNDKBUSDT": {
    "size": "large",
@@ -232,37 +232,33 @@
    "size": "large",
    "cat": "l1"
   },
-  "PEPEUSDT": {
-   "size": "large",
-   "cat": "meme"
-  },
   "WLDUSDT": {
    "size": "large",
    "cat": "ai"
+  },
+  "PUMPUSDT": {
+   "size": "large",
+   "cat": "other"
   },
   "CRCLBUSDT": {
    "size": "large",
    "cat": "other"
   },
-  "ADAUSDT": {
+  "PEPEUSDT": {
    "size": "large",
-   "cat": "l1"
+   "cat": "meme"
   },
   "LINKUSDT": {
    "size": "large",
    "cat": "infra"
   },
-  "AVAXUSDT": {
+  "ADAUSDT": {
    "size": "large",
    "cat": "l1"
   },
-  "WALUSDT": {
+  "AVAXUSDT": {
    "size": "large",
-   "cat": "other"
-  },
-  "SOXLBUSDT": {
-   "size": "large",
-   "cat": "other"
+   "cat": "l1"
   },
   "XAUTUSDT": {
    "size": "large",
@@ -272,51 +268,35 @@
    "size": "large",
    "cat": "ai"
   },
-  "ZKUSDT": {
+  "FILUSDT": {
    "size": "large",
-   "cat": "l2"
+   "cat": "infra"
+  },
+  "SOXLBUSDT": {
+   "size": "large",
+   "cat": "other"
+  },
+  "ZROUSDT": {
+   "size": "large",
+   "cat": "other"
   },
   "QNTUSDT": {
    "size": "large",
    "cat": "other"
   },
-  "INJUSDT": {
-   "size": "large",
-   "cat": "l1"
-  },
   "ONDOUSDT": {
    "size": "mid",
    "cat": "defi"
-  },
-  "KORUBUSDT": {
-   "size": "mid",
-   "cat": "other"
   },
   "PYTHUSDT": {
    "size": "mid",
    "cat": "defi"
   },
-  "FILUSDT": {
+  "ZKUSDT": {
    "size": "mid",
-   "cat": "infra"
+   "cat": "l2"
   },
-  "NVDABUSDT": {
-   "size": "mid",
-   "cat": "other"
-  },
-  "FETUSDT": {
-   "size": "mid",
-   "cat": "ai"
-  },
-  "AAVEUSDT": {
-   "size": "mid",
-   "cat": "defi"
-  },
-  "MUBUSDT": {
-   "size": "mid",
-   "cat": "other"
-  },
-  "ZROUSDT": {
+  "WALUSDT": {
    "size": "mid",
    "cat": "other"
   },
@@ -324,11 +304,15 @@
    "size": "mid",
    "cat": "l1"
   },
-  "EURUSDT": {
+  "AAVEUSDT": {
    "size": "mid",
-   "cat": "other"
+   "cat": "defi"
   },
-  "QQQBUSDT": {
+  "FETUSDT": {
+   "size": "mid",
+   "cat": "ai"
+  },
+  "NVDABUSDT": {
    "size": "mid",
    "cat": "other"
   },
@@ -336,27 +320,23 @@
    "size": "mid",
    "cat": "l2"
   },
-  "HBARUSDT": {
-   "size": "mid",
-   "cat": "l1"
-  },
-  "TRUMPUSDT": {
-   "size": "mid",
-   "cat": "meme"
-  },
   "USUALUSDT": {
    "size": "mid",
    "cat": "other"
   },
-  "PAXGUSDT": {
+  "QQQBUSDT": {
    "size": "mid",
    "cat": "other"
   },
-  "MSTRBUSDT": {
+  "EURUSDT": {
    "size": "mid",
    "cat": "other"
   },
-  "XLMUSDT": {
+  "HBARUSDT": {
+   "size": "mid",
+   "cat": "l1"
+  },
+  "TIAUSDT": {
    "size": "mid",
    "cat": "l1"
   },
@@ -364,67 +344,39 @@
    "size": "mid",
    "cat": "other"
   },
-  "OPUSDT": {
-   "size": "mid",
-   "cat": "l2"
-  },
   "BLURUSDT": {
    "size": "mid",
    "cat": "other"
   },
-  "NILUSDT": {
+  "KORUBUSDT": {
    "size": "mid",
    "cat": "other"
   },
-  "SKHYBUSDT": {
+  "PAXGUSDT": {
    "size": "mid",
    "cat": "other"
-  },
-  "TIAUSDT": {
-   "size": "mid",
-   "cat": "l1"
   },
   "DOTUSDT": {
    "size": "mid",
    "cat": "l1"
   },
-  "INTCBUSDT": {
+  "MSTRBUSDT": {
    "size": "mid",
    "cat": "other"
   },
-  "BCHUSDT": {
+  "TRUMPUSDT": {
+   "size": "mid",
+   "cat": "meme"
+  },
+  "MUBUSDT": {
+   "size": "mid",
+   "cat": "other"
+  },
+  "XLMUSDT": {
    "size": "mid",
    "cat": "l1"
   },
-  "ASTERUSDT": {
-   "size": "mid",
-   "cat": "other"
-  },
-  "APTUSDT": {
-   "size": "mid",
-   "cat": "l1"
-  },
-  "FFUSDT": {
-   "size": "mid",
-   "cat": "other"
-  },
-  "牛来USDT": {
-   "size": "mid",
-   "cat": "other"
-  },
-  "GRAMUSDT": {
-   "size": "mid",
-   "cat": "other"
-  },
-  "ICPUSDT": {
-   "size": "mid",
-   "cat": "l1"
-  },
-  "ZAMAUSDT": {
-   "size": "mid",
-   "cat": "other"
-  },
-  "WUSDT": {
+  "SKHYBUSDT": {
    "size": "mid",
    "cat": "other"
   },
@@ -432,19 +384,67 @@
    "size": "mid",
    "cat": "other"
   },
-  "PENGUUSDT": {
+  "OPUSDT": {
    "size": "mid",
-   "cat": "meme"
+   "cat": "l2"
   },
-  "TQQQBUSDT": {
+  "APTUSDT": {
    "size": "mid",
-   "cat": "other"
-  },
-  "SNXXBUSDT": {
-   "size": "mid",
-   "cat": "other"
+   "cat": "l1"
   },
   "BATUSDT": {
+   "size": "mid",
+   "cat": "other"
+  },
+  "NILUSDT": {
+   "size": "mid",
+   "cat": "other"
+  },
+  "BCHUSDT": {
+   "size": "mid",
+   "cat": "l1"
+  },
+  "INTCBUSDT": {
+   "size": "mid",
+   "cat": "other"
+  },
+  "FFUSDT": {
+   "size": "mid",
+   "cat": "other"
+  },
+  "ASTERUSDT": {
+   "size": "mid",
+   "cat": "other"
+  },
+  "ZAMAUSDT": {
+   "size": "mid",
+   "cat": "other"
+  },
+  "ICPUSDT": {
+   "size": "mid",
+   "cat": "l1"
+  },
+  "CRVUSDT": {
+   "size": "mid",
+   "cat": "defi"
+  },
+  "ANIMEUSDT": {
+   "size": "mid",
+   "cat": "other"
+  },
+  "CHIPUSDT": {
+   "size": "mid",
+   "cat": "other"
+  },
+  "TSLABUSDT": {
+   "size": "mid",
+   "cat": "other"
+  },
+  "RLCUSDT": {
+   "size": "mid",
+   "cat": "other"
+  },
+  "GRAMUSDT": {
    "size": "mid",
    "cat": "other"
   },
@@ -452,35 +452,15 @@
    "size": "mid",
    "cat": "other"
   },
+  "WUSDT": {
+   "size": "mid",
+   "cat": "other"
+  },
+  "SNXXBUSDT": {
+   "size": "mid",
+   "cat": "other"
+  },
   "MARSCOINUSDT": {
-   "size": "mid",
-   "cat": "other"
-  },
-  "CRVUSDT": {
-   "size": "mid",
-   "cat": "defi"
-  },
-  "RAYUSDT": {
-   "size": "mid",
-   "cat": "defi"
-  },
-  "CHIPUSDT": {
-   "size": "mid",
-   "cat": "other"
-  },
-  "POLUSDT": {
-   "size": "mid",
-   "cat": "l2"
-  },
-  "RLCUSDT": {
-   "size": "mid",
-   "cat": "other"
-  },
-  "SEIUSDT": {
-   "size": "mid",
-   "cat": "l1"
-  },
-  "ANIMEUSDT": {
    "size": "mid",
    "cat": "other"
   },
@@ -488,63 +468,63 @@
    "size": "mid",
    "cat": "defi"
   },
-  "PENDLEUSDT": {
-   "size": "mid",
-   "cat": "defi"
-  },
-  "LDOUSDT": {
-   "size": "mid",
-   "cat": "defi"
-  },
-  "DASHUSDT": {
+  "TQQQBUSDT": {
    "size": "mid",
    "cat": "other"
   },
-  "DUSKUSDT": {
+  "SEIUSDT": {
    "size": "mid",
-   "cat": "other"
+   "cat": "l1"
+  },
+  "PENGUUSDT": {
+   "size": "mid",
+   "cat": "meme"
   },
   "SUSDT": {
    "size": "mid",
    "cat": "l1"
   },
+  "PLUMEUSDT": {
+   "size": "mid",
+   "cat": "other"
+  },
+  "MAGICUSDT": {
+   "size": "mid",
+   "cat": "gaming"
+  },
+  "牛来USDT": {
+   "size": "mid",
+   "cat": "other"
+  },
+  "ETHFIUSDT": {
+   "size": "mid",
+   "cat": "defi"
+  },
   "RENDERUSDT": {
    "size": "mid",
    "cat": "ai"
   },
-  "EPICUSDT": {
+  "PENDLEUSDT": {
    "size": "mid",
-   "cat": "other"
+   "cat": "defi"
   },
-  "RSRUSDT": {
+  "POLUSDT": {
    "size": "mid",
-   "cat": "other"
+   "cat": "l2"
+  },
+  "LDOUSDT": {
+   "size": "mid",
+   "cat": "defi"
   },
   "MEGAUSDT": {
    "size": "mid",
    "cat": "other"
   },
-  "MAGICUSDT": {
-   "size": "small",
-   "cat": "gaming"
-  },
-  "JTOUSDT": {
-   "size": "small",
+  "RAYUSDT": {
+   "size": "mid",
    "cat": "defi"
   },
-  "ETHFIUSDT": {
-   "size": "small",
-   "cat": "defi"
-  },
-  "RWUSDUSDT": {
-   "size": "small",
-   "cat": "other"
-  },
-  "MUBARAKUSDT": {
-   "size": "small",
-   "cat": "other"
-  },
-  "PLUMEUSDT": {
+  "DASHUSDT": {
    "size": "small",
    "cat": "other"
   },
@@ -552,61 +532,53 @@
    "size": "small",
    "cat": "other"
   },
-  "CAKEUSDT": {
-   "size": "small",
-   "cat": "defi"
-  },
-  "VIRTUALUSDT": {
-   "size": "small",
-   "cat": "ai"
-  },
-  "EIGENUSDT": {
-   "size": "small",
-   "cat": "defi"
-  },
-  "OSMOUSDT": {
-   "size": "small",
-   "cat": "defi"
-  },
-  "AVAUSDT": {
+  "JSTUSDT": {
    "size": "small",
    "cat": "other"
   },
-  "ACEUSDT": {
+  "EPICUSDT": {
    "size": "small",
    "cat": "other"
   },
-  "WLFIUSDT": {
+  "DUSKUSDT": {
    "size": "small",
    "cat": "other"
   },
-  "SOXSBUSDT": {
+  "MUBARAKUSDT": {
    "size": "small",
    "cat": "other"
-  },
-  "SHIBUSDT": {
-   "size": "small",
-   "cat": "meme"
   },
   "GENIUSUSDT": {
    "size": "small",
    "cat": "other"
   },
-  "JSTUSDT": {
+  "VIRTUALUSDT": {
    "size": "small",
-   "cat": "other"
+   "cat": "ai"
+  },
+  "JTOUSDT": {
+   "size": "small",
+   "cat": "defi"
   },
   "STXUSDT": {
    "size": "small",
    "cat": "l1"
   },
-  "ALGOUSDT": {
+  "EIGENUSDT": {
    "size": "small",
-   "cat": "l1"
+   "cat": "defi"
   },
-  "ATOMUSDT": {
+  "RWUSDUSDT": {
    "size": "small",
-   "cat": "l1"
+   "cat": "other"
+  },
+  "RSRUSDT": {
+   "size": "small",
+   "cat": "other"
+  },
+  "AVAUSDT": {
+   "size": "small",
+   "cat": "other"
   },
   "METUSDT": {
    "size": "small",
@@ -616,23 +588,27 @@
    "size": "small",
    "cat": "l1"
   },
-  "WBTCUSDT": {
+  "CAKEUSDT": {
+   "size": "small",
+   "cat": "defi"
+  },
+  "ATOMUSDT": {
+   "size": "small",
+   "cat": "l1"
+  },
+  "ACEUSDT": {
    "size": "small",
    "cat": "other"
   },
-  "BNCBUSDT": {
+  "ALGOUSDT": {
+   "size": "small",
+   "cat": "l1"
+  },
+  "WLFIUSDT": {
    "size": "small",
    "cat": "other"
   },
-  "SANDUSDT": {
-   "size": "small",
-   "cat": "gaming"
-  },
-  "GOOGLBUSDT": {
-   "size": "small",
-   "cat": "other"
-  },
-  "MORPHOUSDT": {
+  "OSMOUSDT": {
    "size": "small",
    "cat": "defi"
   },
@@ -640,7 +616,23 @@
    "size": "small",
    "cat": "other"
   },
+  "SANDUSDT": {
+   "size": "small",
+   "cat": "gaming"
+  },
+  "INITUSDT": {
+   "size": "small",
+   "cat": "other"
+  },
+  "MORPHOUSDT": {
+   "size": "small",
+   "cat": "defi"
+  },
   "CFXUSDT": {
+   "size": "small",
+   "cat": "other"
+  },
+  "GOOGLBUSDT": {
    "size": "small",
    "cat": "other"
   },
@@ -648,71 +640,15 @@
    "size": "small",
    "cat": "other"
   },
-  "GLMRUSDT": {
-   "size": "small",
-   "cat": "other"
-  },
-  "WCTUSDT": {
-   "size": "small",
-   "cat": "other"
-  },
-  "AAOIBUSDT": {
-   "size": "small",
-   "cat": "other"
-  },
-  "BABYUSDT": {
-   "size": "small",
-   "cat": "other"
-  },
-  "ZENUSDT": {
-   "size": "small",
-   "cat": "other"
-  },
-  "IOUSDT": {
-   "size": "small",
-   "cat": "ai"
-  },
-  "KAIAUSDT": {
-   "size": "small",
-   "cat": "other"
-  },
-  "BOMEUSDT": {
+  "SHIBUSDT": {
    "size": "small",
    "cat": "meme"
+  },
+  "SOXSBUSDT": {
+   "size": "small",
+   "cat": "other"
   },
   "STRAXUSDT": {
-   "size": "small",
-   "cat": "other"
-  },
-  "EWYBUSDT": {
-   "size": "small",
-   "cat": "other"
-  },
-  "PARTIUSDT": {
-   "size": "small",
-   "cat": "other"
-  },
-  "ARUSDT": {
-   "size": "small",
-   "cat": "infra"
-  },
-  "BONKUSDT": {
-   "size": "small",
-   "cat": "meme"
-  },
-  "TSLABUSDT": {
-   "size": "small",
-   "cat": "other"
-  },
-  "OGNUSDT": {
-   "size": "small",
-   "cat": "other"
-  },
-  "SKYUSDT": {
-   "size": "small",
-   "cat": "other"
-  },
-  "SAGAUSDT": {
    "size": "small",
    "cat": "other"
   },
@@ -720,668 +656,732 @@
    "size": "small",
    "cat": "other"
   },
-  "ATUSDT": {
+  "BNCBUSDT": {
    "size": "small",
    "cat": "other"
   },
-  "CFGUSDT": {
+  "ARUSDT": {
+   "size": "small",
+   "cat": "infra"
+  },
+  "GLMRUSDT": {
    "size": "small",
    "cat": "other"
   },
-  "INITUSDT": {
+  "KAIAUSDT": {
    "size": "small",
    "cat": "other"
-  },
-  "AVGOBUSDT": {
-   "size": "small",
-   "cat": "other"
-  },
-  "WIFUSDT": {
-   "size": "small",
-   "cat": "meme"
-  },
-  "OPNUSDT": {
-   "size": "small",
-   "cat": "other"
-  },
-  "AXLUSDT": {
-   "size": "small",
-   "cat": "other"
-  },
-  "AXSUSDT": {
-   "size": "small",
-   "cat": "gaming"
   },
   "DRAMBUSDT": {
    "size": "small",
    "cat": "other"
   },
-  "MITOUSDT": {
+  "WBTCUSDT": {
    "size": "small",
    "cat": "other"
   },
-  "INTWBUSDT": {
+  "PROMUSDT": {
    "size": "small",
    "cat": "other"
+  },
+  "AAOIBUSDT": {
+   "size": "small",
+   "cat": "other"
+  },
+  "PARTIUSDT": {
+   "size": "small",
+   "cat": "other"
+  },
+  "ZENUSDT": {
+   "size": "small",
+   "cat": "other"
+  },
+  "BABYUSDT": {
+   "size": "small",
+   "cat": "other"
+  },
+  "ATUSDT": {
+   "size": "small",
+   "cat": "other"
+  },
+  "MMTUSDT": {
+   "size": "small",
+   "cat": "other"
+  },
+  "EWYBUSDT": {
+   "size": "small",
+   "cat": "other"
+  },
+  "IOUSDT": {
+   "size": "small",
+   "cat": "ai"
+  },
+  "BOMEUSDT": {
+   "size": "small",
+   "cat": "meme"
+  },
+  "OGNUSDT": {
+   "size": "small",
+   "cat": "other"
+  },
+  "METABUSDT": {
+   "size": "small",
+   "cat": "other"
+  },
+  "SKYUSDT": {
+   "size": "small",
+   "cat": "other"
+  },
+  "BONKUSDT": {
+   "size": "small",
+   "cat": "meme"
+  },
+  "REDUSDT": {
+   "size": "small",
+   "cat": "other"
+  },
+  "NBISBUSDT": {
+   "size": "small",
+   "cat": "other"
+  },
+  "METISUSDT": {
+   "size": "small",
+   "cat": "l2"
+  },
+  "DODOUSDT": {
+   "size": "small",
+   "cat": "other"
+  },
+  "SAGAUSDT": {
+   "size": "small",
+   "cat": "other"
+  },
+  "RUNEUSDT": {
+   "size": "small",
+   "cat": "defi"
+  },
+  "WIFUSDT": {
+   "size": "small",
+   "cat": "meme"
   }
  },
  "coinModels": {
   "APTUSDT": {
    "weights": {
-    "trend": -0.1625,
-    "momentum": -0.1869,
-    "meanRev": 0.0599,
-    "volume": -0.0721,
-    "volatility": -0.0531,
-    "position": 0.1273,
-    "htf": -0.1582,
-    "futures": 0.1801
+    "trend": 0.0821,
+    "momentum": 0.1419,
+    "meanRev": 0.046,
+    "volume": -0.2129,
+    "volatility": -0.12,
+    "position": -0.1215,
+    "htf": -0.1037,
+    "futures": 0.172
    },
-   "scoreScale": 0.13589206,
-   "ic": 0.1534,
-   "t": 4.79,
+   "scoreScale": 0.10555551,
+   "ic": 0.1442,
+   "t": 4.5,
    "n": 975
   },
   "ARBUSDT": {
    "weights": {
-    "trend": 0.0687,
-    "momentum": -0.1063,
-    "meanRev": 0.0697,
-    "volume": -0.3129,
-    "volatility": -0.1311,
-    "position": -0.1286,
-    "htf": -0.1679,
-    "futures": 0.0147
+    "trend": 0.0702,
+    "momentum": -0.097,
+    "meanRev": 0.1058,
+    "volume": -0.3064,
+    "volatility": -0.1278,
+    "position": -0.096,
+    "htf": -0.1351,
+    "futures": -0.0618
    },
-   "scoreScale": 0.16116017,
-   "ic": 0.0828,
-   "t": 2.59,
+   "scoreScale": 0.17126486,
+   "ic": 0.0926,
+   "t": 2.89,
    "n": 975
   },
   "ARUSDT": {
    "weights": {
-    "trend": -0.0545,
-    "momentum": -0.2782,
-    "meanRev": 0.2746,
-    "volume": 0.0404,
-    "volatility": 0.0451,
-    "position": -0.1975,
-    "htf": 0.0369,
-    "futures": 0.0728
+    "trend": -0.0398,
+    "momentum": -0.1432,
+    "meanRev": 0.1879,
+    "volume": -0.059,
+    "volatility": -0.022,
+    "position": -0.2725,
+    "htf": 0.1525,
+    "futures": 0.123
    },
-   "scoreScale": 0.16097956,
-   "ic": 0.0779,
-   "t": 2.43,
+   "scoreScale": 0.1553594,
+   "ic": 0.0925,
+   "t": 2.89,
    "n": 975
   },
   "ASTERUSDT": {
    "weights": {
-    "trend": -0.1063,
-    "momentum": 0.0685,
-    "meanRev": 0.0971,
-    "volume": -0.0691,
-    "volatility": -0.0528,
-    "position": -0.1366,
-    "htf": 0.0924,
-    "futures": 0.3772
+    "trend": -0.0989,
+    "momentum": 0.0066,
+    "meanRev": 0.1406,
+    "volume": -0.09,
+    "volatility": -0.0687,
+    "position": -0.1579,
+    "htf": 0.0488,
+    "futures": 0.3885
    },
-   "scoreScale": 0.13973178,
-   "ic": 0.1913,
-   "t": 5.97,
+   "scoreScale": 0.15626129,
+   "ic": 0.2021,
+   "t": 6.31,
    "n": 975
   },
   "ATOMUSDT": {
    "weights": {
-    "trend": -0.0377,
-    "momentum": -0.2525,
-    "meanRev": 0.0987,
-    "volume": 0.147,
-    "volatility": -0.0304,
-    "position": 0.3965,
-    "htf": -0.0073,
-    "futures": -0.03
+    "trend": 0.1267,
+    "momentum": -0.1888,
+    "meanRev": 0.1576,
+    "volume": -0.105,
+    "volatility": -0.1047,
+    "position": 0.11,
+    "htf": 0.0782,
+    "futures": 0.1289
    },
-   "scoreScale": 0.10552639,
-   "ic": 0.0827,
-   "t": 2.58,
-   "n": 975
-  },
-  "AVAXUSDT": {
-   "weights": {
-    "trend": -0.308,
-    "momentum": -0.0544,
-    "meanRev": -0.0697,
-    "volume": 0.0575,
-    "volatility": 0.0148,
-    "position": 0.2298,
-    "htf": -0.1128,
-    "futures": 0.1531
-   },
-   "scoreScale": 0.15619099,
-   "ic": 0.0877,
-   "t": 2.74,
-   "n": 975
-  },
-  "AXLUSDT": {
-   "weights": {
-    "trend": -0.095,
-    "momentum": -0.2238,
-    "meanRev": 0.0898,
-    "volume": -0.1218,
-    "volatility": -0.0591,
-    "position": -0.1443,
-    "htf": 0.1382,
-    "futures": -0.1279
-   },
-   "scoreScale": 0.11125498,
-   "ic": 0.079,
-   "t": 2.47,
-   "n": 975
-  },
-  "AXSUSDT": {
-   "weights": {
-    "trend": 0.0073,
-    "momentum": -0.4535,
-    "meanRev": 0.2376,
-    "volume": -0.0406,
-    "volatility": -0.0282,
-    "position": -0.1461,
-    "htf": -0.0384,
-    "futures": -0.0483
-   },
-   "scoreScale": 0.11282228,
-   "ic": 0.0765,
-   "t": 2.39,
+   "scoreScale": 0.10442313,
+   "ic": 0.0664,
+   "t": 2.07,
    "n": 975
   },
   "BLURUSDT": {
    "weights": {
-    "trend": -0.1163,
-    "momentum": -0.2961,
-    "meanRev": 0.1111,
-    "volume": -0.1646,
-    "volatility": 0.0069,
-    "position": -0.1158,
-    "htf": 0.1794,
-    "futures": -0.0098
+    "trend": -0.0997,
+    "momentum": -0.3557,
+    "meanRev": 0.1279,
+    "volume": -0.1836,
+    "volatility": 0.0102,
+    "position": -0.1217,
+    "htf": 0.0718,
+    "futures": -0.0294
    },
-   "scoreScale": 0.12309295,
-   "ic": 0.1114,
-   "t": 3.48,
+   "scoreScale": 0.11858506,
+   "ic": 0.0838,
+   "t": 2.62,
    "n": 975
   },
   "CHIPUSDT": {
    "weights": {
-    "trend": -0.1642,
-    "momentum": 0.1174,
-    "meanRev": 0.0391,
-    "volume": -0.2317,
-    "volatility": -0.1546,
-    "position": 0.1428,
-    "htf": 0.0496,
-    "futures": 0.1006
+    "trend": -0.141,
+    "momentum": 0.0078,
+    "meanRev": 0.0806,
+    "volume": -0.3216,
+    "volatility": -0.1759,
+    "position": 0.1771,
+    "htf": -0.0323,
+    "futures": 0.0636
    },
-   "scoreScale": 0.16204601,
-   "ic": 0.1294,
-   "t": 4.04,
+   "scoreScale": 0.17599233,
+   "ic": 0.1247,
+   "t": 3.89,
    "n": 975
   },
-  "DOTUSDT": {
+  "DASHUSDT": {
    "weights": {
-    "trend": -0.3902,
-    "momentum": -0.1482,
-    "meanRev": -0.1481,
-    "volume": 0.0237,
-    "volatility": -0.04,
-    "position": 0.0628,
-    "htf": 0.0435,
-    "futures": -0.1434
+    "trend": -0.2784,
+    "momentum": -0.1484,
+    "meanRev": -0.0359,
+    "volume": -0.1505,
+    "volatility": -0.0384,
+    "position": -0.1843,
+    "htf": 0.1598,
+    "futures": 0.0043
    },
-   "scoreScale": 0.1440253,
-   "ic": 0.0711,
-   "t": 2.22,
+   "scoreScale": 0.15415463,
+   "ic": 0.1093,
+   "t": 3.41,
+   "n": 975
+  },
+  "DODOUSDT": {
+   "weights": {
+    "trend": -0.2226,
+    "momentum": -0.3761,
+    "meanRev": 0.0442,
+    "volume": -0.1976,
+    "volatility": -0.0282,
+    "position": 0.047,
+    "htf": 0.0136,
+    "futures": 0.0708
+   },
+   "scoreScale": 0.13855886,
+   "ic": 0.1535,
+   "t": 4.79,
    "n": 975
   },
   "ETCUSDT": {
    "weights": {
-    "trend": -0.1527,
-    "momentum": -0.1358,
-    "meanRev": 0.065,
-    "volume": 0.1279,
-    "volatility": -0.0066,
-    "position": -0.0097,
-    "htf": 0.167,
-    "futures": -0.3352
+    "trend": 0.0166,
+    "momentum": -0.0098,
+    "meanRev": 0.0903,
+    "volume": -0.1417,
+    "volatility": -0.0826,
+    "position": -0.35,
+    "htf": 0.1392,
+    "futures": -0.1698
    },
-   "scoreScale": 0.11057431,
-   "ic": 0.0662,
-   "t": 2.07,
+   "scoreScale": 0.1292957,
+   "ic": 0.0841,
+   "t": 2.63,
    "n": 975
   },
   "FILUSDT": {
    "weights": {
-    "trend": -0.0779,
-    "momentum": -0.02,
-    "meanRev": -0.0772,
-    "volume": -0.2311,
-    "volatility": -0.2288,
-    "position": -0.1284,
-    "htf": 0.0018,
-    "futures": 0.2348
+    "trend": -0.0864,
+    "momentum": -0.1624,
+    "meanRev": 0.0006,
+    "volume": -0.2125,
+    "volatility": -0.1417,
+    "position": -0.2008,
+    "htf": 0.0028,
+    "futures": 0.1928
    },
-   "scoreScale": 0.11890684,
-   "ic": 0.1147,
-   "t": 3.58,
+   "scoreScale": 0.11375625,
+   "ic": 0.0701,
+   "t": 2.19,
    "n": 975
   },
   "GLMRUSDT": {
    "weights": {
-    "trend": -0.0471,
-    "momentum": -0.1664,
-    "meanRev": 0.2699,
-    "volume": -0.0691,
-    "volatility": -0.1447,
+    "trend": -0.0363,
+    "momentum": -0.197,
+    "meanRev": 0.3038,
+    "volume": -0.0755,
+    "volatility": -0.1548,
     "position": -0.1195,
-    "htf": -0.0888,
-    "futures": 0.0945
+    "htf": -0.0483,
+    "futures": 0.0648
    },
-   "scoreScale": 0.19718207,
-   "ic": 0.1042,
-   "t": 3.25,
+   "scoreScale": 0.21203802,
+   "ic": 0.1091,
+   "t": 3.41,
    "n": 975
   },
   "ICPUSDT": {
    "weights": {
-    "trend": -0.2485,
-    "momentum": -0.1162,
-    "meanRev": -0.0236,
-    "volume": -0.0165,
-    "volatility": -0.0975,
-    "position": 0.3923,
-    "htf": -0.0533,
-    "futures": -0.052
+    "trend": -0.02,
+    "momentum": 0.1565,
+    "meanRev": 0.0104,
+    "volume": -0.2756,
+    "volatility": -0.2277,
+    "position": 0.1382,
+    "htf": -0.0758,
+    "futures": 0.0958
    },
-   "scoreScale": 0.14110099,
-   "ic": 0.0895,
-   "t": 2.8,
+   "scoreScale": 0.19388444,
+   "ic": 0.0776,
+   "t": 2.42,
    "n": 975
   },
   "INITUSDT": {
    "weights": {
-    "trend": -0.0885,
-    "momentum": -0.4122,
-    "meanRev": 0.1616,
-    "volume": -0.2225,
-    "volatility": -0.0211,
-    "position": -0.0648,
-    "htf": -0.021,
-    "futures": 0.0083
+    "trend": -0.06,
+    "momentum": -0.4353,
+    "meanRev": 0.1661,
+    "volume": -0.2189,
+    "volatility": -0.015,
+    "position": -0.0502,
+    "htf": -0.0242,
+    "futures": -0.0305
    },
-   "scoreScale": 0.14678058,
-   "ic": 0.1422,
-   "t": 4.44,
+   "scoreScale": 0.13482982,
+   "ic": 0.1569,
+   "t": 4.9,
+   "n": 975
+  },
+  "IOUSDT": {
+   "weights": {
+    "trend": -0.0548,
+    "momentum": 0.0927,
+    "meanRev": 0.0104,
+    "volume": -0.1835,
+    "volatility": -0.0566,
+    "position": -0.1655,
+    "htf": 0.3093,
+    "futures": 0.1271
+   },
+   "scoreScale": 0.11827528,
+   "ic": 0.1009,
+   "t": 3.15,
    "n": 975
   },
   "OGNUSDT": {
    "weights": {
-    "trend": -0.0774,
-    "momentum": -0.2562,
-    "meanRev": 0.0861,
-    "volume": -0.1695,
-    "volatility": -0.046,
-    "position": -0.1056,
-    "htf": 0.1954,
-    "futures": -0.0639
+    "trend": -0.0484,
+    "momentum": -0.3205,
+    "meanRev": 0.1134,
+    "volume": -0.1917,
+    "volatility": -0.0454,
+    "position": -0.1118,
+    "htf": 0.0887,
+    "futures": -0.0802
    },
-   "scoreScale": 0.11428916,
-   "ic": 0.1073,
-   "t": 3.35,
+   "scoreScale": 0.11020691,
+   "ic": 0.102,
+   "t": 3.19,
    "n": 975
   },
   "OPENUSDT": {
    "weights": {
-    "trend": 0.0444,
-    "momentum": 0.2694,
-    "meanRev": 0.1532,
-    "volume": -0.0537,
-    "volatility": -0.0852,
-    "position": -0.0437,
-    "htf": 0.2619,
-    "futures": 0.0886
+    "trend": 0.1195,
+    "momentum": 0.2452,
+    "meanRev": 0.2356,
+    "volume": -0.0787,
+    "volatility": -0.076,
+    "position": -0.0248,
+    "htf": 0.1388,
+    "futures": 0.0816
    },
-   "scoreScale": 0.16754152,
-   "ic": 0.0865,
-   "t": 2.7,
+   "scoreScale": 0.17881542,
+   "ic": 0.1028,
+   "t": 3.21,
    "n": 975
   },
   "OPUSDT": {
    "weights": {
-    "trend": -0.0296,
-    "momentum": 0.0336,
-    "meanRev": -0.0591,
-    "volume": -0.2807,
-    "volatility": -0.2569,
-    "position": -0.2554,
-    "htf": -0.0529,
-    "futures": 0.0319
+    "trend": 0.0001,
+    "momentum": 0.0637,
+    "meanRev": -0.0046,
+    "volume": -0.2849,
+    "volatility": -0.2679,
+    "position": -0.2243,
+    "htf": -0.111,
+    "futures": -0.0434
    },
-   "scoreScale": 0.13253658,
-   "ic": 0.1162,
-   "t": 3.63,
-   "n": 975
-  },
-  "PARTIUSDT": {
-   "weights": {
-    "trend": -0.1607,
-    "momentum": -0.068,
-    "meanRev": 0.0935,
-    "volume": -0.0402,
-    "volatility": 0.0203,
-    "position": 0.2102,
-    "htf": 0.1311,
-    "futures": 0.2761
-   },
-   "scoreScale": 0.14325375,
-   "ic": 0.0691,
-   "t": 2.16,
+   "scoreScale": 0.15212433,
+   "ic": 0.1219,
+   "t": 3.8,
    "n": 975
   },
   "PAXGUSDT": {
    "weights": {
-    "trend": -0.0928,
-    "momentum": -0.2185,
-    "meanRev": 0.0575,
-    "volume": -0.2575,
-    "volatility": -0.0129,
-    "position": -0.1032,
-    "htf": 0.2201,
-    "futures": -0.0373
+    "trend": -0.0679,
+    "momentum": -0.2873,
+    "meanRev": 0.0817,
+    "volume": -0.2686,
+    "volatility": -0.0085,
+    "position": -0.109,
+    "htf": 0.1356,
+    "futures": -0.0414
    },
-   "scoreScale": 0.13203318,
-   "ic": 0.0797,
-   "t": 2.49,
+   "scoreScale": 0.12069005,
+   "ic": 0.0791,
+   "t": 2.47,
+   "n": 975
+  },
+  "REDUSDT": {
+   "weights": {
+    "trend": -0.0267,
+    "momentum": -0.3537,
+    "meanRev": 0.1571,
+    "volume": -0.3235,
+    "volatility": 0.0145,
+    "position": 0.1072,
+    "htf": -0.001,
+    "futures": 0.0163
+   },
+   "scoreScale": 0.12442205,
+   "ic": 0.1122,
+   "t": 3.5,
    "n": 975
   },
   "RENDERUSDT": {
    "weights": {
-    "trend": 0.0329,
-    "momentum": 0.3165,
-    "meanRev": -0.0009,
-    "volume": -0.1345,
-    "volatility": -0.0377,
-    "position": -0.1399,
-    "htf": 0.187,
-    "futures": 0.1505
+    "trend": 0.0678,
+    "momentum": 0.368,
+    "meanRev": 0.0477,
+    "volume": -0.1272,
+    "volatility": -0.0314,
+    "position": -0.1259,
+    "htf": 0.1514,
+    "futures": 0.0807
    },
-   "scoreScale": 0.11875803,
-   "ic": 0.1064,
-   "t": 3.32,
+   "scoreScale": 0.13429044,
+   "ic": 0.112,
+   "t": 3.5,
    "n": 975
   },
   "RSRUSDT": {
    "weights": {
-    "trend": -0.0712,
-    "momentum": -0.2548,
-    "meanRev": 0.1231,
-    "volume": -0.1835,
-    "volatility": -0.0253,
-    "position": -0.0179,
-    "htf": -0.004,
-    "futures": 0.3203
+    "trend": -0.0486,
+    "momentum": -0.289,
+    "meanRev": 0.1325,
+    "volume": -0.1833,
+    "volatility": -0.0235,
+    "position": -0.0078,
+    "htf": -0.0479,
+    "futures": 0.2673
    },
-   "scoreScale": 0.14167331,
-   "ic": 0.1439,
-   "t": 4.49,
+   "scoreScale": 0.1329652,
+   "ic": 0.1658,
+   "t": 5.18,
    "n": 975
   },
   "SEIUSDT": {
    "weights": {
-    "trend": -0.154,
-    "momentum": 0.2418,
-    "meanRev": -0.0093,
-    "volume": 0.161,
-    "volatility": 0.1367,
-    "position": 0.1156,
-    "htf": 0.0678,
-    "futures": 0.1139
+    "trend": 0.1083,
+    "momentum": 0.3281,
+    "meanRev": 0.017,
+    "volume": -0.1623,
+    "volatility": -0.0646,
+    "position": -0.1331,
+    "htf": -0.0436,
+    "futures": 0.1429
    },
-   "scoreScale": 0.10092327,
-   "ic": 0.073,
-   "t": 2.28,
+   "scoreScale": 0.10107631,
+   "ic": 0.0832,
+   "t": 2.6,
+   "n": 975
+  },
+  "SUIUSDT": {
+   "weights": {
+    "trend": -0.0464,
+    "momentum": -0.3116,
+    "meanRev": 0.1149,
+    "volume": -0.3256,
+    "volatility": 0.0147,
+    "position": -0.0907,
+    "htf": 0.0793,
+    "futures": 0.0169
+   },
+   "scoreScale": 0.16895544,
+   "ic": 0.0801,
+   "t": 2.5,
    "n": 975
   },
   "USUALUSDT": {
    "weights": {
-    "trend": -0.1075,
-    "momentum": -0.0829,
-    "meanRev": 0.0402,
-    "volume": -0.2317,
-    "volatility": -0.1608,
-    "position": -0.0089,
-    "htf": 0.2687,
-    "futures": -0.0992
+    "trend": -0.0721,
+    "momentum": -0.1541,
+    "meanRev": 0.0607,
+    "volume": -0.2369,
+    "volatility": -0.1455,
+    "position": 0.0008,
+    "htf": 0.196,
+    "futures": -0.1338
    },
-   "scoreScale": 0.16686403,
-   "ic": 0.1281,
-   "t": 4.0,
+   "scoreScale": 0.15286717,
+   "ic": 0.1369,
+   "t": 4.27,
    "n": 975
   },
   "WLFIUSDT": {
    "weights": {
-    "trend": -0.1177,
-    "momentum": -0.3219,
-    "meanRev": 0.0904,
-    "volume": -0.179,
-    "volatility": -0.0711,
-    "position": -0.0819,
-    "htf": 0.0502,
-    "futures": 0.0879
+    "trend": -0.1027,
+    "momentum": -0.3802,
+    "meanRev": 0.1114,
+    "volume": -0.1978,
+    "volatility": -0.074,
+    "position": -0.0776,
+    "htf": -0.0035,
+    "futures": 0.0528
    },
-   "scoreScale": 0.12029026,
-   "ic": 0.1609,
-   "t": 5.02,
+   "scoreScale": 0.12640183,
+   "ic": 0.1716,
+   "t": 5.36,
    "n": 975
   },
   "XPLUSDT": {
    "weights": {
-    "trend": -0.1936,
-    "momentum": -0.1701,
-    "meanRev": 0.104,
-    "volume": 0.0217,
-    "volatility": -0.2936,
-    "position": -0.0012,
-    "htf": -0.0388,
-    "futures": 0.1769
+    "trend": -0.1778,
+    "momentum": -0.2274,
+    "meanRev": 0.1047,
+    "volume": 0.0242,
+    "volatility": -0.2941,
+    "position": -0.0053,
+    "htf": -0.0206,
+    "futures": 0.1459
    },
-   "scoreScale": 0.18878979,
-   "ic": 0.1841,
-   "t": 5.75,
+   "scoreScale": 0.17530608,
+   "ic": 0.1954,
+   "t": 6.1,
    "n": 975
   },
   "ZKUSDT": {
    "weights": {
-    "trend": -0.016,
-    "momentum": 0.1167,
-    "meanRev": 0.1304,
-    "volume": -0.2568,
-    "volatility": -0.1538,
-    "position": -0.0146,
-    "htf": 0.2012,
-    "futures": -0.1105
+    "trend": 0.0432,
+    "momentum": 0.245,
+    "meanRev": 0.0804,
+    "volume": -0.1968,
+    "volatility": -0.1831,
+    "position": 0.0705,
+    "htf": -0.0695,
+    "futures": -0.1113
    },
-   "scoreScale": 0.2205362,
-   "ic": 0.0729,
-   "t": 2.28,
+   "scoreScale": 0.17200013,
+   "ic": 0.0926,
+   "t": 2.89,
    "n": 975
   }
  },
  "etExperiments": {
   "global": {
-   "ridge": 0.0231,
-   "et": 0.0201,
-   "distilled": 0.0283,
+   "ridge": 0.0216,
+   "et": 0.022,
+   "distilled": 0.029,
    "folds": 5,
-   "improvement": -0.003,
+   "improvement": 0.0004,
    "adopted": false
   },
   "size:large": {
-   "ridge": -0.0113,
-   "et": -0.0039,
-   "distilled": -0.0118,
+   "ridge": -0.0154,
+   "et": -0.0115,
+   "distilled": -0.0166,
    "folds": 5,
-   "improvement": 0.0074,
+   "improvement": 0.0039,
    "adopted": false
   },
   "size:mid": {
-   "ridge": 0.0112,
-   "et": 0.0156,
-   "distilled": 0.0123,
+   "ridge": 0.019,
+   "et": 0.0199,
+   "distilled": 0.0185,
    "folds": 5,
-   "improvement": 0.0044,
+   "improvement": 0.0009,
    "adopted": false
   },
   "size:small": {
-   "ridge": 0.0276,
-   "et": 0.0348,
-   "distilled": 0.0456,
+   "ridge": 0.0227,
+   "et": 0.0305,
+   "distilled": 0.0364,
    "folds": 5,
-   "improvement": 0.0072,
+   "improvement": 0.0078,
    "adopted": false
   },
   "cat:defi": {
-   "ridge": 0.0012,
-   "et": 0.003,
-   "distilled": 0.0007,
+   "ridge": 0.0019,
+   "et": 0.01,
+   "distilled": 0.0028,
    "folds": 5,
-   "improvement": 0.0018,
+   "improvement": 0.0081,
    "adopted": false
   },
   "cat:l1": {
-   "ridge": -0.0121,
-   "et": -0.0121,
-   "distilled": -0.0133,
+   "ridge": -0.0068,
+   "et": -0.0035,
+   "distilled": -0.0082,
    "folds": 5,
-   "improvement": 0.0,
+   "improvement": 0.0033,
    "adopted": false
   },
   "cat:meme": {
-   "ridge": 0.0063,
-   "et": 0.0034,
-   "distilled": 0.011,
+   "ridge": 0.0025,
+   "et": -0.0082,
+   "distilled": 0.0034,
    "folds": 5,
-   "improvement": -0.0029,
+   "improvement": -0.0107,
    "adopted": false
   },
   "cat:other": {
-   "ridge": 0.0368,
-   "et": 0.0355,
-   "distilled": 0.0434,
+   "ridge": 0.0325,
+   "et": 0.0359,
+   "distilled": 0.0411,
    "folds": 5,
-   "improvement": -0.0013,
+   "improvement": 0.0034,
    "adopted": false
   }
  },
  "factorIC": {
-  "trend": -0.0393,
-  "momentum": 0.0377,
-  "meanRev": 0.0475,
-  "volume": -0.0243,
-  "volatility": -0.0233,
-  "position": 0.0007,
-  "htf": 0.0019,
-  "futures": 0.0081
+  "trend": -0.0379,
+  "momentum": 0.0384,
+  "meanRev": 0.0479,
+  "volume": -0.0236,
+  "volatility": -0.0205,
+  "position": -0.0019,
+  "htf": 0.0016,
+  "futures": 0.009
  },
  "oos": {
-  "ic": 0.0258,
-  "icInSample": 0.0438,
-  "icXS": 0.0149,
-  "icXSRaw4": 0.0117,
-  "nwT": 2.53,
-  "icPerSymbolMean": 0.0214,
-  "icPerSymbolMedian": 0.0289,
-  "gapInOut": 0.018,
-  "lsSpread": 0.039659,
-  "lsSharpe": 0.61
+  "ic": 0.0255,
+  "icInSample": 0.0408,
+  "icXS": 0.0141,
+  "icXSRaw4": 0.0101,
+  "nwT": 2.31,
+  "icPerSymbolMean": 0.0217,
+  "icPerSymbolMedian": 0.0262,
+  "gapInOut": 0.0153,
+  "lsSpread": 0.031078,
+  "lsSharpe": 0.47
  },
  "diagnostics": {
   "icDecay": {
-   "1": 0.0281,
-   "2": 0.026,
-   "4": 0.0141,
-   "8": 0.001,
-   "12": -0.0156,
-   "24": -0.0007
+   "1": 0.0253,
+   "2": 0.0242,
+   "4": 0.0106,
+   "8": -0.0003,
+   "12": -0.0122,
+   "24": 0.0057
   },
   "perSymbol": {
-   "mean": 0.0214,
-   "median": 0.0289,
-   "worst": -0.1796,
-   "best": 0.2115
+   "mean": 0.0217,
+   "median": 0.0262,
+   "worst": -0.1627,
+   "best": 0.1914
   },
   "randomIC": {
-   "mean": -0.0011,
-   "std": 0.0252,
-   "percentile": 0.815
+   "mean": -0.0012,
+   "std": 0.0255,
+   "percentile": 0.8
   },
   "dcor": {
    "trend": {
-    "dcor": 0.0984,
+    "dcor": 0.0847,
     "p": 0.016
    },
    "momentum": {
-    "dcor": 0.0723,
+    "dcor": 0.0681,
     "p": 0.016
    },
    "meanRev": {
-    "dcor": 0.0942,
+    "dcor": 0.0808,
     "p": 0.016
    },
    "volume": {
-    "dcor": 0.0904,
+    "dcor": 0.0736,
     "p": 0.016
    },
    "volatility": {
-    "dcor": 0.0478,
-    "p": 0.033
+    "dcor": 0.0465,
+    "p": 0.066
    },
    "position": {
-    "dcor": 0.0558,
-    "p": 0.016
-   },
-   "htf": {
-    "dcor": 0.0507,
+    "dcor": 0.0489,
     "p": 0.033
    },
+   "htf": {
+    "dcor": 0.033,
+    "p": 0.377
+   },
    "futures": {
-    "dcor": 0.0391,
-    "p": 0.164
+    "dcor": 0.042,
+    "p": 0.082
    },
    "_composite": {
-    "dcor": 0.0597,
+    "dcor": 0.0548,
     "p": 0.016
    }
   },
   "conditionalIC": {
    "byAdx": {
-    "低": 0.0203,
-    "中": 0.0233,
-    "高": 0.0333
+    "低": 0.0205,
+    "中": 0.0292,
+    "高": 0.0261
    },
    "byVol": {
-    "低": 0.0076,
-    "中": 0.0292,
-    "高": 0.038
+    "低": 0.0103,
+    "中": 0.0243,
+    "高": 0.0391
    },
    "byFunding": {
-    "低": 0.0257,
-    "高": 0.0248
+    "低": 0.0263,
+    "高": 0.0232
    }
   },
   "xsBuckets": 975,
   "embargo": 200
  },
  "accepted": false,
- "rejectReason": "横截面IC 0.0149 < 0.02",
+ "rejectReason": "横截面IC 0.0141 < 0.02",
  "tracker": {
   "n": 0,
   "icNew": null,
@@ -1390,7 +1390,7 @@
  },
  "meta": {
   "symbols": 149,
-  "samples": 514785,
+  "samples": 515701,
   "interval": "1h",
   "ridgeLambda": 5.0,
   "alpha": 0.6,
