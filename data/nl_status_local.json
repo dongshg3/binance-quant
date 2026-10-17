@@ -6,33 +6,15 @@
   "where": "作者本机常驻进程",
   "note": "算力更足，可跑更长的搜索；依赖本机开机与网络"
  },
- "updatedAt": "2026-10-17T23:44:12+00:00",
+ "updatedAt": "2026-10-17T23:48:32+00:00",
  "engine": "nlkit-1.0",
  "loop": {
-  "generation": 117,
-  "nTrials": 693,
-  "ledgerEntries": 714,
+  "generation": 118,
+  "nTrials": 699,
+  "ledgerEntries": 720,
   "passedAllGates": 0,
   "startedAt": "2026-10-16T15:34:24+00:00",
   "history": [
-   {
-    "generation": 106,
-    "at": "2026-10-17T21:56:32+00:00",
-    "nEval": 6,
-    "nPassed": 0,
-    "topObjective": -0.094,
-    "topSharpe": -0.094,
-    "topIC": 0.017,
-    "topDSR": 0.0007,
-    "pbo": 0.4286,
-    "promoted": false,
-    "families": [
-     "gated",
-     "hgb",
-     "mlp",
-     "ridge"
-    ]
-   },
    {
     "generation": 107,
     "at": "2026-10-17T22:02:39+00:00",
@@ -219,6 +201,24 @@
      "mlp",
      "ridge"
     ]
+   },
+   {
+    "generation": 118,
+    "at": "2026-10-17T23:48:31+00:00",
+    "nEval": 6,
+    "nPassed": 0,
+    "topObjective": 3.909,
+    "topSharpe": 3.909,
+    "topIC": 0.0023,
+    "topDSR": 0.0738,
+    "pbo": 0.4,
+    "promoted": false,
+    "families": [
+     "gated",
+     "hgb",
+     "mlp",
+     "ridge"
+    ]
    }
   ]
  },
@@ -342,6 +342,27 @@
    ]
   },
   {
+   "generation": 118,
+   "family": "ridge",
+   "featureBatch": "all",
+   "holding": 8,
+   "topFrac": 1.0,
+   "costTier": "maker",
+   "icXS": 0.0023,
+   "icNWt": 0.23,
+   "netMeanBp": 12.361,
+   "grossMeanBp": 15.137,
+   "netSharpe": 3.909,
+   "dsr": 0.0738,
+   "mktBeta": 0.156,
+   "passed": false,
+   "reasons": [
+    "交易口径 IC -0.0133（H=8）< 0.015",
+    "交易口径 IC NW t -0.74 < 2.0",
+    "净收益 NW t 1.53 < 2.0"
+   ]
+  },
+  {
    "generation": 64,
    "family": "hgb",
    "featureBatch": "groups",
@@ -423,27 +444,6 @@
     "XS IC -0.001 < 0.015",
     "IC NW t -0.11 < 2.0",
     "净收益 NW t 1.477 < 2.0"
-   ]
-  },
-  {
-   "generation": 43,
-   "family": "gated",
-   "featureBatch": "all",
-   "holding": 24,
-   "topFrac": 0.1,
-   "costTier": "taker",
-   "icXS": -0.003,
-   "icNWt": -0.46,
-   "netMeanBp": 26.324,
-   "grossMeanBp": 37.692,
-   "netSharpe": 3.701,
-   "dsr": 0.0999,
-   "mktBeta": 0.111,
-   "passed": false,
-   "reasons": [
-    "XS IC -0.003 < 0.015",
-    "IC NW t -0.46 < 2.0",
-    "净收益 NW t 1.661 < 2.0"
    ]
   }
  ],
