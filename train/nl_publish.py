@@ -1,0 +1,260 @@
+#!/usr/bin/env python3
+# ============================================================
+# nl_publish.py · 无人值守发布器（本地迭代 → GitHub → Pages 自动上线）
+# ------------------------------------------------------------
+# 为什么需要一个**独立克隆**而不是在工程里直接 commit：
+#   作者的工作树长期有几十个在途改动（audit/、docs/、server/、js/…）。
+#   自动发布若在那棵树上 `git add -A`，会把作者没写完的东西一起提交并推上去。
+#   所以这里克隆一份干净副本（默认 <工程上一级>/.nl-publish），
+#   每次发布只 fetch 最新 main → 覆盖我们自己的产物文件 → 提交 → 推送。
+#   发布过程与作者的工作树完全隔离，永不触碰、永不冲突（我们只写自己那几个文件）。
+#
+# 发布什么：
+#   data/nl_status.json   每次迭代都发（诚实的循环状态；无论有没有冠军都发）
+#   data/model_nl.json    仅当有模型通过全部闸门才发（可被浏览器直接求值的 AST）
+#
+# 失败不致命：拉取/推送失败只记录原因，不中断训练闭环（下次迭代再试）。
+# ============================================================
+from __future__ import annotations
+
+import json
+import os
+import shutil
+import subprocess
+import sys
+import time
+from datetime import datetime, timezone
+
+HERE = os.path.dirname(os.path.abspath(__file__))
+PROJECT = os.path.abspath(os.path.join(HERE, ".."))
+DEFAULT_CLONE = os.path.abspath(os.path.join(PROJECT, "..", ".nl-publish"))
+REMOTE = "https://github.com/dongshg3/binance-quant.git"
+
+# 只允许发布这几个文件——这是安全边界，不是习惯
+ALLOWED = ("data/nl_status.json", "data/model_nl.json")
+
+
+def _now() -> str:
+    return datetime.now(timezone.utc).isoformat(timespec="seconds")
+
+
+def _run(args, cwd, timeout=180, env_extra=None):
+    env = dict(os.environ)
+    env["GIT_TERMINAL_PROMPT"] = "0"      # 绝不弹交互认证框（无人值守的底线）
+    env["GCM_INTERACTIVE"] = "never"
+    if env_extra:
+        env.update(env_extra)
+    try:
+        p = subprocess.run(args, cwd=cwd, capture_output=True, text=True,
+                           encoding="utf-8", errors="replace", timeout=timeout, env=env)
+        return {"code": p.returncode, "out": (p.stdout or "")[-1500:],
+                "err": (p.stderr or "")[-800:]}
+    except subprocess.TimeoutExpired:
+        return {"code": -1, "out": "", "err": f"超时 {timeout}s"}
+    except Exception as e:
+        return {"code": -2, "out": "", "err": f"{type(e).__name__}: {e}"}
+
+
+def ensure_clone(clone: str = DEFAULT_CLONE) -> dict:
+    """确保存在一份可用于发布的干净克隆。"""
+    if os.path.isdir(os.path.join(clone, ".git")):
+        return {"ok": True, "clone": clone, "created": False}
+    os.makedirs(os.path.dirname(clone), exist_ok=True)
+    r = _run(["git", "clone", "--depth", "1", REMOTE, clone],
+             cwd=os.path.dirname(clone), timeout=300)
+    if r["code"] != 0:
+        return {"ok": False, "error": f"clone 失败: {r['err']}", "clone": clone}
+    _run(["git", "config", "user.name", "nl-autoloop"], cwd=clone)
+    _run(["git", "config", "user.email", "nl-autoloop@local"], cwd=clone)
+    return {"ok": True, "clone": clone, "created": True}
+
+
+def _sync_latest(clone: str) -> dict:
+    """把克隆同步到远端 main 最新。深度 1 克隆用 fetch + reset --hard。"""
+    f = _run(["git", "fetch", "--depth", "1", "origin", "main"], cwd=clone, timeout=180)
+    if f["code"] != 0:
+        return {"ok": False, "error": f"fetch 失败: {f['err']}"}
+    r = _run(["git", "reset", "--hard", "FETCH_HEAD"], cwd=clone, timeout=60)
+    if r["code"] != 0:
+        return {"ok": False, "error": f"reset 失败: {r['err']}"}
+    return {"ok": True}
+
+
+def publish(files: dict[str, str], clone: str = DEFAULT_CLONE, message: str | None = None,
+            dry_run: bool = False) -> dict:
+    """把 {工程内相对路径: 内容} 发布到远端。只允许 ALLOWED 里的路径。"""
+    bad = [k for k in files if k.replace("\\", "/") not in ALLOWED]
+    if bad:
+        return {"ok": False, "error": f"拒绝发布未授权路径: {bad}"}
+
+    ens = ensure_clone(clone)
+    if not ens.get("ok"):
+        return ens
+    clone = ens["clone"]
+    if not os.path.isdir(os.path.join(clone, ".git")):
+        _run(["git", "config", "user.name", "nl-autoloop"], cwd=clone)
+        _run(["git", "config", "user.email", "nl-autoloop@local"], cwd=clone)
+
+    sync = _sync_latest(clone)
+    if not sync.get("ok"):
+        return {"ok": False, "stage": "sync", "error": sync.get("error")}
+
+    changed = []
+    for rel, content in files.items():
+        rel = rel.replace("\\", "/")
+        dst = os.path.join(clone, rel)
+        os.makedirs(os.path.dirname(dst), exist_ok=True)
+        old = None
+        if os.path.exists(dst):
+            try:
+                with open(dst, encoding="utf-8") as f:
+                    old = f.read()
+            except OSError:
+                old = None
+        if old == content:
+            continue
+        with open(dst, "w", encoding="utf-8") as f:
+            f.write(content)
+        changed.append(rel)
+
+    if not changed:
+        return {"ok": True, "published": [], "note": "内容无变化，未提交"}
+
+    _run(["git", "add"] + changed, cwd=clone)
+    msg = message or f"🤖 非线性自动迭代 · {_now()}"
+    c = _run(["git", "commit", "-q", "-m", msg], cwd=clone, timeout=60)
+    if c["code"] != 0:
+        return {"ok": False, "stage": "commit", "error": c["err"] or c["out"]}
+    if dry_run:
+        return {"ok": True, "published": changed, "dryRun": True}
+
+    # 推送重试：云端 quant-bot 也在推，偶发 non-fast-forward 需先同步再来
+    last = None
+    for attempt in range(3):
+        p = _run(["git", "push", "origin", "HEAD:main"], cwd=clone, timeout=180)
+        if p["code"] == 0:
+            return {"ok": True, "published": changed, "push": p["out"].strip()[-200:],
+                    "attempt": attempt + 1}
+        last = p
+        time.sleep(3 + 5 * attempt)
+        _sync_latest(clone)
+        _run(["git", "add"] + changed, cwd=clone)
+        _run(["git", "commit", "-q", "-m", msg], cwd=clone, timeout=60)
+    return {"ok": False, "stage": "push", "error": last["err"] if last else "unknown",
+            "published": changed}
+
+
+# ---------------- 状态产物 ----------------
+GATE_THRESHOLDS_DOC = {
+    "minIC": 0.015, "minICt": 2.0, "minNetBp": 0.0, "minSharpe": 1.0,
+    "minNetT": 2.0, "minDSR": 0.95, "maxTurnover": 6.0, "minCostMargin": 1.5,
+    "maxAbsBeta": 0.25, "minAlphaBp": 0.0, "minDownBp": -20.0,
+}
+
+
+def build_status(loop_dir: str | None = None) -> dict:
+    """从循环账本生成给网站展示的诚实状态。不需要冠军存在。"""
+    sys.path.insert(0, HERE)
+    from nlkit import loop as _loop  # noqa: PLC0415
+
+    if loop_dir:
+        _loop.LOOP_DIR = loop_dir
+    st = _loop.load_state()
+    best = _loop.load_best()
+    led = _loop.read_ledger()
+    ds_meta = {}
+    try:
+        from nlkit import data as _data  # noqa: PLC0415
+        with open(os.path.join(_data.OUT_DIR, "meta.json"), encoding="utf-8") as f:
+            m = json.load(f)
+        ds_meta = {"nRows": m.get("nRows"), "nSymbols": m.get("nSymbols"),
+                   "nFeatures": m.get("nFeatures"),
+                   "symbols": m.get("symbols"), "fwdPnl": m.get("fwdPnl")}
+    except Exception:
+        pass
+
+    ranked = sorted(
+        [r for r in led if isinstance(r.get("metrics"), dict)
+         and r["metrics"].get("netSharpe") is not None],
+        key=lambda r: r["metrics"]["netSharpe"], reverse=True)
+    top = []
+    for r in ranked[:10]:
+        m = r["metrics"]
+        spec = r.get("spec") or {}
+        top.append({
+            "generation": r.get("generation"),
+            "family": spec.get("family"), "featureBatch": spec.get("featureBatch"),
+            "holding": (spec.get("trading") or {}).get("holding"),
+            "topFrac": (spec.get("trading") or {}).get("topFrac"),
+            "costTier": (spec.get("trading") or {}).get("costTier"),
+            "icXS": m.get("icXS"), "icNWt": m.get("icNWt"),
+            "netMeanBp": m.get("netMeanBp"), "grossMeanBp": m.get("grossMeanBp"),
+            "netSharpe": m.get("netSharpe"), "dsr": m.get("dsr"),
+            "mktBeta": m.get("mktBeta"), "passed": bool(r.get("passed")),
+            "reasons": (r.get("reasons") or [])[:3],
+        })
+
+    return {
+        "format": "nl-status-1",
+        "updatedAt": _now(),
+        "engine": "nlkit-1.0",
+        "loop": {
+            "generation": st.get("generation"),
+            "nTrials": st.get("nTrials"),
+            "ledgerEntries": len(led),
+            "passedAllGates": int(sum(1 for r in led if r.get("passed"))),
+            "startedAt": st.get("startedAt"),
+            "history": (st.get("history") or [])[-12:],
+        },
+        "champion": ({"generation": best.get("generation"), "at": best.get("at"),
+                      "pbo": best.get("pbo"), "metrics": best.get("metrics", {}),
+                      "spec": best.get("spec", {})} if best else None),
+        "gateThresholds": GATE_THRESHOLDS_DOC,
+        "leaderboard": top,
+        "dataset": ds_meta,
+        "honestNote": (
+            "本页数字全部来自本机零 token 自动迭代的追加式账本；"
+            "没有任何候选同时通过全部闸门时，champion 保持为空——这是诚实的空态，不是故障。"
+        ),
+    }
+
+
+def publish_status(clone: str = DEFAULT_CLONE, message: str | None = None,
+                   dry_run: bool = False, write_local: bool = True) -> dict:
+    status = build_status()
+    content = json.dumps(status, ensure_ascii=False, indent=1)
+    files = {"data/nl_status.json": content}
+    # 顺带写一份到工程本地 data/，这样本地 dev server 预览与线上看到的完全一致
+    if write_local and not dry_run:
+        local = os.path.join(PROJECT, "data", "nl_status.json")
+        try:
+            os.makedirs(os.path.dirname(local), exist_ok=True)
+            with open(local, "w", encoding="utf-8") as f:
+                f.write(content)
+        except OSError:
+            pass
+    # 冠军存在就一并发布可执行的非线性模型
+    best = None
+    try:
+        from nlkit import loop as _loop  # noqa: PLC0415
+        best = _loop.load_best()
+    except Exception:
+        best = None
+    if best:
+        model_path = os.path.join(PROJECT, "data", "model_nl.json")
+        if os.path.exists(model_path):
+            with open(model_path, encoding="utf-8") as f:
+                files["data/model_nl.json"] = f.read()
+    return publish(files, clone=clone,
+                   message=message or f"🤖 非线性自动迭代 · g{status['loop']['generation']} · 试错 {status['loop']['nTrials']}",
+                   dry_run=dry_run)
+
+
+if __name__ == "__main__":
+    mode = sys.argv[1] if len(sys.argv) > 1 else "status"
+    if mode == "status":
+        print(json.dumps(build_status(), ensure_ascii=False, indent=1)[:4000])
+    elif mode == "publish":
+        print(json.dumps(publish_status(dry_run="--dry" in sys.argv), ensure_ascii=False, indent=1))
+    elif mode == "ensure":
+        print(json.dumps(ensure_clone(), ensure_ascii=False, indent=1))

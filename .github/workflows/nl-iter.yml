@@ -1,0 +1,69 @@
+name: nl-auto-iteration
+
+# 零 Token 自动迭代：在 GitHub Actions 云端跑非线性模型搜索，
+# 产物由本 workflow 自己 commit 回 main，GitHub Pages 随之重建。
+# 不依赖任何人的电脑是否开机、也不依赖本地网络。
+on:
+  schedule:
+    # GitHub 定时队列延迟严重（本仓库 arena.yml 已自陈），用密集槽位提高成活率
+    - cron: '7,37 * * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: nl-iteration
+  cancel-in-progress: false
+
+jobs:
+  iterate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 50
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install numpy + scikit-learn
+        run: pip install numpy scikit-learn
+
+      # 增量关键：把行情缓存、特征集、以及**迭代账本**一起缓存下来。
+      # 账本必须跨 run 保留，否则 Deflated Sharpe 的"累计试错次数"会归零，
+      # 多重检验惩罚失效，搜索就会把噪声当成突破。
+      - name: Restore iteration state
+        uses: actions/cache@v4
+        with:
+          path: |
+            train/cache_drift
+            train/nl_cache
+            train/nl_loop
+          key: nl-iter-v1-${{ github.run_id }}
+          restore-keys: |
+            nl-iter-v1-
+
+      - name: Run nonlinear auto-iteration
+        env:
+          NL_NO_PUBLISH: '1'
+          NL_TOP_N: '60'
+        run: |
+          python train/nl_ci.py --generations 3 --n-eval 6 --n-folds 4
+
+      - name: Commit artifacts
+        run: |
+          git config user.name "quant-bot"
+          git config user.email "quant-bot@users.noreply.github.com"
+          git add data/nl_status.json
+          [ -f data/model_nl.json ] && git add data/model_nl.json
+          if git diff --staged --quiet; then
+            echo "本轮无产物变化，跳过提交"
+          else
+            git commit -m "🤖 非线性自动迭代 · $(date -u +%Y-%m-%d\ %H:%M\ UTC)"
+            for i in 1 2 3; do
+              git pull --rebase origin main && git push && break
+              echo "推送冲突，第 $i 次重试…"
+              sleep 5
+            done
+          fi
