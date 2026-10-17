@@ -56,7 +56,7 @@ jobs:
           git config user.name "quant-bot"
           git config user.email "quant-bot@users.noreply.github.com"
           git add data/nl_status_cloud.json
-          [ -f data/model_nl.json ] && git add data/model_nl.json
+          if [ -f data/model_nl.json ]; then git add data/model_nl.json; fi
           if git diff --staged --quiet; then
             echo "本轮无产物变化，跳过提交"
           else
