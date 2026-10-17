@@ -6,68 +6,15 @@
   "where": "GitHub Actions runner",
   "note": "无人值守，每小时两个槽位；不依赖任何人的电脑"
  },
- "updatedAt": "2026-10-17T17:36:21+00:00",
+ "updatedAt": "2026-10-17T18:25:11+00:00",
  "engine": "nlkit-1.0",
  "loop": {
-  "generation": 33,
-  "nTrials": 198,
-  "ledgerEntries": 198,
+  "generation": 36,
+  "nTrials": 216,
+  "ledgerEntries": 216,
   "passedAllGates": 0,
   "startedAt": "2026-10-17T09:10:37+00:00",
   "history": [
-   {
-    "generation": 22,
-    "at": "2026-10-17T14:24:20+00:00",
-    "nEval": 6,
-    "nPassed": 0,
-    "topObjective": 2.456,
-    "topSharpe": 2.456,
-    "topIC": 0.0241,
-    "topDSR": 0.102,
-    "pbo": 0.1429,
-    "promoted": false,
-    "families": [
-     "et",
-     "hgb",
-     "mlp"
-    ]
-   },
-   {
-    "generation": 23,
-    "at": "2026-10-17T14:26:00+00:00",
-    "nEval": 6,
-    "nPassed": 0,
-    "topObjective": 0.144,
-    "topSharpe": 0.144,
-    "topIC": -0.0274,
-    "topDSR": 0.0053,
-    "pbo": 0.3714,
-    "promoted": false,
-    "families": [
-     "et",
-     "hgb",
-     "mlp",
-     "ridge"
-    ]
-   },
-   {
-    "generation": 24,
-    "at": "2026-10-17T14:27:13+00:00",
-    "nEval": 6,
-    "nPassed": 0,
-    "topObjective": 0.961,
-    "topSharpe": 0.961,
-    "topIC": 0.0027,
-    "topDSR": 0.0185,
-    "pbo": 0.5857,
-    "promoted": false,
-    "families": [
-     "gated",
-     "hgb",
-     "mlp",
-     "ridge"
-    ]
-   },
    {
     "generation": 25,
     "at": "2026-10-17T15:33:21+00:00",
@@ -223,6 +170,59 @@
      "et",
      "hgb",
      "mlp"
+    ]
+   },
+   {
+    "generation": 34,
+    "at": "2026-10-17T18:21:49+00:00",
+    "nEval": 6,
+    "nPassed": 0,
+    "topObjective": 1.227,
+    "topSharpe": 1.227,
+    "topIC": 0.0119,
+    "topDSR": 0.0193,
+    "pbo": 0.0429,
+    "promoted": false,
+    "families": [
+     "gated",
+     "hgb",
+     "mlp",
+     "ridge"
+    ]
+   },
+   {
+    "generation": 35,
+    "at": "2026-10-17T18:22:45+00:00",
+    "nEval": 6,
+    "nPassed": 0,
+    "topObjective": -1.864,
+    "topSharpe": -1.864,
+    "topIC": -0.0167,
+    "topDSR": 0.0001,
+    "pbo": 0.5714,
+    "promoted": false,
+    "families": [
+     "et",
+     "gated",
+     "hgb",
+     "ridge"
+    ]
+   },
+   {
+    "generation": 36,
+    "at": "2026-10-17T18:25:11+00:00",
+    "nEval": 6,
+    "nPassed": 0,
+    "topObjective": 1.644,
+    "topSharpe": 1.644,
+    "topIC": -0.0016,
+    "topDSR": 0.0318,
+    "pbo": 0.8571,
+    "promoted": false,
+    "families": [
+     "et",
+     "gated",
+     "hgb"
     ]
    }
   ]
@@ -389,6 +389,27 @@
    ]
   },
   {
+   "generation": 36,
+   "family": "hgb",
+   "featureBatch": "groups",
+   "holding": 24,
+   "topFrac": 0.05,
+   "costTier": "maker",
+   "icXS": -0.0016,
+   "icNWt": -0.29,
+   "netMeanBp": 19.264,
+   "grossMeanBp": 23.767,
+   "netSharpe": 1.644,
+   "dsr": 0.0318,
+   "mktBeta": -0.016,
+   "passed": false,
+   "reasons": [
+    "XS IC -0.0016 < 0.015",
+    "IC NW t -0.29 < 2.0",
+    "净收益 NW t 0.938 < 2.0"
+   ]
+  },
+  {
    "generation": 3,
    "family": "gated",
    "featureBatch": "groups",
@@ -410,45 +431,24 @@
    ]
   },
   {
-   "generation": 14,
+   "generation": 36,
    "family": "hgb",
-   "featureBatch": "price",
+   "featureBatch": "vol",
    "holding": 12,
-   "topFrac": 0.1,
+   "topFrac": 0.4,
    "costTier": "maker",
-   "icXS": 0.0166,
-   "icNWt": 3.39,
-   "netMeanBp": 7.409,
-   "grossMeanBp": 11.627,
-   "netSharpe": 1.43,
-   "dsr": 0.0509,
-   "mktBeta": -0.067,
+   "icXS": -0.0102,
+   "icNWt": -2.12,
+   "netMeanBp": 4.715,
+   "grossMeanBp": 8.034,
+   "netSharpe": 1.564,
+   "dsr": 0.026,
+   "mktBeta": -0.004,
    "passed": false,
    "reasons": [
-    "净收益 NW t 0.931 < 2.0",
-    "Deflated Sharpe 0.0509 < 0.95",
-    "盈亏平衡单边成本 0.000689 < 所需 0.001050（安全边际不足）"
-   ]
-  },
-  {
-   "generation": 21,
-   "family": "hgb",
-   "featureBatch": "all",
-   "holding": 12,
-   "topFrac": 1.0,
-   "costTier": "maker",
-   "icXS": 0.0126,
-   "icNWt": 1.89,
-   "netMeanBp": 7.466,
-   "grossMeanBp": 10.713,
-   "netSharpe": 1.403,
-   "dsr": 0.0342,
-   "mktBeta": -0.002,
-   "passed": false,
-   "reasons": [
-    "XS IC 0.0126 < 0.015",
-    "IC NW t 1.89 < 2.0",
-    "净收益 NW t 0.77 < 2.0"
+    "XS IC -0.0102 < 0.015",
+    "IC NW t -2.12 < 2.0",
+    "净收益 NW t 0.779 < 2.0"
    ]
   }
  ],
