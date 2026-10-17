@@ -62,6 +62,8 @@ def main() -> int:
     ap.add_argument("--n-eval", type=int, default=6)
     ap.add_argument("--n-folds", type=int, default=4)
     ap.add_argument("--no-bootstrap", action="store_true")
+    ap.add_argument("--max-minutes", type=float, default=35.0,
+                    help="墙钟预算；用满就提前收尾，保证本轮产物能提交")
     a = ap.parse_args()
 
     ens = ensure_dataset(allow_bootstrap=not a.no_bootstrap)
@@ -70,12 +72,28 @@ def main() -> int:
         return 1
 
     from nlkit import loop as L
-    res = L.run_loop(n_generations=a.generations, n_eval=a.n_eval, n_folds=a.n_folds,
-                     verbose=True, publish=False)
-    st = write_status()
-    print(json.dumps({"generations": len(res["generations"]),
-                      "elapsedMin": res["elapsedMin"],
-                      "status": st}, ensure_ascii=False))
+    import time as _t
+
+    st = L.load_state()
+    from nlkit import data as D
+    ds = D.load_dataset()
+    deadline = _t.time() + a.max_minutes * 60
+    done = 0
+    # 逐代推进、每代结束就落盘一次状态。
+    # 为什么要这样：如果整批跑完再写，作业一旦在末尾被 timeout 杀掉，
+    # 这一轮什么都不会留下（也不会触发 commit）。逐代提交把损失限制在一代。
+    for _ in range(a.generations):
+        if _t.time() > deadline:
+            print(f"[ci] 已用满预算 {a.max_minutes} 分钟，提前收尾以保住已有产物", flush=True)
+            break
+        g = L.run_generation(ds, st, n_eval=a.n_eval, verbose=True, publish=False)
+        done += 1
+        s = write_status()
+        print(f"[ci] 第 {g['generation']} 代完成（试错 {g['nTrials']}，加冕={g['promoted']}）"
+              f" → 状态已写盘 g{s['generation']}", flush=True)
+
+    st_final = write_status()
+    print(json.dumps({"generationsRun": done, "status": st_final}, ensure_ascii=False))
     return 0
 
 

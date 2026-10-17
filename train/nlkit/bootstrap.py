@@ -13,6 +13,7 @@ import os
 import sys
 import time
 import urllib.request
+import urllib.error
 import json
 
 import numpy as np
@@ -30,13 +31,23 @@ def _get(path: str, params: dict | None = None, timeout: float = 20.0):
     url = FAPI + path
     if params:
         url += "?" + "&".join(f"{k}={v}" for k, v in params.items())
-    for attempt in range(3):
+    for attempt in range(4):
         try:
             req = urllib.request.Request(url, headers=UA)
             with urllib.request.urlopen(req, timeout=timeout) as r:
                 return json.loads(r.read().decode("utf-8"))
+        except urllib.error.HTTPError as e:
+            # 429/418 是币安的限频/封禁信号：必须按 Retry-After 等待，硬重试只会加重
+            if e.code in (429, 418):
+                wait = float(e.headers.get("Retry-After") or 5)
+                print(f"[bootstrap] 触发限频 {e.code}，等待 {wait:.0f}s", flush=True)
+                time.sleep(min(wait, 60))
+                continue
+            if attempt == 3:
+                raise
+            time.sleep(1.0 + attempt)
         except Exception:
-            if attempt == 2:
+            if attempt == 3:
                 raise
             time.sleep(1.0 + attempt)
 
@@ -161,6 +172,7 @@ def bootstrap(max_symbols: int | None = None) -> dict:
             fail.append({"sym": s, "reason": f"{type(e).__name__}: {e}"})
         if i % 10 == 0:
             print(f"[bootstrap] {i}/{len(syms)} ok={ok} fail={len(fail)}", flush=True)
+        time.sleep(0.25)   # 主动降速：60 币 × 5 个端点，突发请求容易撞限频
 
     from . import data as D  # noqa: PLC0415
     meta = D.build_dataset(verbose=True)

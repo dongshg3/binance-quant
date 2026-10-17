@@ -19,7 +19,7 @@ concurrency:
 jobs:
   iterate:
     runs-on: ubuntu-latest
-    timeout-minutes: 50
+    timeout-minutes: 90
     steps:
       - uses: actions/checkout@v4
 
@@ -49,7 +49,7 @@ jobs:
           NL_NO_PUBLISH: '1'
           NL_TOP_N: '60'
         run: |
-          python train/nl_ci.py --generations 3 --n-eval 6 --n-folds 4
+          python train/nl_ci.py --generations 3 --n-eval 6 --n-folds 4 --max-minutes 40
 
       - name: Commit artifacts
         run: |
