@@ -6,100 +6,15 @@
   "where": "作者本机常驻进程",
   "note": "算力更足，可跑更长的搜索；依赖本机开机与网络"
  },
- "updatedAt": "2026-10-17T17:57:43+00:00",
+ "updatedAt": "2026-10-17T19:03:10+00:00",
  "engine": "nlkit-1.0",
  "loop": {
-  "generation": 87,
-  "nTrials": 513,
-  "ledgerEntries": 534,
+  "generation": 92,
+  "nTrials": 543,
+  "ledgerEntries": 564,
   "passedAllGates": 0,
   "startedAt": "2026-10-16T15:34:24+00:00",
   "history": [
-   {
-    "generation": 76,
-    "at": "2026-10-17T14:25:46+00:00",
-    "nEval": 6,
-    "nPassed": 0,
-    "topObjective": 0.737,
-    "topSharpe": 0.737,
-    "topIC": -0.0245,
-    "topDSR": 0.0035,
-    "pbo": 0.5714,
-    "promoted": false,
-    "families": [
-     "et",
-     "gated",
-     "hgb",
-     "mlp"
-    ]
-   },
-   {
-    "generation": 77,
-    "at": "2026-10-17T14:32:41+00:00",
-    "nEval": 6,
-    "nPassed": 0,
-    "topObjective": 1.387,
-    "topSharpe": 1.387,
-    "topIC": 0.0023,
-    "topDSR": 0.0085,
-    "pbo": 0.4143,
-    "promoted": false,
-    "families": [
-     "et",
-     "gated",
-     "hgb"
-    ]
-   },
-   {
-    "generation": 78,
-    "at": "2026-10-17T14:37:28+00:00",
-    "nEval": 6,
-    "nPassed": 0,
-    "topObjective": 4.577,
-    "topSharpe": 4.577,
-    "topIC": -0.0165,
-    "topDSR": 0.1051,
-    "pbo": 0.0857,
-    "promoted": false,
-    "families": [
-     "hgb"
-    ]
-   },
-   {
-    "generation": 79,
-    "at": "2026-10-17T14:41:55+00:00",
-    "nEval": 6,
-    "nPassed": 0,
-    "topObjective": 1.582,
-    "topSharpe": 1.582,
-    "topIC": -0.0022,
-    "topDSR": 0.0081,
-    "pbo": 0.4429,
-    "promoted": false,
-    "families": [
-     "et",
-     "gated",
-     "hgb"
-    ]
-   },
-   {
-    "generation": 80,
-    "at": "2026-10-17T14:46:08+00:00",
-    "nEval": 6,
-    "nPassed": 0,
-    "topObjective": 3.772,
-    "topSharpe": 3.772,
-    "topIC": -0.001,
-    "topDSR": 0.0681,
-    "pbo": 0.3571,
-    "promoted": false,
-    "families": [
-     "et",
-     "gated",
-     "hgb",
-     "ridge"
-    ]
-   },
    {
     "generation": 81,
     "at": "2026-10-17T14:53:27+00:00",
@@ -213,6 +128,95 @@
     "topIC": 0.0033,
     "topDSR": 0.0016,
     "pbo": 0.2143,
+    "promoted": false,
+    "families": [
+     "et",
+     "gated",
+     "hgb",
+     "ridge"
+    ]
+   },
+   {
+    "generation": 88,
+    "at": "2026-10-17T18:04:13+00:00",
+    "nEval": 6,
+    "nPassed": 0,
+    "topObjective": 1.159,
+    "topSharpe": 1.159,
+    "topIC": 0.0082,
+    "topDSR": 0.0147,
+    "pbo": 0.3,
+    "promoted": false,
+    "families": [
+     "et",
+     "gated",
+     "hgb",
+     "mlp",
+     "ridge"
+    ]
+   },
+   {
+    "generation": 89,
+    "at": "2026-10-17T18:18:51+00:00",
+    "nEval": 6,
+    "nPassed": 0,
+    "topObjective": 0.197,
+    "topSharpe": 0.197,
+    "topIC": 0.0177,
+    "topDSR": 0.0018,
+    "pbo": 0.6,
+    "promoted": false,
+    "families": [
+     "et",
+     "gated",
+     "hgb",
+     "ridge"
+    ]
+   },
+   {
+    "generation": 90,
+    "at": "2026-10-17T18:29:19+00:00",
+    "nEval": 6,
+    "nPassed": 0,
+    "topObjective": 0.966,
+    "topSharpe": 0.966,
+    "topIC": 0.0133,
+    "topDSR": 0.0098,
+    "pbo": 0.0714,
+    "promoted": false,
+    "families": [
+     "et",
+     "hgb",
+     "mlp"
+    ]
+   },
+   {
+    "generation": 91,
+    "at": "2026-10-17T18:50:11+00:00",
+    "nEval": 6,
+    "nPassed": 0,
+    "topObjective": 0.224,
+    "topSharpe": 0.224,
+    "topIC": 0.0056,
+    "topDSR": 0.0019,
+    "pbo": 0.8,
+    "promoted": false,
+    "families": [
+     "et",
+     "gated",
+     "hgb"
+    ]
+   },
+   {
+    "generation": 92,
+    "at": "2026-10-17T19:03:09+00:00",
+    "nEval": 6,
+    "nPassed": 0,
+    "topObjective": 0.021,
+    "topSharpe": 0.021,
+    "topIC": 0.0128,
+    "topDSR": 0.0011,
+    "pbo": 0.6429,
     "promoted": false,
     "families": [
      "et",
