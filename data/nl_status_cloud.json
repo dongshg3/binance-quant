@@ -6,12 +6,12 @@
   "where": "GitHub Actions runner",
   "note": "无人值守，每小时两个槽位；不依赖任何人的电脑"
  },
- "updatedAt": "2026-10-17T11:13:15+00:00",
+ "updatedAt": "2026-10-17T11:41:37+00:00",
  "engine": "nlkit-1.0",
  "loop": {
-  "generation": 9,
-  "nTrials": 54,
-  "ledgerEntries": 54,
+  "generation": 12,
+  "nTrials": 72,
+  "ledgerEntries": 72,
   "passedAllGates": 0,
   "startedAt": "2026-10-17T09:10:37+00:00",
   "history": [
@@ -171,6 +171,59 @@
      "gated",
      "hgb",
      "ridge"
+    ]
+   },
+   {
+    "generation": 10,
+    "at": "2026-10-17T11:39:36+00:00",
+    "nEval": 6,
+    "nPassed": 0,
+    "topObjective": -0.185,
+    "topSharpe": -0.185,
+    "topIC": 0.0124,
+    "topDSR": 0.0075,
+    "pbo": 0.8429,
+    "promoted": false,
+    "families": [
+     "et",
+     "gated",
+     "ridge"
+    ]
+   },
+   {
+    "generation": 11,
+    "at": "2026-10-17T11:40:43+00:00",
+    "nEval": 6,
+    "nPassed": 0,
+    "topObjective": -0.635,
+    "topSharpe": -0.635,
+    "topIC": 0.0024,
+    "topDSR": 0.0032,
+    "pbo": 0.8429,
+    "promoted": false,
+    "families": [
+     "et",
+     "gated",
+     "hgb",
+     "ridge"
+    ]
+   },
+   {
+    "generation": 12,
+    "at": "2026-10-17T11:41:37+00:00",
+    "nEval": 6,
+    "nPassed": 0,
+    "topObjective": -0.014,
+    "topSharpe": -0.014,
+    "topIC": -0.0097,
+    "topDSR": 0.0084,
+    "pbo": 0.9714,
+    "promoted": false,
+    "families": [
+     "et",
+     "gated",
+     "hgb",
+     "mlp"
     ]
    }
   ]
