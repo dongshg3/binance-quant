@@ -30,8 +30,14 @@ PROJECT = os.path.abspath(os.path.join(HERE, ".."))
 DEFAULT_CLONE = os.path.abspath(os.path.join(PROJECT, "..", ".nl-publish"))
 REMOTE = "https://github.com/dongshg3/binance-quant.git"
 
-# 只允许发布这几个文件——这是安全边界，不是习惯
-ALLOWED = ("data/nl_status.json", "data/model_nl.json")
+# 只允许发布这几个文件——这是安全边界，不是习惯。
+# 双管线分离：本地写 _local，云端写 _cloud，谁也不覆盖谁。
+ALLOWED = ("data/nl_status_local.json", "data/nl_status_cloud.json",
+           "data/model_nl.json", "data/model_nl_local.json", "data/model_nl_cloud.json")
+
+
+def status_path(source: str) -> str:
+    return f"data/nl_status_{source}.json"
 
 
 def _now() -> str:
@@ -152,7 +158,7 @@ GATE_THRESHOLDS_DOC = {
 }
 
 
-def build_status(loop_dir: str | None = None) -> dict:
+def build_status(loop_dir: str | None = None, source: str = "local") -> dict:
     """从循环账本生成给网站展示的诚实状态。不需要冠军存在。"""
     sys.path.insert(0, HERE)
     from nlkit import loop as _loop  # noqa: PLC0415
@@ -196,6 +202,13 @@ def build_status(loop_dir: str | None = None) -> dict:
 
     return {
         "format": "nl-status-1",
+        "source": source,
+        "pipeline": {
+            "local": {"label": "本地管线", "where": "作者本机常驻进程",
+                      "note": "算力更足，可跑更长的搜索；依赖本机开机与网络"},
+            "cloud": {"label": "云端管线", "where": "GitHub Actions runner",
+                      "note": "无人值守，每小时两个槽位；不依赖任何人的电脑"},
+        }.get(source, {"label": source, "where": "unknown"}),
         "updatedAt": _now(),
         "engine": "nlkit-1.0",
         "loop": {
@@ -220,20 +233,22 @@ def build_status(loop_dir: str | None = None) -> dict:
 
 
 def publish_status(clone: str = DEFAULT_CLONE, message: str | None = None,
-                   dry_run: bool = False, write_local: bool = True) -> dict:
-    status = build_status()
+                   dry_run: bool = False, write_local: bool = True,
+                   source: str = "local") -> dict:
+    """发布一条管线的状态。source ∈ {local, cloud}，两边写不同文件，互不覆盖。"""
+    status = build_status(source=source)
     content = json.dumps(status, ensure_ascii=False, indent=1)
-    files = {"data/nl_status.json": content}
-    # 顺带写一份到工程本地 data/，这样本地 dev server 预览与线上看到的完全一致
+    rel = status_path(source)
+    files = {rel: content}
     if write_local and not dry_run:
-        local = os.path.join(PROJECT, "data", "nl_status.json")
+        local = os.path.join(PROJECT, rel.replace("/", os.sep))
         try:
             os.makedirs(os.path.dirname(local), exist_ok=True)
             with open(local, "w", encoding="utf-8") as f:
                 f.write(content)
         except OSError:
             pass
-    # 冠军存在就一并发布可执行的非线性模型
+    # 冠军存在就一并发布该管线自己的可执行非线性模型
     best = None
     try:
         from nlkit import loop as _loop  # noqa: PLC0415
@@ -244,9 +259,10 @@ def publish_status(clone: str = DEFAULT_CLONE, message: str | None = None,
         model_path = os.path.join(PROJECT, "data", "model_nl.json")
         if os.path.exists(model_path):
             with open(model_path, encoding="utf-8") as f:
-                files["data/model_nl.json"] = f.read()
+                files[f"data/model_nl_{source}.json"] = f.read()
     return publish(files, clone=clone,
-                   message=message or f"🤖 非线性自动迭代 · g{status['loop']['generation']} · 试错 {status['loop']['nTrials']}",
+                   message=message or
+                   f"🤖 [{source}] 非线性自动迭代 · g{status['loop']['generation']} · 试错 {status['loop']['nTrials']}",
                    dry_run=dry_run)
 
 

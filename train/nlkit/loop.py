@@ -24,6 +24,7 @@ import hashlib
 import json
 import math
 import os
+import sys
 import time
 from datetime import datetime, timezone
 
@@ -351,7 +352,7 @@ def auto_publish(verbose: bool = True) -> dict:
     try:
         sys.path.insert(0, TRAIN_DIR)
         import nl_publish  # noqa: PLC0415
-        r = nl_publish.publish_status()
+        r = nl_publish.publish_status(source="local")
         if verbose:
             if r.get("ok"):
                 pub = r.get("published") or []

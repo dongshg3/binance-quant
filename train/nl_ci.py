@@ -43,11 +43,11 @@ def ensure_dataset(allow_bootstrap: bool = True) -> dict:
 
 
 def write_status() -> dict:
-    """生成 data/nl_status.json（本地写文件，不推送）。"""
+    """生成 data/nl_status_cloud.json（本地写文件，不推送）。"""
     sys.path.insert(0, HERE)
     import nl_publish as P
-    st = P.build_status()
-    out = os.path.join(PROJECT, "data", "nl_status.json")
+    st = P.build_status(source="cloud")
+    out = os.path.join(PROJECT, "data", "nl_status_cloud.json")
     os.makedirs(os.path.dirname(out), exist_ok=True)
     with open(out, "w", encoding="utf-8") as f:
         f.write(json.dumps(st, ensure_ascii=False, indent=1))
