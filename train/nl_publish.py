@@ -23,12 +23,15 @@ import shutil
 import subprocess
 import sys
 import time
+import urllib.error
+import urllib.request
 from datetime import datetime, timezone
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 PROJECT = os.path.abspath(os.path.join(HERE, ".."))
 DEFAULT_CLONE = os.path.abspath(os.path.join(PROJECT, "..", ".nl-publish"))
 REMOTE = "https://github.com/dongshg3/binance-quant.git"
+REPO = "dongshg3/binance-quant"
 
 # 只允许发布这几个文件——这是安全边界，不是习惯。
 # 双管线分离：本地写 _local，云端写 _cloud，谁也不覆盖谁。
@@ -38,6 +41,92 @@ ALLOWED = ("data/nl_status_local.json", "data/nl_status_cloud.json",
 
 def status_path(source: str) -> str:
     return f"data/nl_status_{source}.json"
+
+
+# ============================================================
+# A 方案：本地 → 云端接力
+# ------------------------------------------------------------
+# 背景（2026-10-17 实测）：本仓库的 `on: schedule` 通道失效，但 `workflow_dispatch`
+# 完全可用（POST 返回 204，run 立刻起来）。因此让本地管线在每次成功推送后，
+# 顺带踢一脚云端 —— 云端靠 actions/cache 累积自己的账本，与本地互不干扰。
+#
+# 三条纪律：
+#   1. token 从本机 Git Credential Manager 现取现用，**绝不写进仓库/日志**；
+#   2. 冷却窗口 + "云端已在跑就跳过"，避免把云端刷成排队队列；
+#   3. 全程 best-effort：任何失败只记录，绝不影响本地训练闭环。
+# ============================================================
+DISPATCH_WORKFLOW = "nl-iter.yml"
+DISPATCH_COOLDOWN_S = float(os.environ.get("NL_DISPATCH_COOLDOWN", "1200"))  # 20 分钟
+_LAST_DISPATCH = os.path.join(HERE, ".nl_last_dispatch")
+
+
+def github_token() -> str:
+    """从 Git Credential Manager 取已存储的 GitHub 凭据（不落盘、不打印）。"""
+    try:
+        p = subprocess.run(["git", "credential", "fill"],
+                           input="protocol=https\nhost=github.com\n\n",
+                           capture_output=True, text=True, timeout=30)
+        kv = dict(l.split("=", 1) for l in p.stdout.strip().splitlines() if "=" in l)
+        return kv.get("password", "")
+    except Exception:
+        return ""
+
+
+def _gh(tok: str, path: str, method: str = "GET", body=None):
+    req = urllib.request.Request(
+        "https://api.github.com" + path, method=method,
+        headers={"Authorization": "token " + tok,
+                 "Accept": "application/vnd.github+json",
+                 "User-Agent": "nlkit-publisher"},
+        data=json.dumps(body).encode() if body is not None else None)
+    try:
+        with urllib.request.urlopen(req, timeout=25) as r:
+            raw = r.read().decode()
+            return r.status, (json.loads(raw) if raw.strip() else None)
+    except urllib.error.HTTPError as e:
+        return e.code, None
+    except Exception:
+        return -1, None
+
+
+def _cooldown_left() -> float:
+    try:
+        with open(_LAST_DISPATCH, encoding="utf-8") as f:
+            last = float(f.read().strip() or 0)
+    except Exception:
+        return 0.0
+    return max(0.0, DISPATCH_COOLDOWN_S - (time.time() - last))
+
+
+def dispatch_cloud(force: bool = False, verbose: bool = True) -> dict:
+    """触发一次云端迭代。冷却中或云端已在跑则跳过。"""
+    left = _cooldown_left()
+    if left > 0 and not force:
+        return {"ok": True, "skipped": f"冷却中，还有 {int(left)}s"}
+
+    tok = github_token()
+    if not tok:
+        return {"ok": False, "error": "取不到 GitHub 凭据（Git Credential Manager 无记录）"}
+
+    # 云端已在跑就别再踢，避免排队
+    st, d = _gh(tok, f"/repos/{REPO}/actions/workflows/{DISPATCH_WORKFLOW}/runs?per_page=1")
+    if st == 200 and d and d.get("workflow_runs"):
+        r = d["workflow_runs"][0]
+        if r.get("status") in ("in_progress", "queued", "waiting"):
+            return {"ok": True, "skipped": f"云端已有运行 #{r.get('run_number')} 在进行"}
+
+    st, _ = _gh(tok, f"/repos/{REPO}/actions/workflows/{DISPATCH_WORKFLOW}/dispatches",
+                method="POST", body={"ref": "main"})
+    if st == 204:
+        try:
+            with open(_LAST_DISPATCH, "w", encoding="utf-8") as f:
+                f.write(str(time.time()))
+        except OSError:
+            pass
+        if verbose:
+            print("[loop] ⇗ 已触发云端接力一次", flush=True)
+        return {"ok": True, "dispatched": True}
+    return {"ok": False, "error": f"dispatch HTTP {st}"}
 
 
 def _now() -> str:

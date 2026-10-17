@@ -316,6 +316,18 @@ def run_generation(ds, st: dict, n_eval: int = 6, seed: int | None = None,
     }]
     save_state(st)
     pub = auto_publish(verbose=verbose) if publish else {"ok": None, "skipped": "publish=False"}
+    # A 方案：本地推送成功后踢一脚云端（best-effort，失败不影响本地闭环）
+    if publish and PUBLISH_ENABLED:
+        try:
+            sys.path.insert(0, TRAIN_DIR)
+            import nl_publish as _pub  # noqa: PLC0415
+            disp = _pub.dispatch_cloud(verbose=verbose)
+            if not disp.get("ok") and verbose:
+                print(f"[loop] ⇗ 触发云端失败（忽略）: {disp.get('error')}", flush=True)
+            pub = {**(pub or {}), "dispatch": disp}
+        except Exception as e:
+            if verbose:
+                print(f"[loop] ⇗ 触发云端异常（忽略）: {type(e).__name__}: {e}", flush=True)
     return {"generation": gen, "results": results, "pbo": pbo, "promoted": promoted,
             "nTrials": n_trials, "publish": pub}
 
