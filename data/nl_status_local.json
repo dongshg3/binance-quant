@@ -6,82 +6,15 @@
   "where": "作者本机常驻进程",
   "note": "算力更足，可跑更长的搜索；依赖本机开机与网络"
  },
- "updatedAt": "2026-10-17T11:51:12+00:00",
+ "updatedAt": "2026-10-17T12:26:36+00:00",
  "engine": "nlkit-1.0",
  "loop": {
-  "generation": 56,
-  "nTrials": 332,
-  "ledgerEntries": 341,
+  "generation": 60,
+  "nTrials": 356,
+  "ledgerEntries": 365,
   "passedAllGates": 0,
   "startedAt": "2026-10-16T15:34:24+00:00",
   "history": [
-   {
-    "generation": 45,
-    "at": "2026-10-17T10:55:06+00:00",
-    "nEval": 6,
-    "nPassed": 0,
-    "topObjective": 2.006,
-    "topSharpe": 2.006,
-    "topIC": -0.0081,
-    "topDSR": 0.0233,
-    "pbo": 0.5714,
-    "promoted": false,
-    "families": [
-     "et",
-     "hgb"
-    ]
-   },
-   {
-    "generation": 46,
-    "at": "2026-10-17T11:00:29+00:00",
-    "nEval": 6,
-    "nPassed": 0,
-    "topObjective": 2.869,
-    "topSharpe": 2.869,
-    "topIC": -0.0165,
-    "topDSR": 0.0387,
-    "pbo": 0.4714,
-    "promoted": false,
-    "families": [
-     "et",
-     "gated",
-     "hgb"
-    ]
-   },
-   {
-    "generation": 47,
-    "at": "2026-10-17T11:05:14+00:00",
-    "nEval": 6,
-    "nPassed": 0,
-    "topObjective": 2.32,
-    "topSharpe": 2.32,
-    "topIC": -0.0052,
-    "topDSR": 0.0306,
-    "pbo": 0.4857,
-    "promoted": false,
-    "families": [
-     "gated",
-     "hgb",
-     "mlp"
-    ]
-   },
-   {
-    "generation": 48,
-    "at": "2026-10-17T11:09:32+00:00",
-    "nEval": 6,
-    "nPassed": 0,
-    "topObjective": -2.152,
-    "topSharpe": -2.152,
-    "topIC": -0.0107,
-    "topDSR": 0.0001,
-    "pbo": 0.8857,
-    "promoted": false,
-    "families": [
-     "gated",
-     "hgb",
-     "mlp"
-    ]
-   },
    {
     "generation": 49,
     "at": "2026-10-17T11:14:07+00:00",
@@ -225,6 +158,74 @@
      "mlp",
      "ridge"
     ]
+   },
+   {
+    "generation": 57,
+    "at": "2026-10-17T12:00:21+00:00",
+    "nEval": 6,
+    "nPassed": 0,
+    "topObjective": 2.679,
+    "topSharpe": 2.679,
+    "topIC": -0.0146,
+    "topDSR": 0.0384,
+    "pbo": 0.3571,
+    "promoted": false,
+    "families": [
+     "et",
+     "gated",
+     "hgb",
+     "mlp"
+    ]
+   },
+   {
+    "generation": 58,
+    "at": "2026-10-17T12:05:38+00:00",
+    "nEval": 6,
+    "nPassed": 0,
+    "topObjective": 3.284,
+    "topSharpe": 3.284,
+    "topIC": -0.0061,
+    "topDSR": 0.0568,
+    "pbo": 0.2286,
+    "promoted": false,
+    "families": [
+     "gated",
+     "hgb"
+    ]
+   },
+   {
+    "generation": 59,
+    "at": "2026-10-17T12:11:08+00:00",
+    "nEval": 6,
+    "nPassed": 0,
+    "topObjective": 2.688,
+    "topSharpe": 2.688,
+    "topIC": -0.0009,
+    "topDSR": 0.0348,
+    "pbo": 0.5143,
+    "promoted": false,
+    "families": [
+     "et",
+     "gated",
+     "hgb"
+    ]
+   },
+   {
+    "generation": 60,
+    "at": "2026-10-17T12:26:35+00:00",
+    "nEval": 6,
+    "nPassed": 0,
+    "topObjective": 2.849,
+    "topSharpe": 2.849,
+    "topIC": -0.0073,
+    "topDSR": 0.0364,
+    "pbo": 0.3857,
+    "promoted": false,
+    "families": [
+     "gated",
+     "hgb",
+     "mlp"
+    ]
    }
   ]
  },
@@ -304,6 +305,27 @@
     "XS IC -0.0116 < 0.015",
     "IC NW t -1.22 < 2.0",
     "净收益 NW t 1.668 < 2.0"
+   ]
+  },
+  {
+   "generation": 58,
+   "family": "gated",
+   "featureBatch": "price",
+   "holding": 4,
+   "topFrac": 0.1,
+   "costTier": "maker",
+   "icXS": -0.0061,
+   "icNWt": -0.82,
+   "netMeanBp": 8.751,
+   "grossMeanBp": 12.328,
+   "netSharpe": 3.284,
+   "dsr": 0.0568,
+   "mktBeta": 0.112,
+   "passed": false,
+   "reasons": [
+    "XS IC -0.0061 < 0.015",
+    "IC NW t -0.82 < 2.0",
+    "净收益 NW t 1.479 < 2.0"
    ]
   },
   {
@@ -431,31 +453,10 @@
     "IC NW t -1.32 < 2.0",
     "净收益 NW t 1.236 < 2.0"
    ]
-  },
-  {
-   "generation": 5,
-   "family": "et",
-   "featureBatch": "all",
-   "holding": 12,
-   "topFrac": 0.4,
-   "costTier": "maker",
-   "icXS": -0.0147,
-   "icNWt": -1.32,
-   "netMeanBp": 13.043,
-   "grossMeanBp": 15.331,
-   "netSharpe": 2.953,
-   "dsr": 0.2524,
-   "mktBeta": 0.142,
-   "passed": false,
-   "reasons": [
-    "XS IC -0.0147 < 0.015",
-    "IC NW t -1.32 < 2.0",
-    "净收益 NW t 1.236 < 2.0"
-   ]
   }
  ],
  "dataset": {
-  "nRows": 184309,
+  "nRows": 184833,
   "nSymbols": 53,
   "nFeatures": 37,
   "symbols": [
