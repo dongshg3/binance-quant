@@ -6,34 +6,15 @@
   "where": "作者本机常驻进程",
   "note": "算力更足，可跑更长的搜索；依赖本机开机与网络"
  },
- "updatedAt": "2026-10-17T23:21:42+00:00",
+ "updatedAt": "2026-10-17T23:28:20+00:00",
  "engine": "nlkit-1.0",
  "loop": {
-  "generation": 113,
-  "nTrials": 669,
-  "ledgerEntries": 690,
+  "generation": 114,
+  "nTrials": 675,
+  "ledgerEntries": 696,
   "passedAllGates": 0,
   "startedAt": "2026-10-16T15:34:24+00:00",
   "history": [
-   {
-    "generation": 102,
-    "at": "2026-10-17T21:27:48+00:00",
-    "nEval": 6,
-    "nPassed": 0,
-    "topObjective": 0.648,
-    "topSharpe": 0.648,
-    "topIC": 0.0079,
-    "topDSR": 0.0047,
-    "pbo": 0.0714,
-    "promoted": false,
-    "families": [
-     "et",
-     "gated",
-     "hgb",
-     "mlp",
-     "ridge"
-    ]
-   },
    {
     "generation": 103,
     "at": "2026-10-17T21:34:25+00:00",
@@ -220,6 +201,23 @@
     "promoted": false,
     "families": [
      "et",
+     "gated",
+     "hgb",
+     "mlp"
+    ]
+   },
+   {
+    "generation": 114,
+    "at": "2026-10-17T23:28:19+00:00",
+    "nEval": 6,
+    "nPassed": 0,
+    "topObjective": 1.845,
+    "topSharpe": 1.845,
+    "topIC": -0.0099,
+    "topDSR": 0.009,
+    "pbo": 0.3143,
+    "promoted": false,
+    "families": [
      "gated",
      "hgb",
      "mlp"
@@ -453,9 +451,9 @@
   }
  ],
  "dataset": {
-  "nRows": 515982,
+  "nRows": 187925,
   "nSymbols": 53,
-  "nFeatures": 37,
+  "nFeatures": 43,
   "symbols": [
    "AAVEUSDT",
    "ADAUSDT",
