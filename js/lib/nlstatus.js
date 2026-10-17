@@ -12,7 +12,11 @@
 //   · 本面板不读取、不展示任何密钥；文件里也没有密钥。
 // ============================================================
 
-const PATH = 'data/nl_status.json';
+// 双管线分离：本地与云端各写各的产物，互不覆盖，页面分开呈现。
+const SOURCES = {
+  nlStatusLocal: 'data/nl_status_local.json',
+  nlStatusCloud: 'data/nl_status_cloud.json',
+};
 
 const fmt = (v, digits = 2, suffix = '') =>
   (v === null || v === undefined || Number.isNaN(v)) ? '—' : Number(v).toFixed(digits) + suffix;
@@ -32,17 +36,17 @@ function gateTag(passed, reasons) {
   return `<span class="down">未采纳</span> <small style="color:var(--text-faint)">${esc(first)}</small>`;
 }
 
-export async function renderNlStatus() {
-  const host = document.getElementById('nlStatusContent');
+async function renderInto(hostId, path) {
+  const host = document.getElementById(hostId);
   if (!host) return;
   let d = null;
   try {
-    const res = await fetch(PATH + '?t=' + Date.now(), { cache: 'no-store' });
+    const res = await fetch(path + '?t=' + Date.now(), { cache: 'no-store' });
     if (!res.ok) throw new Error('HTTP ' + res.status);
     d = await res.json();
   } catch (e) {
-    host.innerHTML = '<div class="placeholder">暂时读不到自动迭代产物（data/nl_status.json 未生成或不可达）。'
-      + '这不影响本页其他区块。</div>';
+    host.innerHTML = '<div class="placeholder">这条管线的产物尚未生成（' + esc(path) + '）。'
+      + '不影响另一条管线与本页其他区块。</div>';
     return;
   }
   if (!d || !d.loop) {
@@ -150,4 +154,9 @@ export async function renderNlStatus() {
   </div>`;
 
   host.innerHTML = html;
+}
+
+/** 渲染两条管线：本地与云端各自独立，互不影响。 */
+export async function renderNlStatus() {
+  await Promise.all(Object.entries(SOURCES).map(([hostId, path]) => renderInto(hostId, path)));
 }
