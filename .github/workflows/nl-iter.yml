@@ -1,4 +1,4 @@
-name: nl-auto-iteration
+﻿name: nl-auto-iteration
 
 # 零 Token 自动迭代：在 GitHub Actions 云端跑非线性模型搜索，
 # 产物由本 workflow 自己 commit 回 main，GitHub Pages 随之重建。
@@ -55,7 +55,7 @@ jobs:
         run: |
           git config user.name "quant-bot"
           git config user.email "quant-bot@users.noreply.github.com"
-          git add data/nl_status.json
+          git add data/nl_status_cloud.json
           [ -f data/model_nl.json ] && git add data/model_nl.json
           if git diff --staged --quiet; then
             echo "本轮无产物变化，跳过提交"
