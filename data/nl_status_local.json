@@ -6,31 +6,15 @@
   "where": "作者本机常驻进程",
   "note": "算力更足，可跑更长的搜索；依赖本机开机与网络"
  },
- "updatedAt": "2026-10-18T01:34:23+00:00",
+ "updatedAt": "2026-10-18T01:41:18+00:00",
  "engine": "nlkit-1.0",
  "loop": {
-  "generation": 134,
-  "nTrials": 795,
-  "ledgerEntries": 816,
+  "generation": 135,
+  "nTrials": 801,
+  "ledgerEntries": 822,
   "passedAllGates": 0,
   "startedAt": "2026-10-16T15:34:24+00:00",
   "history": [
-   {
-    "generation": 123,
-    "at": "2026-10-18T00:17:28+00:00",
-    "nEval": 6,
-    "nPassed": 0,
-    "topObjective": 2.737,
-    "topSharpe": 2.737,
-    "topIC": -0.0296,
-    "topDSR": 0.0247,
-    "pbo": 0.2286,
-    "promoted": false,
-    "families": [
-     "et",
-     "hgb"
-    ]
-   },
    {
     "generation": 124,
     "at": "2026-10-18T00:21:46+00:00",
@@ -219,6 +203,24 @@
     "families": [
      "gated",
      "hgb"
+    ]
+   },
+   {
+    "generation": 135,
+    "at": "2026-10-18T01:41:17+00:00",
+    "nEval": 6,
+    "nPassed": 0,
+    "topObjective": 3.85,
+    "topSharpe": 3.85,
+    "topIC": -0.0013,
+    "topDSR": 0.0675,
+    "pbo": 0.3857,
+    "promoted": false,
+    "families": [
+     "et",
+     "gated",
+     "hgb",
+     "ridge"
     ]
    }
   ]
@@ -427,24 +429,24 @@
    ]
   },
   {
-   "generation": 66,
-   "family": "gated",
-   "featureBatch": "all",
+   "generation": 135,
+   "family": "et",
+   "featureBatch": "groups",
    "holding": 8,
-   "topFrac": 0.05,
+   "topFrac": 0.2,
    "costTier": "maker",
-   "icXS": -0.0026,
-   "icNWt": -0.4,
-   "netMeanBp": 21.116,
-   "grossMeanBp": 25.569,
-   "netSharpe": 3.792,
-   "dsr": 0.0766,
-   "mktBeta": -0.026,
+   "icXS": -0.0013,
+   "icNWt": -0.13,
+   "netMeanBp": 10.463,
+   "grossMeanBp": 13.259,
+   "netSharpe": 3.85,
+   "dsr": 0.0675,
+   "mktBeta": 0.094,
    "passed": false,
    "reasons": [
-    "XS IC -0.0026 < 0.015",
-    "IC NW t -0.4 < 2.0",
-    "净收益 NW t 1.554 < 2.0"
+    "交易口径 IC -0.0163（H=8）< 0.015",
+    "交易口径 IC NW t -0.88 < 2.0",
+    "净收益 NW t 1.473 < 2.0"
    ]
   }
  ],
