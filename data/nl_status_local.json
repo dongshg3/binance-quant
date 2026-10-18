@@ -6,30 +6,15 @@
   "where": "作者本机常驻进程",
   "note": "算力更足，可跑更长的搜索；依赖本机开机与网络"
  },
- "updatedAt": "2026-10-18T09:55:58+00:00",
+ "updatedAt": "2026-10-18T10:06:58+00:00",
  "engine": "nlkit-1.0",
  "loop": {
-  "generation": 191,
-  "nTrials": 1137,
-  "ledgerEntries": 1158,
+  "generation": 192,
+  "nTrials": 1143,
+  "ledgerEntries": 1164,
   "passedAllGates": 0,
   "startedAt": "2026-10-16T15:34:24+00:00",
   "history": [
-   {
-    "generation": 180,
-    "at": "2026-10-18T09:01:32+00:00",
-    "nEval": 6,
-    "nPassed": 0,
-    "topObjective": 3.304,
-    "topSharpe": 3.304,
-    "topIC": -0.0023,
-    "topDSR": 0.0328,
-    "pbo": 0.3,
-    "promoted": false,
-    "families": [
-     "hgb"
-    ]
-   },
    {
     "generation": 181,
     "at": "2026-10-18T09:07:42+00:00",
@@ -220,6 +205,25 @@
      "hgb",
      "ridge"
     ]
+   },
+   {
+    "generation": 192,
+    "at": "2026-10-18T10:06:54+00:00",
+    "nEval": 6,
+    "nPassed": 0,
+    "topObjective": 4.334,
+    "topSharpe": 4.334,
+    "topIC": 0.0017,
+    "topDSR": 0.0815,
+    "pbo": 0.2,
+    "promoted": false,
+    "families": [
+     "et",
+     "gated",
+     "hgb",
+     "mlp",
+     "ridge"
+    ]
    }
   ]
  },
@@ -319,6 +323,27 @@
     "交易口径 IC -0.0015（H=4）< 0.015",
     "交易口径 IC NW t -0.12 < 2.0",
     "净收益 NW t 1.935 < 2.0"
+   ]
+  },
+  {
+   "generation": 192,
+   "family": "ridge",
+   "featureBatch": "all",
+   "holding": 4,
+   "topFrac": 0.1,
+   "costTier": "maker",
+   "icXS": 0.0017,
+   "icNWt": 0.17,
+   "netMeanBp": 7.026,
+   "grossMeanBp": 9.594,
+   "netSharpe": 4.334,
+   "dsr": 0.0815,
+   "mktBeta": 0.167,
+   "passed": false,
+   "reasons": [
+    "交易口径 IC -0.0041（H=4）< 0.015",
+    "交易口径 IC NW t -0.35 < 2.0",
+    "净收益 NW t 1.826 < 2.0"
    ]
   },
   {
@@ -424,27 +449,6 @@
     "交易口径 IC NW t 1.6 < 2.0",
     "净收益 NW t 1.979 < 2.0",
     "Deflated Sharpe 0.0699 < 0.95"
-   ]
-  },
-  {
-   "generation": 118,
-   "family": "ridge",
-   "featureBatch": "all",
-   "holding": 8,
-   "topFrac": 1.0,
-   "costTier": "maker",
-   "icXS": 0.0023,
-   "icNWt": 0.23,
-   "netMeanBp": 12.361,
-   "grossMeanBp": 15.137,
-   "netSharpe": 3.909,
-   "dsr": 0.0738,
-   "mktBeta": 0.156,
-   "passed": false,
-   "reasons": [
-    "交易口径 IC -0.0133（H=8）< 0.015",
-    "交易口径 IC NW t -0.74 < 2.0",
-    "净收益 NW t 1.53 < 2.0"
    ]
   }
  ],
