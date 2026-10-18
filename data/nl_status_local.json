@@ -6,118 +6,15 @@
   "where": "作者本机常驻进程",
   "note": "算力更足，可跑更长的搜索；依赖本机开机与网络"
  },
- "updatedAt": "2026-10-18T07:35:05+00:00",
+ "updatedAt": "2026-10-18T08:18:46+00:00",
  "engine": "nlkit-1.0",
  "loop": {
-  "generation": 167,
-  "nTrials": 993,
-  "ledgerEntries": 1014,
+  "generation": 173,
+  "nTrials": 1029,
+  "ledgerEntries": 1050,
   "passedAllGates": 0,
   "startedAt": "2026-10-16T15:34:24+00:00",
   "history": [
-   {
-    "generation": 156,
-    "at": "2026-10-18T06:29:01+00:00",
-    "nEval": 6,
-    "nPassed": 0,
-    "topObjective": 3.416,
-    "topSharpe": 3.416,
-    "topIC": -0.0155,
-    "topDSR": 0.04,
-    "pbo": 0.3,
-    "promoted": false,
-    "families": [
-     "et",
-     "gated",
-     "hgb",
-     "ridge"
-    ]
-   },
-   {
-    "generation": 157,
-    "at": "2026-10-18T06:34:25+00:00",
-    "nEval": 6,
-    "nPassed": 0,
-    "topObjective": 1.331,
-    "topSharpe": 1.331,
-    "topIC": -0.0157,
-    "topDSR": 0.0038,
-    "pbo": 0.7143,
-    "promoted": false,
-    "families": [
-     "et",
-     "gated",
-     "hgb"
-    ]
-   },
-   {
-    "generation": 158,
-    "at": "2026-10-18T06:39:44+00:00",
-    "nEval": 6,
-    "nPassed": 0,
-    "topObjective": 1.785,
-    "topSharpe": 1.785,
-    "topIC": -0.0115,
-    "topDSR": 0.0065,
-    "pbo": 0.4429,
-    "promoted": false,
-    "families": [
-     "gated",
-     "hgb"
-    ]
-   },
-   {
-    "generation": 159,
-    "at": "2026-10-18T06:44:50+00:00",
-    "nEval": 6,
-    "nPassed": 0,
-    "topObjective": -0.58,
-    "topSharpe": -0.58,
-    "topIC": -0.0007,
-    "topDSR": 0.0003,
-    "pbo": 0.8571,
-    "promoted": false,
-    "families": [
-     "gated",
-     "hgb",
-     "mlp"
-    ]
-   },
-   {
-    "generation": 160,
-    "at": "2026-10-18T06:49:11+00:00",
-    "nEval": 6,
-    "nPassed": 0,
-    "topObjective": 2.679,
-    "topSharpe": 2.679,
-    "topIC": 0.0019,
-    "topDSR": 0.0188,
-    "pbo": 0.6286,
-    "promoted": false,
-    "families": [
-     "gated",
-     "hgb",
-     "ridge"
-    ]
-   },
-   {
-    "generation": 161,
-    "at": "2026-10-18T06:57:08+00:00",
-    "nEval": 6,
-    "nPassed": 0,
-    "topObjective": 0.37,
-    "topSharpe": 0.37,
-    "topIC": -0.0127,
-    "topDSR": 0.001,
-    "pbo": 0.6,
-    "promoted": false,
-    "families": [
-     "et",
-     "gated",
-     "hgb",
-     "mlp"
-    ]
-   },
    {
     "generation": 162,
     "at": "2026-10-18T07:02:10+00:00",
@@ -222,6 +119,107 @@
      "gated",
      "hgb",
      "mlp"
+    ]
+   },
+   {
+    "generation": 168,
+    "at": "2026-10-18T07:49:24+00:00",
+    "nEval": 6,
+    "nPassed": 0,
+    "topObjective": -0.329,
+    "topSharpe": -0.329,
+    "topIC": -0.0141,
+    "topDSR": 0.0004,
+    "pbo": 0.8429,
+    "promoted": false,
+    "families": [
+     "hgb",
+     "mlp"
+    ]
+   },
+   {
+    "generation": 169,
+    "at": "2026-10-18T07:55:13+00:00",
+    "nEval": 6,
+    "nPassed": 0,
+    "topObjective": -1.29,
+    "topSharpe": -1.29,
+    "topIC": -0.0114,
+    "topDSR": 0.0001,
+    "pbo": 0.7143,
+    "promoted": false,
+    "families": [
+     "gated",
+     "hgb"
+    ]
+   },
+   {
+    "generation": 170,
+    "at": "2026-10-18T08:00:09+00:00",
+    "nEval": 6,
+    "nPassed": 0,
+    "topObjective": 0.994,
+    "topSharpe": 0.994,
+    "topIC": -0.0297,
+    "topDSR": 0.0024,
+    "pbo": 0.4857,
+    "promoted": false,
+    "families": [
+     "et",
+     "gated",
+     "hgb",
+     "ridge"
+    ]
+   },
+   {
+    "generation": 171,
+    "at": "2026-10-18T08:05:26+00:00",
+    "nEval": 6,
+    "nPassed": 0,
+    "topObjective": 4.233,
+    "topSharpe": 4.233,
+    "topIC": 0.012,
+    "topDSR": 0.0598,
+    "pbo": 0.3,
+    "promoted": false,
+    "families": [
+     "et",
+     "gated",
+     "hgb"
+    ]
+   },
+   {
+    "generation": 172,
+    "at": "2026-10-18T08:13:09+00:00",
+    "nEval": 6,
+    "nPassed": 0,
+    "topObjective": 2.601,
+    "topSharpe": 2.601,
+    "topIC": -0.0042,
+    "topDSR": 0.0164,
+    "pbo": 0.2714,
+    "promoted": false,
+    "families": [
+     "et",
+     "gated",
+     "hgb",
+     "ridge"
+    ]
+   },
+   {
+    "generation": 173,
+    "at": "2026-10-18T08:18:43+00:00",
+    "nEval": 6,
+    "nPassed": 0,
+    "topObjective": 1.352,
+    "topSharpe": 1.352,
+    "topIC": -0.0291,
+    "topDSR": 0.0034,
+    "pbo": 0.4571,
+    "promoted": false,
+    "families": [
+     "gated",
+     "hgb"
     ]
    }
   ]
@@ -346,6 +344,27 @@
    ]
   },
   {
+   "generation": 171,
+   "family": "hgb",
+   "featureBatch": "vol",
+   "holding": 24,
+   "topFrac": 0.05,
+   "costTier": "maker",
+   "icXS": 0.012,
+   "icNWt": 1.78,
+   "netMeanBp": 57.345,
+   "grossMeanBp": 61.759,
+   "netSharpe": 4.233,
+   "dsr": 0.0598,
+   "mktBeta": 0.034,
+   "passed": false,
+   "reasons": [
+    "交易口径 IC NW t 1.0 < 2.0",
+    "净收益 NW t 1.977 < 2.0",
+    "Deflated Sharpe 0.0598 < 0.95"
+   ]
+  },
+  {
    "generation": 69,
    "family": "ridge",
    "featureBatch": "all",
@@ -427,27 +446,6 @@
     "XS IC 0.0077 < 0.015",
     "IC NW t 1.38 < 2.0",
     "净收益 NW t 1.803 < 2.0"
-   ]
-  },
-  {
-   "generation": 14,
-   "family": "hgb",
-   "featureBatch": "all",
-   "holding": 4,
-   "topFrac": 0.4,
-   "costTier": "maker",
-   "icXS": -0.0125,
-   "icNWt": -1.54,
-   "netMeanBp": 5.154,
-   "grossMeanBp": 7.354,
-   "netSharpe": 3.866,
-   "dsr": 0.2207,
-   "mktBeta": 0.106,
-   "passed": false,
-   "reasons": [
-    "XS IC -0.0125 < 0.015",
-    "IC NW t -1.54 < 2.0",
-    "净收益 NW t 1.68 < 2.0"
    ]
   }
  ],
