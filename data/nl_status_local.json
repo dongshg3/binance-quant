@@ -6,32 +6,15 @@
   "where": "作者本机常驻进程",
   "note": "算力更足，可跑更长的搜索；依赖本机开机与网络"
  },
- "updatedAt": "2026-10-18T23:44:40+00:00",
+ "updatedAt": "2026-10-18T23:51:28+00:00",
  "engine": "nlkit-1.0",
  "loop": {
-  "generation": 329,
-  "nTrials": 1965,
-  "ledgerEntries": 1986,
+  "generation": 330,
+  "nTrials": 1971,
+  "ledgerEntries": 1992,
   "passedAllGates": 0,
   "startedAt": "2026-10-16T15:34:24+00:00",
   "history": [
-   {
-    "generation": 318,
-    "at": "2026-10-18T22:42:38+00:00",
-    "nEval": 6,
-    "nPassed": 0,
-    "topObjective": -0.582,
-    "topSharpe": -0.582,
-    "topIC": -0.0162,
-    "topDSR": 0.0001,
-    "pbo": 0.1,
-    "promoted": false,
-    "families": [
-     "gated",
-     "hgb",
-     "mlp"
-    ]
-   },
    {
     "generation": 319,
     "at": "2026-10-18T22:48:15+00:00",
@@ -224,6 +207,24 @@
     "pbo": 0.1857,
     "promoted": false,
     "families": [
+     "gated",
+     "hgb",
+     "ridge"
+    ]
+   },
+   {
+    "generation": 330,
+    "at": "2026-10-18T23:51:26+00:00",
+    "nEval": 6,
+    "nPassed": 0,
+    "topObjective": 3.923,
+    "topSharpe": 3.923,
+    "topIC": 0.0051,
+    "topDSR": 0.041,
+    "pbo": 0.2714,
+    "promoted": false,
+    "families": [
+     "et",
      "gated",
      "hgb",
      "ridge"
