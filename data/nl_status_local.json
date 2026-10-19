@@ -6,67 +6,15 @@
   "where": "作者本机常驻进程",
   "note": "算力更足，可跑更长的搜索；依赖本机开机与网络"
  },
- "updatedAt": "2026-10-19T06:31:09+00:00",
+ "updatedAt": "2026-10-19T06:48:54+00:00",
  "engine": "nlkit-1.0",
  "loop": {
-  "generation": 397,
-  "nTrials": 2373,
-  "ledgerEntries": 2394,
+  "generation": 400,
+  "nTrials": 2391,
+  "ledgerEntries": 2412,
   "passedAllGates": 0,
   "startedAt": "2026-10-16T15:34:24+00:00",
   "history": [
-   {
-    "generation": 386,
-    "at": "2026-10-19T05:34:07+00:00",
-    "nEval": 6,
-    "nPassed": 0,
-    "topObjective": 2.718,
-    "topSharpe": 2.718,
-    "topIC": -0.0083,
-    "topDSR": 0.0109,
-    "pbo": 0.4,
-    "promoted": false,
-    "families": [
-     "gated",
-     "hgb",
-     "ridge"
-    ]
-   },
-   {
-    "generation": 387,
-    "at": "2026-10-19T05:38:33+00:00",
-    "nEval": 6,
-    "nPassed": 0,
-    "topObjective": 0.899,
-    "topSharpe": 0.899,
-    "topIC": -0.0118,
-    "topDSR": 0.0011,
-    "pbo": 0.4571,
-    "promoted": false,
-    "families": [
-     "gated",
-     "hgb"
-    ]
-   },
-   {
-    "generation": 388,
-    "at": "2026-10-19T05:43:20+00:00",
-    "nEval": 6,
-    "nPassed": 0,
-    "topObjective": 0.773,
-    "topSharpe": 0.773,
-    "topIC": -0.0131,
-    "topDSR": 0.0008,
-    "pbo": 0.8714,
-    "promoted": false,
-    "families": [
-     "et",
-     "gated",
-     "hgb",
-     "mlp",
-     "ridge"
-    ]
-   },
    {
     "generation": 389,
     "at": "2026-10-19T05:49:47+00:00",
@@ -217,6 +165,61 @@
     "topIC": -0.0106,
     "topDSR": 0.0007,
     "pbo": 0.3571,
+    "promoted": false,
+    "families": [
+     "gated",
+     "hgb",
+     "mlp",
+     "ridge"
+    ]
+   },
+   {
+    "generation": 398,
+    "at": "2026-10-19T06:37:20+00:00",
+    "nEval": 6,
+    "nPassed": 0,
+    "topObjective": 2.318,
+    "topSharpe": 2.318,
+    "topIC": -0.0213,
+    "topDSR": 0.0065,
+    "pbo": 0.5429,
+    "promoted": false,
+    "families": [
+     "et",
+     "gated",
+     "hgb",
+     "mlp",
+     "ridge"
+    ]
+   },
+   {
+    "generation": 399,
+    "at": "2026-10-19T06:43:40+00:00",
+    "nEval": 6,
+    "nPassed": 0,
+    "topObjective": 2.308,
+    "topSharpe": 2.308,
+    "topIC": -0.0118,
+    "topDSR": 0.0075,
+    "pbo": 0.9,
+    "promoted": false,
+    "families": [
+     "gated",
+     "hgb",
+     "mlp",
+     "ridge"
+    ]
+   },
+   {
+    "generation": 400,
+    "at": "2026-10-19T06:48:52+00:00",
+    "nEval": 6,
+    "nPassed": 0,
+    "topObjective": 1.112,
+    "topSharpe": 1.112,
+    "topIC": -0.0089,
+    "topDSR": 0.0013,
+    "pbo": 0.4429,
     "promoted": false,
     "families": [
      "gated",
@@ -451,7 +454,7 @@
   }
  ],
  "dataset": {
-  "nRows": 187950,
+  "nRows": 187956,
   "nSymbols": 53,
   "nFeatures": 43,
   "symbols": [
