@@ -5913,5 +5913,240 @@
    "icPrev": null,
    "gate": "skipped(<30样本)"
   }
+ },
+ {
+  "version": 32,
+  "trainedAt": "2026-10-19T04:06:40+00:00",
+  "symbols": 149,
+  "samples": 524413,
+  "fwdSet": [
+   2,
+   4,
+   8
+  ],
+  "weights": {
+   "trend": 0.1131,
+   "momentum": -0.0211,
+   "meanRev": 0.1743,
+   "volume": -0.1928,
+   "volatility": -0.0945,
+   "position": -0.2298,
+   "htf": 0.0293,
+   "futures": 0.1451
+  },
+  "factorIC": {
+   "trend": -0.0414,
+   "momentum": 0.041,
+   "meanRev": 0.0548,
+   "volume": -0.024,
+   "volatility": -0.019,
+   "position": -0.0059,
+   "htf": -0.0072,
+   "futures": 0.0126
+  },
+  "icInSample": 0.0497,
+  "icOOS": 0.0421,
+  "icXS": 0.0336,
+  "icXSRaw4": 0.0279,
+  "nwT": 4.83,
+  "icPerSym": 0.0441,
+  "icPerSymMedian": 0.0422,
+  "icDecay": {
+   "1": 0.0321,
+   "2": 0.0322,
+   "4": 0.0181,
+   "8": 0.0099,
+   "12": -0.001,
+   "24": 0.0206
+  },
+  "gapInOut": 0.0076,
+  "randIC": {
+   "mean": -0.0012,
+   "std": 0.0286,
+   "percentile": 0.9
+  },
+  "lsSpread": 0.067038,
+  "lsSharpeOOS": 1.01,
+  "dcor": {
+   "trend": {
+    "dcor": 0.0965,
+    "p": 0.016
+   },
+   "momentum": {
+    "dcor": 0.0616,
+    "p": 0.016
+   },
+   "meanRev": {
+    "dcor": 0.0912,
+    "p": 0.016
+   },
+   "volume": {
+    "dcor": 0.0627,
+    "p": 0.016
+   },
+   "volatility": {
+    "dcor": 0.06,
+    "p": 0.016
+   },
+   "position": {
+    "dcor": 0.0506,
+    "p": 0.016
+   },
+   "htf": {
+    "dcor": 0.058,
+    "p": 0.016
+   },
+   "futures": {
+    "dcor": 0.0536,
+    "p": 0.033
+   },
+   "_composite": {
+    "dcor": 0.0601,
+    "p": 0.016
+   }
+  },
+  "conditionalIC": {
+   "byAdx": {
+    "低": 0.033,
+    "中": 0.0373,
+    "高": 0.0549
+   },
+   "byVol": {
+    "低": 0.0261,
+    "中": 0.0477,
+    "高": 0.0509
+   },
+   "byFunding": {
+    "低": 0.0398,
+    "高": 0.0373
+   }
+  },
+  "segments": {
+   "size:large": {
+    "icXS": -0.0193,
+    "nwT": -1.38,
+    "n": 70528,
+    "symbols": 30,
+    "good": false,
+    "flipped": false,
+    "modelType": "ridge"
+   },
+   "size:mid": {
+    "icXS": 0.0369,
+    "nwT": 4.21,
+    "n": 142600,
+    "symbols": 59,
+    "good": true,
+    "flipped": false,
+    "modelType": "ridge"
+   },
+   "size:small": {
+    "icXS": 0.0397,
+    "nwT": 4.25,
+    "n": 147626,
+    "symbols": 60,
+    "good": true,
+    "flipped": false,
+    "modelType": "et-distilled"
+   },
+   "cat:defi": {
+    "icXS": -0.0226,
+    "nwT": -1.7,
+    "n": 42971,
+    "symbols": 17,
+    "good": false,
+    "flipped": false,
+    "modelType": "ridge"
+   },
+   "cat:l1": {
+    "icXS": -0.0149,
+    "nwT": -1.11,
+    "n": 65000,
+    "symbols": 25,
+    "good": false,
+    "flipped": false,
+    "modelType": "ridge"
+   },
+   "cat:other": {
+    "icXS": 0.0398,
+    "nwT": 4.25,
+    "n": 185183,
+    "symbols": 81,
+    "good": true,
+    "flipped": false,
+    "modelType": "ridge"
+   }
+  },
+  "etExperiments": {
+   "global": {
+    "ridge": 0.0386,
+    "et": 0.0484,
+    "distilled": 0.0485,
+    "folds": 5,
+    "improvement": 0.0098,
+    "adopted": false
+   },
+   "size:large": {
+    "ridge": -0.0024,
+    "et": -0.0076,
+    "distilled": -0.004,
+    "folds": 5,
+    "improvement": -0.0052,
+    "adopted": false
+   },
+   "size:mid": {
+    "ridge": 0.0426,
+    "et": 0.0441,
+    "distilled": 0.0466,
+    "folds": 5,
+    "improvement": 0.0015,
+    "adopted": false
+   },
+   "size:small": {
+    "ridge": 0.0369,
+    "et": 0.0505,
+    "distilled": 0.0515,
+    "folds": 5,
+    "improvement": 0.0136,
+    "adopted": true
+   },
+   "cat:defi": {
+    "ridge": -0.0039,
+    "et": 0.0038,
+    "distilled": -0.0033,
+    "folds": 5,
+    "improvement": 0.0077,
+    "adopted": false
+   },
+   "cat:l1": {
+    "ridge": 0.0027,
+    "et": -0.0,
+    "distilled": 0.0,
+    "folds": 5,
+    "improvement": -0.0027,
+    "adopted": false
+   },
+   "cat:other": {
+    "ridge": 0.0494,
+    "et": 0.0567,
+    "distilled": 0.0582,
+    "folds": 5,
+    "improvement": 0.0073,
+    "adopted": false
+   }
+  },
+  "coinModels": {
+   "adopted": 35,
+   "icMean": 0.116
+  },
+  "accepted": true,
+  "rejectReason": "",
+  "alpha": 0.6,
+  "tracker": {
+   "n": 0,
+   "icNew": null,
+   "icPrev": null,
+   "gate": "skipped(<30样本)"
+  }
  }
 ]
