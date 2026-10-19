@@ -6,219 +6,215 @@
   "where": "作者本机常驻进程",
   "note": "算力更足，可跑更长的搜索；依赖本机开机与网络"
  },
- "updatedAt": "2026-10-19T07:14:06+00:00",
+ "updatedAt": "2026-10-19T08:26:53+00:00",
  "engine": "nlkit-1.0",
  "loop": {
-  "generation": 405,
-  "nTrials": 2421,
-  "ledgerEntries": 2442,
+  "generation": 419,
+  "nTrials": 2505,
+  "ledgerEntries": 2526,
   "passedAllGates": 0,
   "startedAt": "2026-10-16T15:34:24+00:00",
   "history": [
    {
-    "generation": 394,
-    "at": "2026-10-19T06:15:58+00:00",
+    "generation": 408,
+    "at": "2026-10-19T07:29:23+00:00",
     "nEval": 6,
     "nPassed": 0,
-    "topObjective": 1.349,
-    "topSharpe": 1.349,
-    "topIC": -0.0285,
-    "topDSR": 0.002,
-    "pbo": 0.3429,
+    "topObjective": 1.596,
+    "topSharpe": 1.596,
+    "topIC": -0.0256,
+    "topDSR": 0.0029,
+    "pbo": 0.4286,
     "promoted": false,
     "families": [
      "et",
+     "gated",
+     "hgb"
+    ]
+   },
+   {
+    "generation": 409,
+    "at": "2026-10-19T07:34:08+00:00",
+    "nEval": 6,
+    "nPassed": 0,
+    "topObjective": 1.216,
+    "topSharpe": 1.216,
+    "topIC": 0.0047,
+    "topDSR": 0.0015,
+    "pbo": 0.2857,
+    "promoted": false,
+    "families": [
+     "et",
+     "hgb",
+     "ridge"
+    ]
+   },
+   {
+    "generation": 410,
+    "at": "2026-10-19T07:39:05+00:00",
+    "nEval": 6,
+    "nPassed": 0,
+    "topObjective": 3.948,
+    "topSharpe": 3.948,
+    "topIC": -0.0058,
+    "topDSR": 0.0401,
+    "pbo": 0.0429,
+    "promoted": false,
+    "families": [
+     "gated",
+     "hgb"
+    ]
+   },
+   {
+    "generation": 411,
+    "at": "2026-10-19T07:43:50+00:00",
+    "nEval": 6,
+    "nPassed": 0,
+    "topObjective": 2.642,
+    "topSharpe": 2.642,
+    "topIC": -0.0115,
+    "topDSR": 0.0091,
+    "pbo": 0.0714,
+    "promoted": false,
+    "families": [
+     "et",
+     "gated",
      "hgb",
      "mlp"
     ]
    },
    {
-    "generation": 395,
-    "at": "2026-10-19T06:20:12+00:00",
+    "generation": 412,
+    "at": "2026-10-19T07:48:19+00:00",
     "nEval": 6,
     "nPassed": 0,
-    "topObjective": 1.122,
-    "topSharpe": 1.122,
-    "topIC": -0.0223,
-    "topDSR": 0.0016,
-    "pbo": 0.6571,
-    "promoted": false,
-    "families": [
-     "et",
-     "gated",
-     "ridge"
-    ]
-   },
-   {
-    "generation": 396,
-    "at": "2026-10-19T06:25:52+00:00",
-    "nEval": 6,
-    "nPassed": 0,
-    "topObjective": 1.799,
-    "topSharpe": 1.799,
-    "topIC": -0.0072,
-    "topDSR": 0.0028,
-    "pbo": 0.3571,
-    "promoted": false,
-    "families": [
-     "gated",
-     "hgb",
-     "ridge"
-    ]
-   },
-   {
-    "generation": 397,
-    "at": "2026-10-19T06:31:07+00:00",
-    "nEval": 6,
-    "nPassed": 0,
-    "topObjective": 0.663,
-    "topSharpe": 0.663,
-    "topIC": -0.0106,
-    "topDSR": 0.0007,
-    "pbo": 0.3571,
-    "promoted": false,
-    "families": [
-     "gated",
-     "hgb",
-     "mlp",
-     "ridge"
-    ]
-   },
-   {
-    "generation": 398,
-    "at": "2026-10-19T06:37:20+00:00",
-    "nEval": 6,
-    "nPassed": 0,
-    "topObjective": 2.318,
-    "topSharpe": 2.318,
+    "topObjective": 2.298,
+    "topSharpe": 2.298,
     "topIC": -0.0213,
-    "topDSR": 0.0065,
-    "pbo": 0.5429,
+    "topDSR": 0.0061,
+    "pbo": 0.2429,
     "promoted": false,
     "families": [
      "et",
      "gated",
      "hgb",
-     "mlp",
      "ridge"
     ]
    },
    {
-    "generation": 399,
-    "at": "2026-10-19T06:43:40+00:00",
+    "generation": 413,
+    "at": "2026-10-19T07:53:39+00:00",
     "nEval": 6,
     "nPassed": 0,
-    "topObjective": 2.308,
-    "topSharpe": 2.308,
-    "topIC": -0.0118,
-    "topDSR": 0.0075,
+    "topObjective": 0.766,
+    "topSharpe": 0.766,
+    "topIC": -0.0125,
+    "topDSR": 0.0007,
+    "pbo": 0.7286,
+    "promoted": false,
+    "families": [
+     "gated",
+     "hgb",
+     "mlp"
+    ]
+   },
+   {
+    "generation": 414,
+    "at": "2026-10-19T07:58:33+00:00",
+    "nEval": 6,
+    "nPassed": 0,
+    "topObjective": 1.548,
+    "topSharpe": 1.548,
+    "topIC": -0.0089,
+    "topDSR": 0.0024,
+    "pbo": 0.2143,
+    "promoted": false,
+    "families": [
+     "hgb",
+     "ridge"
+    ]
+   },
+   {
+    "generation": 415,
+    "at": "2026-10-19T08:04:01+00:00",
+    "nEval": 6,
+    "nPassed": 0,
+    "topObjective": 0.583,
+    "topSharpe": 0.583,
+    "topIC": -0.0202,
+    "topDSR": 0.0006,
+    "pbo": 0.6,
+    "promoted": false,
+    "families": [
+     "gated",
+     "hgb",
+     "mlp"
+    ]
+   },
+   {
+    "generation": 416,
+    "at": "2026-10-19T08:08:56+00:00",
+    "nEval": 6,
+    "nPassed": 0,
+    "topObjective": 1.749,
+    "topSharpe": 1.749,
+    "topIC": -0.003,
+    "topDSR": 0.0033,
+    "pbo": 0.7143,
+    "promoted": false,
+    "families": [
+     "et",
+     "hgb",
+     "ridge"
+    ]
+   },
+   {
+    "generation": 417,
+    "at": "2026-10-19T08:14:13+00:00",
+    "nEval": 6,
+    "nPassed": 0,
+    "topObjective": -0.477,
+    "topSharpe": -0.477,
+    "topIC": -0.0115,
+    "topDSR": 0.0001,
     "pbo": 0.9,
     "promoted": false,
     "families": [
-     "gated",
-     "hgb",
-     "mlp",
-     "ridge"
-    ]
-   },
-   {
-    "generation": 400,
-    "at": "2026-10-19T06:48:52+00:00",
-    "nEval": 6,
-    "nPassed": 0,
-    "topObjective": 1.112,
-    "topSharpe": 1.112,
-    "topIC": -0.0089,
-    "topDSR": 0.0013,
-    "pbo": 0.4429,
-    "promoted": false,
-    "families": [
-     "gated",
-     "hgb",
-     "mlp",
-     "ridge"
-    ]
-   },
-   {
-    "generation": 401,
-    "at": "2026-10-19T06:55:02+00:00",
-    "nEval": 6,
-    "nPassed": 0,
-    "topObjective": -1.091,
-    "topSharpe": -1.091,
-    "topIC": -0.0235,
-    "topDSR": 0.0,
-    "pbo": 0.5,
-    "promoted": false,
-    "families": [
      "et",
-     "hgb",
-     "ridge"
-    ]
-   },
-   {
-    "generation": 402,
-    "at": "2026-10-19T06:59:19+00:00",
-    "nEval": 6,
-    "nPassed": 0,
-    "topObjective": 0.764,
-    "topSharpe": 0.764,
-    "topIC": -0.0068,
-    "topDSR": 0.0008,
-    "pbo": 0.5286,
-    "promoted": false,
-    "families": [
-     "et",
-     "hgb",
-     "ridge"
-    ]
-   },
-   {
-    "generation": 403,
-    "at": "2026-10-19T07:04:35+00:00",
-    "nEval": 6,
-    "nPassed": 0,
-    "topObjective": -0.681,
-    "topSharpe": -0.681,
-    "topIC": -0.0193,
-    "topDSR": 0.0001,
-    "pbo": 0.9286,
-    "promoted": false,
-    "families": [
      "hgb",
      "mlp"
     ]
    },
    {
-    "generation": 404,
-    "at": "2026-10-19T07:09:08+00:00",
+    "generation": 418,
+    "at": "2026-10-19T08:20:59+00:00",
     "nEval": 6,
     "nPassed": 0,
-    "topObjective": 2.192,
-    "topSharpe": 2.192,
-    "topIC": -0.0204,
-    "topDSR": 0.0039,
-    "pbo": 0.5,
+    "topObjective": 0.943,
+    "topSharpe": 0.943,
+    "topIC": -0.0223,
+    "topDSR": 0.001,
+    "pbo": 0.3,
     "promoted": false,
     "families": [
      "et",
      "gated",
-     "ridge"
+     "hgb"
     ]
    },
    {
-    "generation": 405,
-    "at": "2026-10-19T07:14:04+00:00",
+    "generation": 419,
+    "at": "2026-10-19T08:26:51+00:00",
     "nEval": 6,
     "nPassed": 0,
-    "topObjective": 2.527,
-    "topSharpe": 2.527,
-    "topIC": -0.0136,
-    "topDSR": 0.0072,
-    "pbo": 0.2571,
+    "topObjective": 0.718,
+    "topSharpe": 0.718,
+    "topIC": -0.0069,
+    "topDSR": 0.0008,
+    "pbo": 0.3571,
     "promoted": false,
     "families": [
-     "gated",
+     "et",
      "hgb"
     ]
    }
