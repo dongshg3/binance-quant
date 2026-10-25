@@ -57,3 +57,23 @@ test('robustness reports PSR and reproducible bootstrap intervals', () => {
   assert.deepEqual(a.robustness.returnCI95, b.robustness.returnCI95);
   assert.equal(a.robustness.simulations, 240);
 });
+
+test('funding follows UTC timestamps rather than candle array indexes', () => {
+  const aligned = candles().map((c, i) => {
+    const open = 100 * Math.exp(i * 0.001), close = 100 * Math.exp((i + 1) * 0.001);
+    return { ...c, time: Date.UTC(2026, 0, 2) + i * 3600000, open, close, high: close * 1.001, low: open * 0.999 };
+  });
+  const offset = aligned.map(c => ({ ...c, time: c.time + 1800000 }));
+  // Isolate the funding clock from factor routing: a trend-only model keeps a
+  // deterministic long position instead of accidentally staying flat all test.
+  setModel({ version: 1, weights: { trend: 1 }, scoreScale: 0.5, segments: {}, symbolMeta: {}, coinModels: {} });
+  try {
+    const onClock = runBacktest(aligned, '1h', { warmup: 60, bootstrap: false });
+    const offClock = runBacktest(offset, '1h', { warmup: 60, bootstrap: false });
+    assert.ok(onClock.metrics.fundingEvents > 0);
+    assert.equal(offClock.metrics.fundingEvents, 0);
+    assert.equal(offClock.metrics.fundingCashflow, 0);
+  } finally {
+    setModel(null);
+  }
+});

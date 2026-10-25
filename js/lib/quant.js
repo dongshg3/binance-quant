@@ -627,9 +627,8 @@ export function runBacktest(candles, interval, options = {}) {
   if (n - firstExec < 40) return { error: '有效回测区间不足 40 根K线，请增加历史或减少预热/隔离区' };
 
   const ppy = Stats.periodsPerYear(interval);
-  const barsPer8h = Math.max(1, Math.round(288e5 / Stats.intervalMs(interval)));
   const equity = [1], bhEquity = [1], returns = [], trades = [], times = [];
-  let position = 0, grossEquity = 1, totalCosts = 0, fundingCashflow = 0, turnover = 0, exposure = 0;
+  let position = 0, grossEquity = 1, totalCosts = 0, fundingCashflow = 0, fundingEvents = 0, turnover = 0, exposure = 0;
   const sigLog = [];
 
   for (let i = firstExec; i < n; i++) {
@@ -637,7 +636,10 @@ export function runBacktest(candles, interval, options = {}) {
     if (!(prevOpen > 0 && execOpen > 0)) continue;
     // 旧持仓先从上一根开盘计价到本根开盘；随后才按上一根收盘信号调仓。
     const marketReturn = position * Math.log(execOpen / prevOpen);
-    const funding = position !== 0 && i % barsPer8h === 0 ? position * fundingRatePer8h : 0;
+    // 资金费按真实 UTC 00/08/16 的 bar open 结算，而不是按数组下标近似。
+    const fundingDue = candles[i].time % 288e5 === 0;
+    const funding = position !== 0 && fundingDue ? position * fundingRatePer8h : 0;
+    if (position !== 0 && fundingDue) fundingEvents++;
     grossEquity *= Math.exp(marketReturn);
 
     const slice = candles.slice(0, i); // 最后一根是 i-1，绝不可包含执行 bar i
@@ -691,7 +693,7 @@ export function runBacktest(candles, interval, options = {}) {
       profitFactor: grossLoss > 0 ? grossProfit / grossLoss : (grossProfit > 0 ? Infinity : 0),
       numTrades: trades.length, numBars: returns.length, var95, es95,
       sigAccuracy: sigLog.length ? sigLog.filter(s => s.correct).length / sigLog.length : null, sigCount: sigLog.length,
-      totalCosts, fundingCashflow, turnover, exposure: exposure / returns.length,
+      totalCosts, fundingCashflow, fundingEvents, turnover, exposure: exposure / returns.length,
     },
     buyHold: { totalReturn: bhTotal, annualizedReturn: bhAnn, mdd: Stats.maxDrawdown(bhEquity), sharpe: Stats.sharpe(Stats.logReturns(bhEquity), ppy) },
   };
