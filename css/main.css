@@ -271,7 +271,7 @@ tbody tr:hover { background: var(--accent-soft); }
 .opp-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(255px, 1fr)); gap: 12px; }
 .opp-card {
   background: var(--bg-panel); border-radius: 12px; padding: 14px; cursor: pointer;
-  border: 1px solid var(--border); border-left: 3px solid var(--up);
+  border: 1px solid var(--border); border-left: 1px solid var(--up);
   transition: all 0.2s var(--ease); position: relative; overflow: hidden;
   box-shadow: var(--shadow);
 }
@@ -290,9 +290,9 @@ tbody tr:hover { background: var(--accent-soft); }
 .opp-card .reason { font-size: 11px; color: var(--text); margin-top: 6px; line-height: 1.6; }
 
 /* ---------- 机会强度分级 ---------- */
-.opp-card.tier-tA { border-left-width: 5px; background: linear-gradient(180deg, rgba(0, 229, 160, 0.06), var(--bg-panel) 60%); }
+.opp-card.tier-tA { border-left-width: 1px; background: linear-gradient(180deg, rgba(0, 229, 160, 0.06), var(--bg-panel) 60%); }
 .opp-card.tier-tA.sell { background: linear-gradient(180deg, rgba(255, 107, 107, 0.06), var(--bg-panel) 60%); }
-.opp-card.tier-tS { border-left-width: 5px; background: linear-gradient(180deg, rgba(0, 229, 160, 0.11), var(--bg-panel) 65%); box-shadow: 0 0 22px rgba(0, 229, 160, 0.12); }
+.opp-card.tier-tS { border-left-width: 1px; background: linear-gradient(180deg, rgba(0, 229, 160, 0.11), var(--bg-panel) 65%); box-shadow: 0 0 22px rgba(0, 229, 160, 0.12); }
 .opp-card.tier-tS.sell { background: linear-gradient(180deg, rgba(255, 107, 107, 0.11), var(--bg-panel) 65%); box-shadow: 0 0 22px rgba(255, 107, 107, 0.12); }
 .tier-badge { font-size: 9px; font-weight: 800; padding: 2px 7px; border-radius: 4px; letter-spacing: 0.5px; }
 .tier-badge.tS-buy { background: var(--accent); color: var(--accent-ink); }
@@ -360,7 +360,7 @@ tr.row-tB-sell { background: rgba(255, 107, 107, 0.03); }
 /* ---------- 免责声明 ---------- */
 .disclaimer {
   margin-top: 20px; padding: 14px 18px; background: var(--bg-panel);
-  border: 1px solid var(--border); border-left: 3px solid var(--accent); border-radius: 12px;
+  border: 1px solid var(--border); border-left: 1px solid var(--accent); border-radius: 12px;
   font-size: 11px; color: var(--text-dim); line-height: 1.8;
   animation: fadeUp 0.5s var(--ease) both;
 }
@@ -385,7 +385,7 @@ tr.row-tB-sell { background: rgba(255, 107, 107, 0.03); }
 .doc { max-width: 880px; margin: 0 auto; }
 .doc h2 {
   color: var(--text); font-size: 17px; margin: 30px 0 12px; padding-left: 12px;
-  border-left: 3px solid var(--accent); letter-spacing: 0.5px;
+  border-left: 1px solid var(--accent); letter-spacing: 0.5px;
 }
 .doc h4 { color: var(--accent); font-size: 14px; margin: 18px 0 8px; }
 .doc p, .doc li { font-size: 13px; color: var(--text-dim); line-height: 1.9; }
@@ -407,7 +407,7 @@ tr.row-tB-sell { background: rgba(255, 107, 107, 0.03); }
 
 /* 竞技场：对照组选手行（随机/静态基准） */
 tr.row-control { background: rgba(148, 163, 184, 0.06); font-style: normal; }
-tr.row-control td:first-child { border-left: 3px dashed var(--text-faint); }
+tr.row-control td:first-child { border-left: 1px dashed var(--text-faint); }
 
 /* ============================================================
    v5 · 专业交易终端：保留 #0A0E14 / #00E5A0，降低装饰、提高信息效率
@@ -596,4 +596,218 @@ body.compact .controls { margin-bottom: 10px; }
 @media (prefers-reduced-motion: reduce) {
   html { scroll-behavior: auto; }
   .command-palette { backdrop-filter: none; }
+}
+
+/* ============================================================
+   v6 · Instrument design refinement
+   参考 Supabase 的单一强调色、Warp 的紧凑技术界面、Vercel 的清晰层级。
+   保留既有产品结构与 #0A0E14 / #00E5A0 识别色。
+   ============================================================ */
+:root {
+  --bg-panel: #0f161e;
+  --bg-panel-2: #0c131b;
+  --bg-cell: #121c25;
+  --bg-hover: #17232d;
+  --bg-soft: #101922;
+  --border: rgba(154, 173, 190, .14);
+  --border-light: rgba(154, 173, 190, .25);
+  --text: #edf2f6;
+  --text-dim: #a3afbc;
+  --text-faint: #8190a0;
+  --radius: 12px;
+  --radius-sm: 7px;
+  --shadow: 0 1px 2px rgba(0, 0, 0, .18);
+  --shadow-lift: 0 10px 28px rgba(0, 0, 0, .28);
+}
+
+html { scrollbar-color: #2a3947 var(--bg); }
+body {
+  background: var(--bg);
+  font-size: 14px;
+  line-height: 1.55;
+  letter-spacing: 0;
+  caret-color: var(--accent);
+}
+body::before { display: none; }
+::selection { background: rgba(0, 229, 160, .24); color: #f4fff9; }
+input::placeholder, textarea::placeholder { color: #8996a5; opacity: 1; }
+a { text-underline-offset: 3px; }
+button:disabled, input:disabled, select:disabled { opacity: .48; cursor: not-allowed; }
+
+.page { max-width: 1580px; padding: 22px 28px 36px; }
+.row { gap: 16px; margin-bottom: 16px; }
+
+/* 导航：当前页面清晰，业务链接与工具各自成组 */
+.nav {
+  min-height: 60px;
+  padding: 0 24px;
+  gap: 14px;
+  background: rgba(10, 14, 20, .96);
+  border-bottom-color: var(--border);
+  backdrop-filter: blur(14px);
+}
+.nav .brand { padding: 18px 10px 18px 0; font-size: 15px; font-weight: 600; }
+.nav-tabs { gap: 4px; }
+.nav a.tab {
+  margin: 9px 0;
+  padding: 8px 11px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 500;
+}
+.nav a.tab.active { background: var(--accent-soft); }
+.nav a.tab.active::after { display: none; }
+.nav-tool { min-height: 30px; padding: 5px 9px; font-size: 11px; }
+.nav .net { font-size: 11px; }
+
+/* 工具栏：任务操作形成一个完整工作区，而非漂浮控件 */
+.controls {
+  gap: 10px;
+  margin-bottom: 16px;
+  padding: 10px 12px;
+  background: var(--bg-panel-2);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+}
+.controls label { color: var(--text-dim); font-size: 12px; }
+.controls select, .controls input, .controls button {
+  min-height: 36px;
+  padding: 7px 11px;
+  border-radius: 7px;
+  font-size: 12px;
+}
+.controls select:hover, .controls input:hover { border-color: var(--border-light); }
+.controls select:focus, .controls input:focus { border-color: var(--accent); }
+.controls button.primary { color: #03271b; font-weight: 650; }
+
+/* 面板与标题：细边界、清晰分区，无重复入场动画 */
+.panel, .chart-wrap {
+  border-color: var(--border);
+  border-radius: var(--radius);
+  box-shadow: none;
+  animation: none;
+}
+.panel { padding: 17px 18px; }
+.panel:hover, .chart-wrap:hover { border-color: var(--border); box-shadow: none; }
+.panel h3 {
+  margin: -2px 0 15px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--border);
+  color: var(--text);
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: 0;
+}
+.panel h3 .sub { color: var(--text-faint); font-size: 11px; font-weight: 400; }
+.chart-box { border-radius: 7px; }
+
+/* 指标区：一张仪器面板内的分隔单元，避免层层套卡 */
+.grid-metrics {
+  gap: 1px;
+  overflow: hidden;
+  background: var(--bg-panel-2);
+  border: 1px solid var(--border);
+  border-radius: 9px;
+}
+.metric {
+  min-width: 0;
+  padding: 12px 13px;
+  background: var(--bg-panel-2);
+  border: 0;
+  border-radius: 0;
+  outline: 1px solid var(--border);
+  outline-offset: -1px;
+}
+.metric:hover { background: #101a23; border: 0; }
+.metric .k { margin-bottom: 5px; color: var(--text-faint); font-size: 11px; line-height: 1.4; }
+.metric .v { color: var(--text); font-size: 16px; font-weight: 600; line-height: 1.45; }
+.metric.good .v, .metric .v.good { color: var(--up); }
+.metric.bad .v, .metric .v.bad { color: var(--down); }
+#priceNow { letter-spacing: -.025em; }
+.probUpBig { letter-spacing: -.02em; }
+.signal-badge { border-radius: 7px; }
+
+/* 数据表：提升字号与行距，保持数字对齐 */
+table { font-size: 12px; line-height: 1.45; }
+th {
+  height: 38px;
+  padding: 9px 8px;
+  background: var(--bg-panel-2);
+  color: var(--text-faint);
+  font-size: 11px;
+  font-weight: 500;
+}
+td { padding: 10px 8px; border-bottom-color: var(--border); }
+tbody tr { transition: background-color .14s ease; }
+tbody tr:last-child td { border-bottom-color: transparent; }
+tr.row-control td:first-child { border-left-width: 1px; }
+.pair-suffix, .table-note { color: var(--text-faint); font-size: 10px; }
+.category-chip, .compact-chip, .model-state { font-size: 10px; }
+
+/* 模型诊断与实验结果 */
+.model-lab { border-top-color: var(--border); }
+.model-status-line, .fold-title { font-size: 12px; }
+.fold-title span, .model-reason { color: var(--text-faint); font-size: 11px; }
+.fold-item { background: var(--bg-panel-2); border-radius: 7px; }
+.fold-item > div:first-child { font-size: 11px; }
+.fold-item small, .consensus-row span { color: var(--text-faint); font-size: 10px; }
+.consensus-row b { font-size: 12px; }
+.contribution-row { font-size: 12px; }
+.contribution-track { height: 6px; }
+
+/* 交互组件：统一焦点、状态和按压反馈 */
+.watch-btn { min-width: 30px; min-height: 30px; padding: 4px; }
+.opp-card, .heat-cell { border-radius: 9px; }
+.opp-card:hover, .heat-cell:hover { transform: none; box-shadow: var(--shadow-lift); }
+.product-footer { margin-top: 20px; padding: 14px 4px 0; border-top: 1px solid var(--border); border-left: 0; }
+.command-box { background: #101922; border-radius: 12px; }
+.command-list button { min-height: 42px; }
+.command-foot { color: var(--text-faint); font-size: 11px; }
+kbd { font-size: 10px; }
+
+body.compact .page { padding-top: 14px; }
+body.compact .panel { padding: 14px 16px; }
+body.compact .metric { padding: 9px 11px; }
+body.compact .grid-metrics { gap: 1px; }
+body.compact td { padding-top: 7px; padding-bottom: 7px; }
+
+@media (min-width: 1700px) {
+  .page { padding-top: 26px; }
+  .panel { padding: 19px 20px; }
+}
+
+@media (max-width: 1180px) {
+  .nav { padding: 0 18px; gap: 9px; }
+  .nav a.tab { padding: 8px 9px; }
+}
+
+@media (max-width: 760px) {
+  body { font-size: 14px; }
+  .page { padding: 12px; }
+  .row { gap: 12px; margin-bottom: 12px; }
+  .nav { min-height: 54px; padding: 0 12px; }
+  .nav .brand { padding: 15px 0; }
+  .nav a.tab { min-height: 38px; padding: 10px 8px; }
+  .controls { gap: 8px; padding: 10px; }
+  .controls select, .controls input, .controls button { min-height: 42px; }
+  .controls button { padding-left: 13px; padding-right: 13px; }
+  .panel { padding: 15px 14px; }
+  .panel h3 { margin-bottom: 13px; padding-bottom: 10px; }
+  .metric { padding: 11px 10px; }
+  .metric .v { font-size: 15px; }
+  th { padding: 9px 7px; }
+  td { padding: 10px 7px; }
+  .watch-btn { min-width: 40px; min-height: 40px; }
+  .product-footer { margin-top: 16px; }
+}
+
+@media (max-width: 420px) {
+  .nav a.tab { padding: 10px 6px; }
+  .metric .v { font-size: 14px; }
+  .grid-metrics { border-radius: 8px; }
+  .panel h3 .sub { line-height: 1.55; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { scroll-behavior: auto !important; }
 }
