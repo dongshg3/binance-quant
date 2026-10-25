@@ -6,68 +6,15 @@
   "where": "GitHub Actions runner",
   "note": "无人值守，每小时两个槽位；不依赖任何人的电脑"
  },
- "updatedAt": "2026-10-25T21:59:04+00:00",
+ "updatedAt": "2026-10-25T22:04:45+00:00",
  "engine": "nlkit-1.0",
  "loop": {
-  "generation": 333,
-  "nTrials": 1998,
-  "ledgerEntries": 1998,
+  "generation": 336,
+  "nTrials": 2016,
+  "ledgerEntries": 2016,
   "passedAllGates": 0,
   "startedAt": "2026-10-17T09:10:37+00:00",
   "history": [
-   {
-    "generation": 322,
-    "at": "2026-10-25T19:10:10+00:00",
-    "nEval": 6,
-    "nPassed": 0,
-    "topObjective": 0.571,
-    "topSharpe": 0.571,
-    "topIC": 0.0215,
-    "topDSR": 0.001,
-    "pbo": 0.3143,
-    "promoted": false,
-    "families": [
-     "gated",
-     "hgb",
-     "mlp"
-    ]
-   },
-   {
-    "generation": 323,
-    "at": "2026-10-25T19:11:35+00:00",
-    "nEval": 6,
-    "nPassed": 0,
-    "topObjective": 1.636,
-    "topSharpe": 1.636,
-    "topIC": 0.0105,
-    "topDSR": 0.0072,
-    "pbo": 0.0571,
-    "promoted": false,
-    "families": [
-     "gated",
-     "hgb",
-     "mlp"
-    ]
-   },
-   {
-    "generation": 324,
-    "at": "2026-10-25T19:13:56+00:00",
-    "nEval": 6,
-    "nPassed": 0,
-    "topObjective": 2.042,
-    "topSharpe": 2.042,
-    "topIC": -0.006,
-    "topDSR": 0.0042,
-    "pbo": 0.4714,
-    "promoted": false,
-    "families": [
-     "et",
-     "gated",
-     "hgb",
-     "mlp",
-     "ridge"
-    ]
-   },
    {
     "generation": 325,
     "at": "2026-10-25T19:32:47+00:00",
@@ -226,6 +173,62 @@
      "et",
      "gated",
      "hgb",
+     "ridge"
+    ]
+   },
+   {
+    "generation": 334,
+    "at": "2026-10-25T22:01:53+00:00",
+    "nEval": 6,
+    "nPassed": 0,
+    "topObjective": -0.772,
+    "topSharpe": -0.772,
+    "topIC": 0.0062,
+    "topDSR": 0.0001,
+    "pbo": 0.8571,
+    "promoted": false,
+    "families": [
+     "et",
+     "gated",
+     "hgb",
+     "mlp",
+     "ridge"
+    ]
+   },
+   {
+    "generation": 335,
+    "at": "2026-10-25T22:03:20+00:00",
+    "nEval": 6,
+    "nPassed": 0,
+    "topObjective": 1.318,
+    "topSharpe": 1.318,
+    "topIC": 0.0079,
+    "topDSR": 0.0034,
+    "pbo": 0.0143,
+    "promoted": false,
+    "families": [
+     "gated",
+     "hgb",
+     "mlp",
+     "ridge"
+    ]
+   },
+   {
+    "generation": 336,
+    "at": "2026-10-25T22:04:45+00:00",
+    "nEval": 6,
+    "nPassed": 0,
+    "topObjective": -0.667,
+    "topSharpe": -0.667,
+    "topIC": 0.0096,
+    "topDSR": 0.0001,
+    "pbo": 0.2714,
+    "promoted": false,
+    "families": [
+     "et",
+     "gated",
+     "hgb",
+     "mlp",
      "ridge"
     ]
    }
