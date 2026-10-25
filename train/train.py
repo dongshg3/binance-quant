@@ -87,7 +87,7 @@ EMA_ALPHA = 0.6           # 权重收缩：新权重 0.6 + 旧权重 0.4（防�
 TRACKER_MIN_N = 30        # 实盘追踪样本下限，不足则闸门不启用
 TRACKER_TOLERANCE = 0.02  # 实盘 IC 允许退化容忍度
 
-DATA_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "data")
+DATA_DIR = os.path.abspath(os.environ.get("TQ_DATA_DIR", os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "data")))
 TRACKER_DIR = os.path.join(DATA_DIR, "tracker")
 os.makedirs(DATA_DIR, exist_ok=True)
 
@@ -883,10 +883,9 @@ def main():
         shrunk = {g: v / absum2 for g, v in shrunk.items()}
     candidate = {g: round(shrunk[g], 4) for g in GROUPS}
 
-    # ---------------- 逐币独立模型（父段收缩防过拟合） ----------------
-    # 每个币种自己的时间序列独立岭回归；采纳门槛：OOS TS IC ≥ 0.04 且粗略 t ≥ 2。
-    # 通过的权重与父段权重 50/50 收缩（James-Stein 思想：单币噪声大，向分段均值收缩）
-    coin_models = {}
+    # ---------------- 全币种分层自适应模型 ----------------
+    # 每币都有独立档案；只有多折时间外推、NW 显著性和父模型增量同时达标才晋级。
+    # 未晋级者进入影子模式继续学习，前端不会因为“必须有模型”而采用噪声权重。
     def parent_weights_of(sym):
         meta = symbol_meta.get(sym, {})
         cs = segments.get("cat:" + str(meta.get("cat")))
@@ -896,39 +895,15 @@ def main():
         if zs and zs.get("good") and zs.get("weights"):
             return zs["weights"]
         return candidate
-    for sym in np.unique(ss):
-        m_c = ss == sym
-        tr_c = m_c & train_mask
-        te_c = m_c & test_mask
-        if tr_c.sum() < 1500 or te_c.sum() < 400:
-            continue
-        mu_c = X[tr_c].mean(axis=0); sd_c = X[tr_c].std(axis=0); sd_c[sd_c == 0] = 1
-        Ztr_c = (X[tr_c] - mu_c) / sd_c
-        Zte_c = (X[te_c] - mu_c) / sd_c
-        A_c = Ztr_c.T @ Ztr_c + RIDGE_LAMBDA * np.eye(d)
-        w_c = np.linalg.solve(A_c, Ztr_c.T @ y[tr_c])
-        ic_c = spearman(Zte_c @ w_c, y[te_c])
-        t_c = ic_c * math.sqrt(float(te_c.sum()))  # 粗略 t（标签重叠会高估，仅作筛选）
-        if ic_c < 0.04 or t_c < 2.0:
-            continue
-        w_c_raw = w_c / sd_c
-        absum_c = float(np.sum(np.abs(w_c_raw)))
-        if absum_c <= 0:
-            continue
-        w_cn = {g: float(w_c_raw[j]) / absum_c for j, g in enumerate(GROUPS)}
-        pw = parent_weights_of(sym)
-        w_pub = {g: 0.5 * w_cn[g] + 0.5 * float(pw.get(g, 0)) for g in GROUPS}
-        absum_p = sum(abs(v) for v in w_pub.values())
-        if absum_p > 0:
-            w_pub = {g: v / absum_p for g, v in w_pub.items()}
-        comp_c = X[m_c] @ np.array([w_pub[g] for g in GROUPS])
-        scale_c = float(np.std(comp_c))
-        coin_models[str(sym)] = {
-            "weights": {g: round(w_pub[g], 4) for g in GROUPS},
-            "scoreScale": round(scale_c, 8) if scale_c > 1e-8 else 1.0,
-            "ic": round(ic_c, 4), "t": round(t_c, 2), "n": int(te_c.sum()),
-        }
-    print(f"[train] 逐币模型: {len(coin_models)} 个通过采纳门槛（IC≥0.04 且 t≥2，父段50%收缩）")
+
+    from coin_models import train_all_coin_models
+    coin_models = train_all_coin_models(
+        X=X, y=y, ss=ss, tt=tt, nn=nn, symbol_meta=symbol_meta,
+        parent_weights_of=parent_weights_of, spearman=spearman,
+        newey_west_t=newey_west_t, groups=GROUPS, embargo=EMBARGO,
+        hgb_enabled=os.environ.get("TQ_COIN_HGB", "1") not in ("0", "false", "False"),
+    )
+    active_coin_models = sum(v.get("status") == "active" for v in coin_models.values())
 
     # 闸门 1：信息显著性硬门槛——横截面 IC（选币能力，对工程化标签）必须为正且
     # Newey-West t ≥ 2（时序自相关调整后的显著性，防止 IC 均值被自相关虚增）
@@ -1009,8 +984,14 @@ def main():
         "conditionalIC": conditional_ic,
         "segments": {k: {kk: v[kk] for kk in ("icXS", "nwT", "n", "symbols", "good") if kk in v} | {"flipped": v.get("flipped", False), "modelType": v.get("modelType", "ridge")} for k, v in segments.items()},
         "etExperiments": et_report,
-        "coinModels": {"adopted": len(coin_models),
-                       "icMean": round(float(np.mean([v["ic"] for v in coin_models.values()])), 4) if coin_models else None},
+        "coinModels": {
+            "covered": len(coin_models), "adopted": active_coin_models,
+            "shadow": sum(v.get("status") == "shadow" for v in coin_models.values()),
+            "warmup": sum(v.get("status") == "warmup" for v in coin_models.values()),
+            "hgb": sum(v.get("status") == "active" and v.get("hgbBlend", 0) > 0 for v in coin_models.values()),
+            "icMean": round(float(np.mean([v["ic"] for v in coin_models.values() if v.get("ic") is not None])), 4)
+                      if any(v.get("ic") is not None for v in coin_models.values()) else None,
+        },
         "accepted": accepted,
         "rejectReason": "; ".join(reject_reasons),
         "alpha": EMA_ALPHA,
@@ -1025,7 +1006,7 @@ def main():
     model = {
         "version": version,
         "trainedAt": trained_at,
-        "engine": "ridge-v6-seg-et-coin",
+        "engine": "ridge-v7-coin-ensemble",
         "fwdSet": FWD_SET,
         "weights": final_weights,
         "scoreScale": round(score_scale, 8),

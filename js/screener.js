@@ -13,13 +13,39 @@ renderNav('screener');
 document.getElementById('disclaimerSlot').innerHTML = disclaimerHTML();
 
 const $ = id => document.getElementById(id);
-const CACHE_KEY = 'bq_scan_cache_v1';
+const CACHE_KEY = 'bq_scan_cache_v2';
+const WATCH_KEY = 'bq_watchlist_v1';
 const state = {
   market: 'futures', interval: '1h',
   symbols: [], tickers: {}, funding: {}, results: [],
   scanning: false, autoTimer: null,
-  sortKey: 'score', sortDir: -1,
+  sortKey: 'quality', sortDir: -1,
+  watch: new Set(JSON.parse(localStorage.getItem(WATCH_KEY) || '[]')),
 };
+
+function saveWatch() { localStorage.setItem(WATCH_KEY, JSON.stringify([...state.watch])); }
+function downloadCSV(filename, rows) {
+  const csv = rows.map(row => row.map(v => `"${String(v ?? '').replaceAll('"', '""')}"`).join(',')).join('\r\n');
+  const url = URL.createObjectURL(new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8' }));
+  const a = document.createElement('a'); a.href = url; a.download = filename; a.click();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+function filteredResults() {
+  let list = [...state.results];
+  const q = $('coinSearch').value.trim().toUpperCase();
+  const filter = $('signalFilter').value, model = $('modelFilter').value;
+  if (q) list = list.filter(x => x.symbol.includes(q));
+  if (filter === 'long') list = list.filter(x => x.score >= 0.15);
+  else if (filter === 'short') list = list.filter(x => x.score <= -0.15);
+  else if (filter === 'strong') list = list.filter(x => Math.abs(x.score) >= 0.35);
+  else if (filter === 'edge') list = list.filter(x => (x.edgeIC ?? 0) >= 0.03);
+  else if (filter === 'coin') list = list.filter(x => x.edgeKind === 'coin');
+  else if (filter === 'quality') list = list.filter(x => qualityOf(x) >= 0.65);
+  else if (filter === 'squeeze') list = list.filter(x => x.squeeze < 0.6);
+  else if (filter === 'watch') list = list.filter(x => state.watch.has(x.symbol));
+  if (model !== 'all') list = list.filter(x => (x.coinStatus || 'uncovered') === model);
+  return list;
+}
 
 // ---------------- 结果持久化（刷新不丢） ----------------
 function saveCache() {
@@ -89,6 +115,15 @@ async function init() {
   });
   $('intervalSelect').addEventListener('change', e => { state.interval = e.target.value; });
   $('signalFilter').addEventListener('change', renderTable);
+  $('modelFilter').addEventListener('change', renderTable);
+  $('coinSearch').addEventListener('input', renderTable);
+  $('exportScanBtn').addEventListener('click', () => {
+    const list = filteredResults();
+    downloadCSV(`market-scan-${state.market}-${state.interval}-${Date.now()}.csv`, [
+      ['symbol', 'price', 'change24h_pct', 'quoteVolume', 'score', 'quality', 'xsPercentile', 'edgeIC', 'coinStatus', 'rsi', 'adx', 'annualVol', 'funding'],
+      ...list.map(x => [x.symbol, x.price, x.change24h, x.quoteVolume, x.score, qualityOf(x), x.xsPct, x.edgeIC, x.coinStatus, x.rsi, x.adx, x.annVol, x.funding]),
+    ]);
+  });
 
   document.querySelectorAll('th.sortable').forEach(th => {
     th.addEventListener('click', () => {
@@ -181,6 +216,7 @@ async function scanMarket() {
               regime: detectRegime(f.rawIndicators),
               funding: extra.fundingRate ?? null,
               edgeKind: edge.kind, edgeKey: edge.key, edgeFlipped: edge.flipped, edgeIC: edge.ic,
+              coinStatus: edge.coinStatus || 'uncovered', coinT: edge.coinT, deltaIC: edge.deltaIC, modelType: edge.modelType || null,
             });
           }
         }
@@ -208,6 +244,7 @@ async function scanMarket() {
       x.xsPct = lo / (sorted.length - 1);
     }
   }
+  for (const x of results) x.quality = qualityOf(x);
 
   state.results = results;
   state.scanning = false;
@@ -253,6 +290,8 @@ function renderBreadth() {
     { k: '|评分| P90 / P99', v: `${fmtNum(q(0.9), 3)} / ${fmtNum(q(0.99), 3)}`, cls: q(0.9) > 0.15 ? '' : 'bad' },
     { k: '挤压蓄势 (BBW<0.6均值)', v: r.filter(x => x.squeeze < 0.6).length },
     { k: '放量 (量>1.5×均量)', v: r.filter(x => x.volRatio > 1.5).length },
+    { k: '逐币已晋级 / 覆盖', v: `${r.filter(x => x.coinStatus === 'active').length} / ${r.filter(x => x.coinStatus && x.coinStatus !== 'uncovered').length}` },
+    { k: '质量分中位数', v: fmtNum(Stats.percentile(r.map(qualityOf), 50) * 100, 1) },
   ];
   $('marketStats').innerHTML = cells.map(c => `<div class="metric ${c.cls || ''}"><div class="k">${c.k}</div><div class="v">${c.v}</div></div>`).join('');
 }
@@ -399,51 +438,57 @@ function renderOpportunities() {
 
 // ---------------- 结果表 ----------------
 function renderTable() {
-  let list = [...state.results];
-  const filter = $('signalFilter').value;
-  if (filter === 'long') list = list.filter(x => x.score >= 0.15);
-  else if (filter === 'short') list = list.filter(x => x.score <= -0.15);
-  else if (filter === 'strong') list = list.filter(x => Math.abs(x.score) >= 0.35);
-  else if (filter === 'edge') list = list.filter(x => (x.edgeIC ?? 0) >= 0.03);
-  else if (filter === 'coin') list = list.filter(x => x.edgeKind === 'coin');
-
+  const list = filteredResults();
   const { sortKey, sortDir } = state;
   list.sort((a, b) => {
-    const va = a[sortKey], vb = b[sortKey];
-    if (typeof va === 'string') return va.localeCompare(vb) * sortDir;
+    const va = sortKey === 'quality' ? qualityOf(a) : a[sortKey];
+    const vb = sortKey === 'quality' ? qualityOf(b) : b[sortKey];
+    if (typeof va === 'string') return va.localeCompare(vb || '') * sortDir;
     return ((va ?? -Infinity) - (vb ?? -Infinity)) * sortDir;
   });
 
-  $('resultCount').textContent = `${list.length} 个币种 · 点击行查看深度分析`;
+  $('resultCount').textContent = `${list.length} / ${state.results.length} 个币种 · 点击行查看深度分析`;
   const CAT_CN = { major: '主流', l1: 'L1', l2: 'L2', defi: 'DeFi', meme: 'Meme', ai: 'AI', gaming: '游戏', infra: '基建', other: '其他' };
   const SIZE_CN = { large: '大盘', mid: '中盘', small: '小盘' };
-  const meta = (getModel() && getModel().symbolMeta) || {};
+  const COIN_CN = { active: '已晋级', shadow: '影子', warmup: '积累', uncovered: '待覆盖' };
+  const meta = getModel()?.symbolMeta || {};
   $('screenerBody').innerHTML = list.map(x => {
-    const sig = signalOf(x.score);
-    const t = tierOf(x.score);
+    const sig = signalOf(x.score), t = tierOf(x.score), quality = qualityOf(x);
     const rowCls = t.cls === 'tS' || t.cls === 'tA' ? (x.score > 0 ? 'row-tA-buy' : 'row-tA-sell')
       : t.cls === 'tB' ? (x.score > 0 ? 'row-tB-buy' : 'row-tB-sell') : '';
     const sm = meta[x.symbol];
-    const segChip = sm ? ` <span class="chip flat" style="padding:0 5px;font-size:9px;" title="${SIZE_CN[sm.size]} · ${CAT_CN[sm.cat]}分段模型">${CAT_CN[sm.cat]}</span>` : '';
+    const segChip = sm ? ` <span class="chip flat category-chip" title="${SIZE_CN[sm.size]} · ${CAT_CN[sm.cat]}分段模型">${CAT_CN[sm.cat]}</span>` : '';
+    const watched = state.watch.has(x.symbol);
+    const coinStatus = x.coinStatus || 'uncovered';
     return `<tr data-sym="${x.symbol}" class="${rowCls}">
-      <td><b>${x.symbol.replace('USDT', '')}</b><span style="color:var(--text-dim);font-size:10px;">/USDT</span>${segChip}</td>
+      <td><b>${x.symbol.replace('USDT', '')}</b><span class="pair-suffix">/USDT</span>${segChip}</td>
       <td>${fmtPrice(x.price)}</td>
       <td class="${clsBySign(x.change24h)}">${x.change24h != null ? fmtPct100(x.change24h) : '—'}</td>
       <td>${fmtVol(x.quoteVolume)}</td>
       <td><span class="score-chip ${t.cls}-${x.score > 0 ? 'buy' : 'sell'}">${fmtNum(x.score, 3)}${t.key !== 'C' ? ' ' + t.key : ''}</span></td>
-      <td>${x.edgeKind ? `<span class="chip ${x.edgeKind === 'coin' ? 'long' : x.edgeFlipped ? 'trend' : 'flat'}" style="padding:1px 6px;font-size:9px;" title="该币种评分使用的权重来源及其样本外 IC">${edgeLabel(x)}${x.edgeIC != null ? ` ${x.edgeIC.toFixed(3)}` : ''}</span>` : '<span style="color:var(--text-faint)">—</span>'}</td>
+      <td><div class="quality-cell"><b>${(quality * 100).toFixed(0)}</b><span><i style="width:${Math.min(100, quality * 100)}%"></i></span></div></td>
+      <td>${x.xsPct != null ? `<span class="percentile">${(x.xsPct * 100).toFixed(0)}%</span>` : '—'}</td>
+      <td>${x.edgeKind ? `<span class="chip ${x.edgeKind === 'coin' ? 'long' : x.edgeFlipped ? 'trend' : 'flat'} compact-chip" title="当前实际生效模型及 OOS IC">${edgeLabel(x)}${x.edgeIC != null ? ` ${x.edgeIC.toFixed(3)}` : ''}</span>` : '—'}</td>
+      <td><span class="model-state ${coinStatus}">${COIN_CN[coinStatus]}</span>${x.coinT != null ? `<small class="table-note">t ${fmtNum(x.coinT, 1)}</small>` : ''}</td>
       <td class="${x.rsi > 70 ? 'down' : x.rsi < 30 ? 'up' : ''}">${fmtNum(x.rsi, 1)}</td>
       <td>${fmtNum(x.adx, 1)}</td>
       <td>${fmtPct(x.annVol, 0, false)}</td>
       <td>${x.position > 0 ? fmtPct(x.position, 0, false) : '—'}</td>
       <td><span class="chip ${x.regime.cls}">${x.regime.label}</span></td>
       <td><span class="chip ${sig.dir > 0 ? 'long' : sig.dir < 0 ? 'short' : 'flat'}">${sig.label}</span></td>
+      <td><button class="watch-btn ${watched ? 'active' : ''}" data-watch="${x.symbol}" aria-label="${watched ? '取消关注' : '关注'} ${x.symbol}">${watched ? '★' : '☆'}</button></td>
     </tr>`;
-  }).join('') || '<tr><td colspan="12" class="placeholder">无匹配结果</td></tr>';
+  }).join('') || '<tr><td colspan="15" class="placeholder">无匹配结果，试试放宽筛选条件</td></tr>';
 
   $('screenerBody').querySelectorAll('tr[data-sym]').forEach(tr => {
     tr.addEventListener('click', () => goDashboard(tr.dataset.sym, state.market, state.interval));
   });
+  $('screenerBody').querySelectorAll('[data-watch]').forEach(btn => btn.addEventListener('click', e => {
+    e.stopPropagation();
+    const sym = btn.dataset.watch;
+    state.watch.has(sym) ? state.watch.delete(sym) : state.watch.add(sym);
+    saveWatch(); renderTable();
+  }));
 }
 
 init();

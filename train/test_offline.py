@@ -1,7 +1,10 @@
 # 离线冒烟测试：合成数据驱动 train.py 全流程（网络不可用时验证新代码路径）
-import os, sys, math
+import os, sys, math, tempfile
 import numpy as np
 
+# 全流程测试必须隔离产物，绝不覆盖公开站正在使用的 model.json。
+os.makedirs(os.path.abspath(".tmp"), exist_ok=True)
+os.environ["TQ_DATA_DIR"] = tempfile.mkdtemp(prefix="offline-", dir=os.path.abspath(".tmp"))
 os.environ.setdefault("TQ_TOP_N", "12")
 os.environ.setdefault("TQ_LIMIT", "1200")
 os.environ.setdefault("TQ_MIN_SAMPLES", "20000")

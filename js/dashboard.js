@@ -3,7 +3,7 @@
 // ============================================================
 import { Stats, EMA } from './lib/stats.js';
 import { loadAllSymbols, loadTickers, fetchKlines, fetchFundingRate, fetchFundingHistory, fetchLongShortRatio, fetchOpenInterestChange, fetchTakerRatio, connectKlineWS, pollKlines, getDataMode } from './lib/api.js';
-import { computeFactors, computePosition, detectRegime, signalOf, monteCarloCone, conditionalStats, pointForecast, regChannel, riskLevels, buildTradePlan, extremeGroups, fuseMTF, signalConfidence, garchVolForecast, btcLinkage, GROUP_NAMES } from './lib/quant.js';
+import { computeFactors, computePosition, detectRegime, signalOf, monteCarloCone, conditionalStats, pointForecast, regChannel, riskLevels, buildTradePlan, extremeGroups, fuseMTF, signalConfidence, garchVolForecast, btcLinkage, coinModelInfo, weightSourceInfo, GROUP_NAMES } from './lib/quant.js';
 import { renderNav, setNet, fmtPrice, fmtPct, fmtPct100, fmtNum, fmtVol, clsBySign, getParams, buildSymbolPicker, disclaimerHTML, icon, pop } from './lib/ui.js';
 import { loadModel, modelBadgeHTML } from './lib/model.js';
 import { logSignal, labelOutcomes } from './lib/tracker.js';
@@ -33,7 +33,9 @@ async function init() {
   $('marketSelect').value = state.market;
   $('intervalSelect').value = state.interval;
   initChart();
-  loadModel().then(() => { const b = $('modelBadge'); if (b) b.innerHTML = modelBadgeHTML(); });
+  await loadModel();
+  const badge = $('modelBadge');
+  if (badge) badge.innerHTML = modelBadgeHTML();
 
   try {
     setNet('加载币种列表…', 'connecting');
@@ -141,6 +143,9 @@ async function reload() {
   renderNews(newsView);
   renderForecast(factors, fused);
   renderCondStats(factors);
+  renderCoinModel(factors, mtfRows, fused);
+  renderMarketQuality(factors);
+  renderContributions(factors);
   renderChart(factors);
   renderMTFTable(mtfRows, fused);
   connectLive(extra);
@@ -349,6 +354,83 @@ function renderNews(nv) {
       </div>` + headlines;
 }
 
+// ---------------- 逐币模型、市场质量与贡献归因 ----------------
+function renderCoinModel(factors, mtfRows, fused) {
+  const coin = coinModelInfo(state.symbol);
+  const effective = weightSourceInfo(state.symbol);
+  const status = coin?.status || (coin ? 'active' : 'uncovered');
+  const statusMeta = {
+    active: ['已晋级', 'long', '独立模型通过多折时间外推，当前接管评分'],
+    shadow: ['影子验证', 'flat', '候选模型持续学习，当前仍由父模型评分'],
+    warmup: ['样本积累', 'flat', '历史长度或有效折数不足，当前沿用父模型'],
+    uncovered: ['等待覆盖', 'flat', '该币将在下一轮云端训练中建立独立档案'],
+  }[status];
+  const typeCN = { 'hgb-ridge-ensemble': 'HGB + Ridge 集成', 'adaptive-ridge': '自适应岭回归', 'hierarchical-parent': '分层父模型' };
+  $('coinModelVersion').textContent = coin?.version ? `云端 v${coin.version} · ${new Date(coin.trainedAt).toLocaleString()}` : '云端逐轮验证与晋级';
+  const cells = [
+    { k: '候选模型', v: typeCN[coin?.modelType] || '等待独立训练' },
+    { k: 'OOS IC', v: coin?.ic != null ? fmtNum(coin.ic, 4) : '—', cls: (coin?.ic ?? 0) >= 0.02 ? 'good' : '' },
+    { k: 'Newey–West t', v: coin?.t != null ? fmtNum(coin.t, 2) : '—', cls: (coin?.t ?? 0) >= 2 ? 'good' : '' },
+    { k: '父模型增量 IC', v: coin?.deltaIC != null ? fmtNum(coin.deltaIC, 4) : '—', cls: (coin?.deltaIC ?? 0) >= 0.002 ? 'good' : '' },
+    { k: '验证样本', v: coin?.n != null ? coin.n.toLocaleString() : '—' },
+    { k: '非线性混合', v: coin?.hgbBlend ? fmtPct(coin.hgbBlend, 0, false) : '0%' },
+    { k: '父段收缩系数', v: coin?.shrinkage != null ? fmtNum(coin.shrinkage, 2) : '—' },
+    { k: '当前实际路由', v: effective.kind === 'coin' ? '逐币独立模型' : effective.kind === 'cat' ? '板块父模型' : effective.kind === 'size' ? '规模父模型' : '全局父模型' },
+  ];
+  $('coinModelContent').innerHTML = `<div class="model-status-line"><span class="chip ${statusMeta[1]}">${statusMeta[0]}</span><span>${statusMeta[2]}</span></div>`
+    + `<div class="grid-metrics">${cells.map(c => `<div class="metric ${c.cls}"><div class="k">${c.k}</div><div class="v">${c.v}</div></div>`).join('')}</div>`;
+  const folds = coin?.foldICs || [];
+  $('coinFoldTrack').innerHTML = folds.length ? `<div class="fold-title">逐折样本外 IC <span>三折时间外推 · 200 bar purge</span></div><div class="fold-grid">${folds.map((v, i) => `
+    <div class="fold-item"><div><span>Fold ${i + 1}</span><b class="${clsBySign(v)}">${fmtNum(v, 4)}</b></div><div class="fold-bar"><i style="width:${Math.min(100, Math.abs(v) / 0.1 * 100)}%" class="${v >= 0 ? 'pos' : 'neg'}"></i></div></div>`).join('')}</div>`
+    : '<div class="fold-title">逐折样本外 IC <span>完成首轮训练后展示</span></div>';
+  $('coinModelReason').textContent = coin?.reason || '覆盖不等于晋级：只有通过 OOS IC ≥ 0.02、NW t ≥ 2、至少两折为正且优于父模型的候选才会生效。';
+
+  const fcst = pointForecast(state.candles, 12);
+  const validMTF = mtfRows.filter(x => x.score != null);
+  const mtfDir = validMTF.length ? Math.sign(validMTF.reduce((s, x) => s + Math.sign(x.score), 0)) : 0;
+  const views = [
+    ['当前因子', Math.sign(factors.composite), fmtNum(factors.composite, 3)],
+    ['多周期融合', Math.sign(fused || 0), fused != null ? fmtNum(fused, 3) : '—'],
+    ['周期多数方向', mtfDir, `${validMTF.filter(x => Math.sign(x.score) === mtfDir).length}/${validMTF.length}`],
+    ['Holt T+12', fcst.length ? Math.sign(fcst[fcst.length - 1] - factors.rawIndicators.price) : 0, fcst.length ? fmtPrice(fcst[fcst.length - 1]) : '—'],
+  ];
+  $('modelConsensus').innerHTML = views.map(([k, dir, v]) => `<div><span>${k}</span><b class="${clsBySign(dir)}">${dir > 0 ? '偏多' : dir < 0 ? '偏空' : '中性'} · ${v}</b></div>`).join('');
+}
+
+function renderMarketQuality(factors) {
+  const closes = state.candles.map(x => x.close);
+  const rets = Stats.logReturns(closes.slice(-240));
+  const mu = Stats.mean(rets), sd = Stats.std(rets) || 1e-12;
+  const ppy = Stats.periodsPerYear(state.interval);
+  const neg = rets.filter(x => x < 0);
+  const downside = Math.sqrt(Stats.mean(rets.map(x => Math.min(x, 0) ** 2))) * Math.sqrt(ppy);
+  const skew = Stats.mean(rets.map(x => ((x - mu) / sd) ** 3));
+  const kurt = Stats.mean(rets.map(x => ((x - mu) / sd) ** 4));
+  const r20 = closes[closes.length - 1] / closes[Math.max(0, closes.length - 21)] - 1;
+  let cov = 0, v0 = 0, v1 = 0;
+  for (let i = 1; i < rets.length; i++) { cov += (rets[i] - mu) * (rets[i - 1] - mu); v0 += (rets[i] - mu) ** 2; v1 += (rets[i - 1] - mu) ** 2; }
+  const ac1 = cov / Math.sqrt(v0 * v1 || 1e-20);
+  const cells = [
+    { k: '20 bar 收益', v: fmtPct(r20, 2), cls: clsBySign(r20) },
+    { k: '下行波动率（年化）', v: fmtPct(downside, 1, false), cls: downside > 1 ? 'bad' : '' },
+    { k: '收益偏度', v: fmtNum(skew, 2), cls: skew < -0.5 ? 'bad' : '' },
+    { k: '收益峰度', v: fmtNum(kurt, 2), cls: kurt > 6 ? 'bad' : '' },
+    { k: '一阶自相关', v: fmtNum(ac1, 3), cls: clsBySign(ac1) },
+    { k: '近端最大回撤', v: fmtPct(-Stats.maxDrawdown(closes.slice(-240)), 2, false), cls: 'bad' },
+    { k: '趋势效率 ER', v: fmtNum(factors.rawIndicators.er, 2) },
+    { k: '24h 成交额', v: fmtVol(state.tickers[state.symbol]?.quoteVolume) },
+    { k: '负收益样本占比', v: fmtPct(neg.length / Math.max(rets.length, 1), 1, false) },
+  ];
+  $('marketQualityMetrics').innerHTML = cells.map(c => `<div class="metric ${c.cls}"><div class="k">${c.k}</div><div class="v">${c.v}</div></div>`).join('');
+}
+
+function renderContributions(factors) {
+  const rows = Object.entries(factors.contributions || {}).sort((a, b) => Math.abs(b[1]) - Math.abs(a[1]));
+  const max = Math.max(...rows.map(x => Math.abs(x[1])), 1e-8);
+  $('contributionBars').innerHTML = rows.map(([g, v]) => `<div class="contribution-row"><span>${GROUP_NAMES[g] || g}</span><div class="contribution-track"><i class="${v >= 0 ? 'pos' : 'neg'}" style="width:${Math.abs(v) / max * 50}%"></i></div><b class="${clsBySign(v)}">${fmtNum(v, 4)}</b></div>`).join('')
+    + `<div class="model-reason">${factors.modelRoute?.hgbApplied ? '当前含非线性集成：条形图展示可分解的线性部分，最终评分还包含 HGB 非线性贡献。' : '贡献之和为标定前线性评分；正贡献推动做多，负贡献推动做空。'}</div>`;
+}
+
 // ---------------- 预测 ----------------
 function renderForecast(factors, fused) {
   const raw = factors.rawIndicators;
@@ -397,10 +479,10 @@ function renderConeChart(mc, fcst) {
   if (state.coneChart) { try { state.coneChart.remove(); } catch (e) {} }
   const chart = LightweightCharts.createChart(el, {
     height: 200,
-    layout: { background: { color: 'transparent' }, textColor: '#5b6472' },
-    grid: { vertLines: { color: '#eef0f4' }, horzLines: { color: '#eef0f4' } },
-    timeScale: { borderColor: '#d8dee7' },
-    rightPriceScale: { borderColor: '#d8dee7' },
+    layout: { background: { color: 'transparent' }, textColor: '#8c96a5' },
+    grid: { vertLines: { color: 'rgba(148,163,184,0.08)' }, horzLines: { color: 'rgba(148,163,184,0.08)' } },
+    timeScale: { borderColor: 'rgba(148,163,184,0.18)' },
+    rightPriceScale: { borderColor: 'rgba(148,163,184,0.18)' },
   });
   state.coneChart = chart;
   const n = state.candles.length;
@@ -486,10 +568,10 @@ function initChart() {
   const el = $('chart');
   state.chart = LightweightCharts.createChart(el, {
     height: 380,
-    layout: { background: { color: 'transparent' }, textColor: '#5b6472' },
-    grid: { vertLines: { color: '#eef0f4' }, horzLines: { color: '#eef0f4' } },
-    timeScale: { borderColor: '#d8dee7', timeVisible: true },
-    rightPriceScale: { borderColor: '#d8dee7' },
+    layout: { background: { color: 'transparent' }, textColor: '#8c96a5' },
+    grid: { vertLines: { color: 'rgba(148,163,184,0.08)' }, horzLines: { color: 'rgba(148,163,184,0.08)' } },
+    timeScale: { borderColor: 'rgba(148,163,184,0.18)', timeVisible: true },
+    rightPriceScale: { borderColor: 'rgba(148,163,184,0.18)' },
     crosshair: { mode: 0 },
   });
   state.candleSeries = state.chart.addCandlestickSeries({

@@ -82,10 +82,11 @@ function renderModel(model) {
     if (cn > 0) {
       const ics = Object.values(model.coinModels).map(v => v.ic).filter(v => v != null);
       const meanIc = ics.length ? ics.reduce((a, b) => a + b, 0) / ics.length : null;
+      const active = Object.values(model.coinModels).filter(v => v.status ? v.status === 'active' : !!v.weights).length;
       cells.push({
-        k: '逐币独立模型',
-        v: `${cn} 个已启用 <small style="color:var(--text-faint)">IC 均 ${meanIc != null ? fmtNum(meanIc, 4) : '—'}</small>`,
-        cls: 'good',
+        k: '逐币晋级 / 档案覆盖',
+        v: `${active} / ${cn} <small style="color:var(--text-faint)">候选 IC 均 ${meanIc != null ? fmtNum(meanIc, 4) : '—'}</small>`,
+        cls: active > 0 ? 'good' : '',
       });
     }
   }
@@ -312,9 +313,15 @@ async function renderCoinModels(model) {
   const bySym = live ? live.bySym : {};
   const ov = live ? live.overall : null;
 
-  const list = Object.entries(coins).sort((a, b) => (b[1].ic ?? 0) - (a[1].ic ?? 0));
-  const meanIc = list.reduce((s, [, v]) => s + (v.ic ?? 0), 0) / list.length;
-  const posN = list.filter(([, v]) => (v.ic ?? 0) > 0).length;
+  const list = Object.entries(coins).sort((a, b) => (b[1].ic ?? -1) - (a[1].ic ?? -1));
+  const valid = list.filter(([, v]) => v.ic != null);
+  const meanIc = valid.length ? valid.reduce((s, [, v]) => s + v.ic, 0) / valid.length : null;
+  const posN = valid.filter(([, v]) => v.ic > 0).length;
+  const isActive = v => v.status ? v.status === 'active' : !!v.weights;
+  const activeN = list.filter(([, v]) => isActive(v)).length;
+  const shadowN = list.filter(([, v]) => v.status === 'shadow').length;
+  const warmupN = list.filter(([, v]) => v.status === 'warmup').length;
+  const hgbN = list.filter(([, v]) => isActive(v) && v.hgbBlend > 0).length;
 
   const rows = list.map(([sym, v]) => {
     const base = sym.replace(/USDT$/, '');
@@ -335,9 +342,11 @@ async function renderCoinModels(model) {
         ? `<span class="chip long">兑现 t=${lv.tStat != null ? fmtNum(lv.tStat, 1) : '—'}</span>`
         : `<span class="chip short">背离 t=${lv.tStat != null ? fmtNum(lv.tStat, 1) : '—'}</span>`;
     }
+    const st = v.status || 'active';
+    const stateChip = st === 'active' ? '<span class="model-state active">已晋级</span>' : st === 'shadow' ? '<span class="model-state shadow">影子</span>' : '<span class="model-state warmup">积累</span>';
     return `<tr style="cursor:default">
-      <td><b>${base}</b></td>
-      <td class="${v.ic >= 0.04 ? 'up' : ''}" style="font-weight:600">${fmtNum(v.ic, 4)}</td>
+      <td><b>${base}</b></td><td>${stateChip}</td>
+      <td class="${v.ic >= 0.02 ? 'up' : ''}" style="font-weight:600">${fmtNum(v.ic, 4)}</td>
       <td class="${Math.abs(v.t ?? 0) >= 2 ? 'up' : ''}">${v.t != null ? fmtNum(v.t, 2) : '—'}</td>
       <td>${v.n ?? '—'}</td>
       ${liveCells}
@@ -359,22 +368,23 @@ async function renderCoinModels(model) {
 
   el.innerHTML = `
     <div class="grid-metrics" style="margin-bottom:10px;">
-      <div class="metric good"><div class="k">已启用逐币模型</div><div class="v">${list.length} 个</div></div>
-      <div class="metric ${meanIc > 0.04 ? 'good' : ''}"><div class="k">样本外 IC 均值</div><div class="v">${fmtNum(meanIc, 4)}</div></div>
-      <div class="metric"><div class="k">IC 为正占比</div><div class="v">${fmtPct(posN / list.length, 1, false)}</div></div>
+      <div class="metric ${activeN ? 'good' : ''}"><div class="k">已晋级 / 全量档案</div><div class="v">${activeN} / ${list.length}</div></div>
+      <div class="metric"><div class="k">影子 / 样本积累</div><div class="v">${shadowN} / ${warmupN}</div></div>
+      <div class="metric"><div class="k">非线性集成生效</div><div class="v">${hgbN} 个</div></div>
+      <div class="metric ${meanIc > 0.02 ? 'good' : ''}"><div class="k">候选 OOS IC 均值</div><div class="v">${fmtNum(meanIc, 4)}</div></div>
+      <div class="metric"><div class="k">有效候选 IC 为正占比</div><div class="v">${valid.length ? fmtPct(posN / valid.length, 1, false) : '—'}</div></div>
       ${liveMetrics}
     </div>
     <div style="max-height:360px;overflow:auto;">
       <table class="table">
-        <thead><tr><th>币种</th><th>训练IC</th><th>t 值</th><th>测试样本</th><th>实盘结算</th><th>实盘胜率</th><th>实盘净收益</th><th>兑现判定</th></tr></thead>
+        <thead><tr><th>币种</th><th>模型状态</th><th>OOS IC</th><th>NW t</th><th>验证样本</th><th>实盘结算</th><th>实盘胜率</th><th>实盘净收益</th><th>兑现判定</th></tr></thead>
         <tbody>${rows}</tbody>
       </table>
     </div>
     <div style="font-size:10px;color:var(--text-faint);margin-top:8px;line-height:1.7;">
-      采纳标准：训练样本 ≥ 1500、测试样本 ≥ 400、IC ≥ 0.04 且 t ≥ 2。
-      逐币权重与父分段（板块/规模）做 50/50 收缩融合，避免单币小样本过拟合；未通过门槛的币种自动使用分段或全局权重。<br>
-      实盘战绩来自「策略竞技场」逐币族选手（全自动模拟实盘，含手续费滑点）：结算 ≥ 8 笔且净收益为正 = <b>兑现</b>（训练优势在实盘复现），为负 = <b>背离</b>；
-      「训练IC × 实盘收益一致性」ρ &gt; 0 说明 IC 排名能预测实盘排名——这是整套逐币训练是否有效的最终裁判。
+      晋级要求：至少 1700 bar 历史、三折时间外推、200 bar purge、OOS IC ≥ 0.02、NW t ≥ 2、至少两折正 IC，且相对父模型增量 ≥ 0.002。
+      权重收缩系数随有效历史自适应；HGB 挑战者必须多折稳定胜出并通过浏览器 AST 对拍。影子和预热币继续使用父模型。<br>
+      模拟实盘战绩含手续费与滑点；结算 ≥ 8 笔且净收益为正记为「兑现」，为负记为「背离」，与训练 IC 分开观察。
     </div>`;
 }
 

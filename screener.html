@@ -23,15 +23,26 @@
       <option value="1d">日线</option>
     </select>
     <label>最低24h成交额(USDT) <input id="minVolInput" type="number" value="1000000" step="1000000" style="width:110px"></label>
+    <input id="coinSearch" type="search" placeholder="搜索 BTC / ETH" aria-label="搜索币种" style="width:140px">
     <select id="signalFilter">
       <option value="all">全部信号</option>
       <option value="long">仅看多</option>
       <option value="short">仅看空</option>
       <option value="strong">仅强信号</option>
       <option value="edge">高模型优势（IC≥0.03）</option>
-      <option value="coin">逐币模型币种</option>
+      <option value="coin">逐币晋级模型</option>
+      <option value="quality">高质量机会（≥65）</option>
+      <option value="squeeze">波动挤压</option>
+      <option value="watch">我的关注</option>
+    </select>
+    <select id="modelFilter" aria-label="模型覆盖筛选">
+      <option value="all">全部模型状态</option>
+      <option value="active">逐币已晋级</option>
+      <option value="shadow">影子验证中</option>
+      <option value="warmup">样本积累中</option>
     </select>
     <button id="scanBtn" class="primary"><span data-icon="search"></span>开始扫描</button>
+    <button id="exportScanBtn" title="导出当前筛选结果"><span data-icon="download"></span>导出 CSV</button>
     <label><input type="checkbox" id="autoScan"> 每5分钟自动扫描</label>
     <span style="font-size:11px;color:var(--text-dim)" id="scanStatus">就绪</span>
   </div>
@@ -75,15 +86,19 @@
           <th class="sortable" data-key="change24h">24h%</th>
           <th class="sortable" data-key="quoteVolume">24h成交额</th>
           <th class="sortable" data-key="score">综合分 <span class="arrow" id="arrow-score"></span></th>
-          <th class="sortable" data-key="edgeIC" title="该币种评分使用的权重来源及其样本外 IC（越高代表该来源历史兑现能力越强）">模型优势</th>
+          <th class="sortable" data-key="quality">质量分</th>
+          <th class="sortable" data-key="xsPct">横截面分位</th>
+          <th class="sortable" data-key="edgeIC" title="当前实际生效模型的样本外 IC">模型优势</th>
+          <th class="sortable" data-key="coinStatus">逐币状态</th>
           <th class="sortable" data-key="rsi">RSI</th>
           <th class="sortable" data-key="adx">ADX</th>
           <th class="sortable" data-key="annVol">年化波动</th>
           <th class="sortable" data-key="position">建议仓位</th>
           <th>市场状态</th>
           <th>信号</th>
+          <th>关注</th>
         </tr></thead>
-        <tbody id="screenerBody"><tr><td colspan="11" class="placeholder">尚未扫描</td></tr></tbody>
+        <tbody id="screenerBody"><tr><td colspan="15" class="placeholder">尚未扫描</td></tr></tbody>
       </table>
     </div>
   </div>

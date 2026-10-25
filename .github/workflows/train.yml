@@ -29,8 +29,11 @@ jobs:
 
       - name: Train factor weights
         env:
-          TQ_TOP_N: '150'        # 训练币种池：Top 150 高流动性 USDT 交易对
+          TQ_TOP_N: '400'        # 接近全市场覆盖；新币历史不足时进入 warmup
           TQ_MIN_SAMPLES: '200000'
+          TQ_ET_FOLDS: '3'
+          TQ_ET_TREES: '80'
+          TQ_COIN_HGB: '1'
         run: python train/train.py
 
       - name: Commit model artifacts

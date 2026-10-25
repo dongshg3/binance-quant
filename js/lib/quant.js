@@ -33,6 +33,54 @@ let MODEL = null;
 export function setModel(m) { MODEL = m; }
 export function getModelInfo() { return MODEL; }
 
+// 浏览器执行云端导出的可移植模型。训练端已做 Python/AST 对拍，前端保持同一套预处理与树遍历。
+export function evalModelAST(ast, rowRaw) {
+  if (!ast || !Array.isArray(rowRaw)) return null;
+  const evalSub = (sub, raw) => {
+    const prep = sub.prep || {};
+    let x = sub.cols.map(i => Number(rowRaw[i]));
+    x = x.map((v, i) => Number.isFinite(v) ? v : (prep.med?.[i] ?? 0));
+    if (prep.kind === 'zm') x = x.map((v, i) => (v - prep.mu[i]) / prep.sd[i]);
+    if (sub.type === 'linear') return sub.coef.reduce((s, w, i) => s + w * x[i], sub.intercept || 0);
+    if (sub.type === 'mlp') {
+      let a = x;
+      for (let l = 0; l < sub.coefs.length; l++) {
+        const out = sub.intercepts[l].map((b, j) => b + sub.coefs[l].reduce((s, row, i) => s + row[j] * a[i], 0));
+        a = l < sub.coefs.length - 1 ? out.map(v => Math.max(0, v)) : out;
+      }
+      return a[0];
+    }
+    if (sub.type === 'trees') {
+      let total = sub.base || 0;
+      for (const tree of sub.trees) {
+        let i = 0;
+        for (let guard = 0; guard < 10000; guard++) {
+          const nd = tree.nodes[i];
+          if (!nd) return null;
+          if (nd.leaf) { total += (sub.scale ?? 1) * nd.v; break; }
+          const v = x[nd.f];
+          i = Number.isFinite(v) ? (v <= nd.t ? nd.l : nd.r) : (sub.missingLeft ? nd.l : nd.r);
+        }
+      }
+      return total;
+    }
+    return null;
+  };
+  if (ast.type === 'gated') {
+    const rv = rowRaw[ast.regimeIdx];
+    let b = 0;
+    if (Number.isFinite(rv)) { b = ast.edges.filter(e => rv >= e).length; b = Math.max(0, Math.min(b, ast.models.length - 1)); }
+    return evalSub(ast.models[b] || ast.fallback, rowRaw);
+  }
+  return evalSub(ast, rowRaw);
+}
+
+export function coinModelInfo(symbol) {
+  const coin = symbol && MODEL?.coinModels?.[symbol];
+  if (!coin) return null;
+  return { ...coin, active: coin.status ? coin.status === 'active' : !!coin.weights, version: MODEL.version, trainedAt: MODEL.trainedAt };
+}
+
 // ---------------- 信号分级 ----------------
 export function signalOf(composite) {
   if (composite >= 0.35) return { label: '强烈做多', cls: 'sbuy', dir: 1 };
@@ -47,9 +95,11 @@ export function signalOf(composite) {
 // 未命中或分段不达标时回退全局学习权重，再退静态权重
 function pickWeights(symbol) {
   if (MODEL && MODEL.weights) {
-    // 逐币独立模型（父段收缩后发布，通过 IC≥0.04 且 t≥2 采纳门槛）
     const coin = symbol && MODEL.coinModels && MODEL.coinModels[symbol];
-    if (coin && coin.weights) return { weights: coin.weights, scale: coin.scoreScale, src: '逐币' };
+    // 新版影子/预热模型只用于观察，不得接管评分；旧版无 status 的模型保持兼容。
+    if (coin && coin.weights && (!coin.status || coin.status === 'active')) {
+      return { weights: coin.weights, scale: coin.scoreScale, src: '逐币', coin };
+    }
     const meta = symbol && MODEL.symbolMeta && MODEL.symbolMeta[symbol];
     if (meta && MODEL.segments) {
       const catSeg = MODEL.segments['cat:' + meta.cat];
@@ -62,24 +112,20 @@ function pickWeights(symbol) {
   return { weights: FACTOR_WEIGHTS, scale: 0, src: 'static' };
 }
 
-// 该币种当前生效权重来源的元信息（种类、板块/规模键、是否反向、样本外 IC）
-// 用于机会排序与「模型优势」展示；IC 对反向分段取绝对值（反向启用后 |IC| 即有效边际）
+// 当前实际生效的模型；影子模型的诊断由 coinModelInfo 单独提供。
 export function weightSourceInfo(symbol) {
-  if (!MODEL || !MODEL.weights) return { kind: 'static', key: null, flipped: false, ic: null };
-  const coin = symbol && MODEL.coinModels && MODEL.coinModels[symbol];
-  if (coin && coin.weights) return { kind: 'coin', key: symbol, flipped: false, ic: coin.ic != null ? Math.abs(coin.ic) : null };
+  const coin = coinModelInfo(symbol);
+  const base = { coinStatus: coin?.status || null, coinT: coin?.t ?? null, deltaIC: coin?.deltaIC ?? null, foldICs: coin?.foldICs || [] };
+  if (!MODEL || !MODEL.weights) return { ...base, kind: 'static', key: null, flipped: false, ic: null };
+  if (coin?.active && coin.weights) return { ...base, kind: 'coin', key: symbol, flipped: false, ic: coin.ic != null ? Math.abs(coin.ic) : null, modelType: coin.modelType };
   const meta = symbol && MODEL.symbolMeta && MODEL.symbolMeta[symbol];
   if (meta && MODEL.segments) {
     const catSeg = MODEL.segments['cat:' + meta.cat];
-    if (catSeg && catSeg.good && catSeg.weights) {
-      return { kind: 'cat', key: meta.cat, flipped: !!catSeg.flipped, ic: catSeg.icXS != null ? Math.abs(catSeg.icXS) : null };
-    }
+    if (catSeg && catSeg.good && catSeg.weights) return { ...base, kind: 'cat', key: meta.cat, flipped: !!catSeg.flipped, ic: catSeg.icXS != null ? Math.abs(catSeg.icXS) : null };
     const sizeSeg = MODEL.segments['size:' + meta.size];
-    if (sizeSeg && sizeSeg.good && sizeSeg.weights) {
-      return { kind: 'size', key: meta.size, flipped: !!sizeSeg.flipped, ic: sizeSeg.icXS != null ? Math.abs(sizeSeg.icXS) : null };
-    }
+    if (sizeSeg && sizeSeg.good && sizeSeg.weights) return { ...base, kind: 'size', key: meta.size, flipped: !!sizeSeg.flipped, ic: sizeSeg.icXS != null ? Math.abs(sizeSeg.icXS) : null };
   }
-  return { kind: 'global', key: null, flipped: false, ic: MODEL.oos && MODEL.oos.icXS != null ? Math.abs(MODEL.oos.icXS) : null };
+  return { ...base, kind: 'global', key: null, flipped: false, ic: MODEL.oos?.icXS != null ? Math.abs(MODEL.oos.icXS) : null };
 }
 
 export function computeFactors(candles, extraData, symbol) {
@@ -221,26 +267,36 @@ export function computeFactors(candles, extraData, symbol) {
 
   const picked = pickWeights(symbol);
   const weights = picked.weights;
-  const groupAverages = {};
+  const groupAverages = {}, contributions = {};
   let composite = 0;
   for (const g in groups) {
     const avg = Stats.mean(groups[g]);
     groupAverages[g] = avg;
-    composite += (weights[g] != null ? weights[g] : FACTOR_WEIGHTS[g]) * avg;
+    contributions[g] = (weights[g] != null ? weights[g] : FACTOR_WEIGHTS[g]) * avg;
+    composite += contributions[g];
   }
-  // 评分尺度标定：学习权重含正负号会系统性压缩评分绝对值（排序能力不受影响），
-  // 按训练时发布的 scoreScale（横截面标准差）把显示评分标定回标准差 0.13，
-  // 让 0.15/0.35 信号阈值在任何版本权重下保持一致的统计含义（约 1.2σ / 2.7σ）
-  if (picked.scale > 0) {
-    composite = composite / picked.scale * 0.13;
+  const linearRaw = composite;
+  let nonlinear = null;
+  const coin = picked.coin;
+  if (coin?.ast && coin.hgbBlend > 0) {
+    const featureOrder = ['trend', 'momentum', 'meanRev', 'volume', 'volatility', 'position', 'htf', 'futures'];
+    nonlinear = evalModelAST(coin.ast, featureOrder.map(g => groupAverages[g] || 0));
+    if (Number.isFinite(nonlinear)) {
+      const linearZ = linearRaw / Math.max(coin.linearScale || coin.scoreScale || 1e-8, 1e-8);
+      const hgbZ = nonlinear / Math.max(coin.hgbScale || 1e-8, 1e-8);
+      composite = (1 - coin.hgbBlend) * linearZ + coin.hgbBlend * hgbZ;
+    }
   }
+  // 不同模型的输出先各自标准化，再混合和标定，避免把不同量纲直接相加。
+  if (picked.scale > 0) composite = composite / picked.scale * 0.13;
 
   const er = efficiencyRatio(c, 20);
   const hurstV = hurst(c);
   const logRets = Stats.logReturns(c.slice(-100));
 
   return {
-    composite, groupAverages, groups,
+    composite, groupAverages, groups, contributions, nonlinear,
+    modelRoute: { source: picked.src, coinStatus: coinModelInfo(symbol)?.status || null, hgbApplied: Number.isFinite(nonlinear) },
     weightSource: MODEL ? `learned-v${MODEL.version || '?'}·${picked.src}` : 'static',
     rawIndicators: {
       price, atr, rsi: rsiArr[n], macdH: histogram[n], adx: adx[n], pdi: pdi[n], mdi: mdi[n],
@@ -520,91 +576,124 @@ export function regChannel(candles, p = 60) {
 }
 
 // ---------------- 回测引擎（含手续费 + 滑点 + 基准对比） ----------------
+function normalCDF(x) {
+  const t = 1 / (1 + 0.2316419 * Math.abs(x));
+  const p = 1 - Math.exp(-x * x / 2) / Math.sqrt(2 * Math.PI) *
+    (0.319381530 * t - 0.356563782 * t ** 2 + 1.781477937 * t ** 3 - 1.821255978 * t ** 4 + 1.330274429 * t ** 5);
+  return x >= 0 ? p : 1 - p;
+}
+
+function returnRobustness(returns, ppy, block = 12, simulations = 240) {
+  const n = returns.length;
+  if (n < 40) return null;
+  const mu = Stats.mean(returns), sd = Stats.std(returns);
+  const sr = sd > 1e-12 ? mu / sd : 0;
+  const skew = sd > 1e-12 ? Stats.mean(returns.map(r => ((r - mu) / sd) ** 3)) : 0;
+  const kurt = sd > 1e-12 ? Stats.mean(returns.map(r => ((r - mu) / sd) ** 4)) : 3;
+  const den = Math.sqrt(Math.max(1e-8, 1 - skew * sr + (kurt - 1) / 4 * sr * sr));
+  const psr = normalCDF(sr * Math.sqrt(n - 1) / den);
+  // 固定种子的循环区块自助法：可复现，且保留短期波动聚集。
+  let seed = 0x2f6e2b1;
+  const rand = () => { seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0; return seed / 4294967296; };
+  const totals = [], sharpes = [];
+  for (let s = 0; s < simulations; s++) {
+    let total = 0;
+    const sample = [];
+    while (sample.length < n) {
+      const start = Math.floor(rand() * n);
+      for (let j = 0; j < block && sample.length < n; j++) sample.push(returns[(start + j) % n]);
+    }
+    for (const r of sample) total += r;
+    totals.push(Math.exp(Math.min(20, total)) - 1);
+    sharpes.push(Stats.sharpe(sample, ppy));
+  }
+  totals.sort((a, b) => a - b); sharpes.sort((a, b) => a - b);
+  return {
+    psr, skew, kurtosis: kurt, block, simulations,
+    returnCI95: [Stats.percentile(totals, 2.5), Stats.percentile(totals, 97.5)],
+    sharpeCI95: [Stats.percentile(sharpes, 2.5), Stats.percentile(sharpes, 97.5)],
+    positiveSharpeProb: sharpes.filter(x => x > 0).length / sharpes.length,
+  };
+}
+
 export function runBacktest(candles, interval, options = {}) {
-  const { feeRate = 0.0005, slippage = 0.0002, fundingRatePer8h = 0.0001, warmup = 200 } = options;
-  const n = candles.length;
-  if (n < warmup + 50) return { error: '数据不足，至少需要 ' + (warmup + 50) + ' 根K线' };
+  const {
+    feeRate = 0.0005, slippage = 0.0002, fundingRatePer8h = 0.0001,
+    warmup = 200, threshold = 0.15, minTradeDelta = 0.1,
+    symbol = null, startIndex = null, endIndex = null, bootstrap = true,
+  } = options;
+  const n = Math.min(candles.length, endIndex || candles.length);
+  const firstExec = Math.max(warmup + 1, startIndex || 0);
+  if (n - firstExec < 40) return { error: '有效回测区间不足 40 根K线，请增加历史或减少预热/隔离区' };
 
   const ppy = Stats.periodsPerYear(interval);
   const barsPer8h = Math.max(1, Math.round(288e5 / Stats.intervalMs(interval)));
-  const equity = [1.0];
-  const bhEquity = [1.0]; // 买入持有基准
-  const returns = [];
-  const trades = [];
-  let position = 0;
-  const sigLog = []; // 信号准确率统计
+  const equity = [1], bhEquity = [1], returns = [], trades = [], times = [];
+  let position = 0, grossEquity = 1, totalCosts = 0, fundingCashflow = 0, turnover = 0, exposure = 0;
+  const sigLog = [];
 
-  for (let i = warmup; i < n - 1; i++) {
-    const slice = candles.slice(0, i + 1);
-    const factors = computeFactors(slice, null);
+  for (let i = firstExec; i < n; i++) {
+    const prevOpen = candles[i - 1].open, execOpen = candles[i].open;
+    if (!(prevOpen > 0 && execOpen > 0)) continue;
+    // 旧持仓先从上一根开盘计价到本根开盘；随后才按上一根收盘信号调仓。
+    const marketReturn = position * Math.log(execOpen / prevOpen);
+    const funding = position !== 0 && i % barsPer8h === 0 ? position * fundingRatePer8h : 0;
+    grossEquity *= Math.exp(marketReturn);
+
+    const slice = candles.slice(0, i); // 最后一根是 i-1，绝不可包含执行 bar i
+    const factors = computeFactors(slice, null, symbol);
     if (!factors) continue;
     const posInfo = computePosition(factors.composite, slice, interval);
-    const desiredPos = posInfo.direction * posInfo.size;
-
-    const prevClose = candles[i - 1] ? candles[i - 1].close : candles[i].close;
-    const currClose = candles[i].close;
-
-    let barReturn = 0;
-    if (position !== 0) {
-      const barChange = (currClose - prevClose) / prevClose;
-      barReturn = position * barChange;
-      if (i % barsPer8h === 0 && position > 0) barReturn -= fundingRatePer8h * Math.abs(position);
+    let desired = Math.abs(factors.composite) < threshold ? 0 : posInfo.direction * posInfo.size;
+    if (Math.abs(desired - position) <= minTradeDelta) desired = position;
+    const delta = desired - position;
+    const cost = Math.abs(delta) * (feeRate + slippage);
+    if (Math.abs(delta) > 1e-12) {
+      trades.push({ time: candles[i].time, signalTime: candles[i - 1].time, from: position, to: desired, price: execOpen, score: factors.composite, cost });
+      turnover += Math.abs(delta);
     }
-    returns.push(barReturn);
-    equity.push(equity[equity.length - 1] * Math.exp(barReturn));
-    bhEquity.push(bhEquity[bhEquity.length - 1] * (currClose / prevClose));
+    totalCosts += cost; fundingCashflow += funding;
+    const netReturn = marketReturn - funding - cost;
+    returns.push(netReturn);
+    equity.push(Math.max(1e-12, equity[equity.length - 1] * Math.exp(netReturn)));
+    bhEquity.push(bhEquity[bhEquity.length - 1] * execOpen / prevOpen);
+    times.push(candles[i].time);
+    position = desired; exposure += Math.abs(position);
 
-    // 记录信号 → 未来 1 bar 实际方向（用于信号命中率）
-    if (Math.abs(factors.composite) >= 0.15) {
-      const fwdRet = candles[i + 1].close / currClose - 1;
-      sigLog.push({ dir: Math.sign(factors.composite), correct: Math.sign(fwdRet) === Math.sign(factors.composite) });
-    }
-
-    const posChange = desiredPos - position;
-    if (Math.abs(posChange) > 0.1) {
-      const cost = Math.abs(posChange) * (feeRate + slippage);
-      equity[equity.length - 1] *= (1 - cost);
-      if (Math.sign(desiredPos) !== Math.sign(position) || Math.abs(posChange) > 0.3) {
-        trades.push({ time: candles[i + 1].time, from: position, to: desiredPos, price: candles[i + 1].open, score: factors.composite });
-      }
-      position = desiredPos;
+    if (Math.abs(factors.composite) >= threshold) {
+      const fwdRet = candles[i].close / candles[i - 1].close - 1;
+      sigLog.push({ correct: Math.sign(fwdRet) === Math.sign(factors.composite) });
     }
   }
+  if (returns.length < 40) return { error: '有效信号序列不足 40 根K线' };
 
-  const totalReturn = equity[equity.length - 1] - 1;
+  const lastEq = equity[equity.length - 1], totalReturn = lastEq - 1;
   const years = returns.length / ppy;
-  const annualizedReturn = years > 0 ? Math.pow(1 + totalReturn, 1 / years) - 1 : 0;
+  const annualizedReturn = years > 0 ? Math.exp(Math.log(lastEq) / years) - 1 : 0;
   const annualizedVol = Stats.std(returns) * Math.sqrt(ppy);
-  const sharpe = Stats.sharpe(returns, ppy);
-  const sortino = Stats.sortino(returns, ppy);
-  const mdd = Stats.maxDrawdown(equity);
-  const calmar = Stats.calmar(returns, equity, ppy);
-
-  const winTrades = returns.filter(r => r > 0.0001);
-  const lossTrades = returns.filter(r => r < -0.0001);
-  const winRate = (winTrades.length + lossTrades.length) > 0 ? winTrades.length / (winTrades.length + lossTrades.length) : 0;
-  const avgWin = winTrades.length > 0 ? Stats.mean(winTrades) : 0;
-  const avgLoss = lossTrades.length > 0 ? Math.abs(Stats.mean(lossTrades)) : 0;
-  const profitFactor = avgLoss > 0 ? (winRate * avgWin) / ((1 - winRate) * avgLoss) : 0;
-
+  const sharpe = Stats.sharpe(returns, ppy), sortino = Stats.sortino(returns, ppy);
+  const mdd = Stats.maxDrawdown(equity), calmar = Stats.calmar(returns, equity, ppy);
+  const activeReturns = returns.filter(r => Math.abs(r) > 1e-8);
+  const wins = activeReturns.filter(r => r > 0), losses = activeReturns.filter(r => r < 0);
+  const winRate = activeReturns.length ? wins.length / activeReturns.length : 0;
+  const grossProfit = wins.reduce((a, b) => a + b, 0), grossLoss = Math.abs(losses.reduce((a, b) => a + b, 0));
   const bhTotal = bhEquity[bhEquity.length - 1] - 1;
-  const bhAnn = years > 0 ? Math.pow(1 + bhTotal, 1 / years) - 1 : 0;
-  const bhMdd = Stats.maxDrawdown(bhEquity);
-  const bhRets = Stats.logReturns(bhEquity);
-  const bhSharpe = Stats.sharpe(bhRets, ppy);
-
-  const sigAccuracy = sigLog.length ? sigLog.filter(s => s.correct).length / sigLog.length : null;
-
+  const bhAnn = years > 0 ? Math.exp(Math.log(bhEquity[bhEquity.length - 1]) / years) - 1 : 0;
   const { var: var95, es: es95 } = Stats.varEs(returns, 95);
+  const robustness = bootstrap ? returnRobustness(returns, ppy) : null;
 
   return {
-    equity, bhEquity, returns, trades,
+    equity, bhEquity, returns, trades, times, robustness,
+    config: { feeRate, slippage, fundingRatePer8h, warmup, threshold, minTradeDelta, symbol, firstExec, end: n },
     metrics: {
-      totalReturn, annualizedReturn, annualizedVol, sharpe, sortino, mdd, calmar,
-      winRate, avgWin, avgLoss, profitFactor, numTrades: trades.length, numBars: returns.length,
-      var95, es95, sigAccuracy, sigCount: sigLog.length,
+      totalReturn, grossTotalReturn: grossEquity - 1, annualizedReturn, annualizedVol, sharpe, sortino, mdd, calmar,
+      winRate, avgWin: wins.length ? Stats.mean(wins) : 0, avgLoss: losses.length ? Math.abs(Stats.mean(losses)) : 0,
+      profitFactor: grossLoss > 0 ? grossProfit / grossLoss : (grossProfit > 0 ? Infinity : 0),
+      numTrades: trades.length, numBars: returns.length, var95, es95,
+      sigAccuracy: sigLog.length ? sigLog.filter(s => s.correct).length / sigLog.length : null, sigCount: sigLog.length,
+      totalCosts, fundingCashflow, turnover, exposure: exposure / returns.length,
     },
-    buyHold: { totalReturn: bhTotal, annualizedReturn: bhAnn, mdd: bhMdd, sharpe: bhSharpe },
+    buyHold: { totalReturn: bhTotal, annualizedReturn: bhAnn, mdd: Stats.maxDrawdown(bhEquity), sharpe: Stats.sharpe(Stats.logReturns(bhEquity), ppy) },
   };
 }
 

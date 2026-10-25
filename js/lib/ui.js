@@ -98,11 +98,13 @@ export function renderNav(active) {
   const nav = document.createElement('div');
   nav.className = 'nav';
   nav.innerHTML = `
-    <div class="brand">${icon('candlestick')}币安量化系统 <small>Quant Research · 仅供学习研究</small></div>
-    ${pages.map(p => `<a class="tab ${p.id === active ? 'active' : ''}" href="${p.href}">${icon(p.ic)}${p.label}</a>`).join('')}
+    <div class="brand">${icon('candlestick')}币安量化系统 <small>自适应市场情报</small></div>
+    <div class="nav-tabs">${pages.map(p => `<a class="tab ${p.id === active ? 'active' : ''}" href="${p.href}">${icon(p.ic)}${p.label}</a>`).join('')}</div>
+    <div class="nav-actions"><button class="nav-tool" id="commandBtn" title="快速导航 Ctrl / ⌘ + K">⌘ K</button><button class="nav-tool" id="densityBtn" title="切换信息密度">紧凑</button></div>
     <div class="net"><span class="dot" id="netDot"></span><span id="netText">连接中…</span></div>
   `;
   document.body.prepend(nav);
+  installGlobalInteractions(pages);
   hydrateIcons();
   staggerPanels();
 }
@@ -178,8 +180,58 @@ export function buildSymbolPicker(container, symbols, current, onChange) {
   input.addEventListener('keydown', e => { if (e.key === 'Enter') commit(); });
 }
 
+// ---------------- 全局快捷导航与密度控制 ----------------
+function installGlobalInteractions(pages) {
+  const densityBtn = document.getElementById('densityBtn');
+  const applyDensity = compact => {
+    document.body.classList.toggle('compact', compact);
+    densityBtn.textContent = compact ? '舒展' : '紧凑';
+    densityBtn.setAttribute('aria-pressed', String(compact));
+  };
+  let compact = false;
+  try { compact = localStorage.getItem('bq_density') === 'compact'; } catch (e) {}
+  applyDensity(compact);
+  densityBtn.addEventListener('click', () => {
+    compact = !compact; applyDensity(compact);
+    try { localStorage.setItem('bq_density', compact ? 'compact' : 'comfortable'); } catch (e) {}
+  });
+
+  const overlay = document.createElement('div');
+  overlay.className = 'command-palette'; overlay.hidden = true;
+  overlay.innerHTML = `<div class="command-box" role="dialog" aria-modal="true" aria-label="快速导航"><div class="command-input-wrap">${icon('search')}<input id="commandInput" placeholder="输入页面名称，回车打开" autocomplete="off"><kbd>Esc</kbd></div><div class="command-list">${pages.map((p, i) => `<button data-href="${p.href}" data-index="${i}">${icon(p.ic)}<span>${p.label}</span><small>${p.href.replace('.html', '')}</small></button>`).join('')}</div><div class="command-foot">↑ ↓ 选择 · Enter 打开 · / 聚焦币种搜索</div></div>`;
+  document.body.appendChild(overlay);
+  const input = overlay.querySelector('#commandInput');
+  const buttons = [...overlay.querySelectorAll('[data-href]')];
+  let selected = 0;
+  const visible = () => buttons.filter(b => !b.hidden);
+  const paint = () => {
+    const list = visible(); selected = Math.max(0, Math.min(selected, list.length - 1));
+    buttons.forEach(b => b.classList.remove('selected'));
+    list[selected]?.classList.add('selected'); list[selected]?.scrollIntoView({ block: 'nearest' });
+  };
+  const close = () => { overlay.hidden = true; input.value = ''; buttons.forEach(b => { b.hidden = false; }); };
+  const open = () => { overlay.hidden = false; selected = 0; paint(); setTimeout(() => input.focus(), 20); };
+  document.getElementById('commandBtn').addEventListener('click', open);
+  overlay.addEventListener('click', e => { if (e.target === overlay) close(); });
+  buttons.forEach(b => b.addEventListener('click', () => { location.href = b.dataset.href; }));
+  input.addEventListener('input', () => {
+    const q = input.value.trim().toLowerCase();
+    buttons.forEach((b, i) => { b.hidden = q && !`${pages[i].label} ${pages[i].href}`.toLowerCase().includes(q); });
+    selected = 0; paint();
+  });
+  document.addEventListener('keydown', e => {
+    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') { e.preventDefault(); overlay.hidden ? open() : close(); return; }
+    if (e.key === 'Escape' && !overlay.hidden) { close(); return; }
+    if (e.key === '/' && !/INPUT|TEXTAREA|SELECT/.test(document.activeElement?.tagName)) {
+      const target = document.getElementById('coinSearch') || document.getElementById('symInput');
+      if (target) { e.preventDefault(); target.focus(); }
+    }
+    if (overlay.hidden) return;
+    if (e.key === 'ArrowDown' || e.key === 'ArrowUp') { e.preventDefault(); selected += e.key === 'ArrowDown' ? 1 : -1; paint(); }
+    if (e.key === 'Enter') { e.preventDefault(); const b = visible()[selected]; if (b) location.href = b.dataset.href; }
+  });
+}
+
 export function disclaimerHTML() {
-  return `<div class="disclaimer">
-    ${icon('alert')}<b>风险提示</b> 本系统所有内容仅供量化研究与学习使用，不构成任何投资建议。信号、预测与回测均基于历史数据的统计推断，<b>不代表未来收益</b>。加密货币合约交易具有极高风险，可能导致本金全部损失。实盘前请进行充分的样本外验证与小资金实测，并自行承担全部交易风险。
-  </div>`;
+  return `<footer class="disclaimer product-footer"><span>${icon('activity')}市场数据来自 Binance 公共接口</span><span>云端模型自动迭代 · 浏览器本地计算</span><span class="footer-shortcut">快速导航 <kbd>Ctrl / ⌘ K</kbd></span></footer>`;
 }

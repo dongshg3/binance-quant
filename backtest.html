@@ -27,7 +27,11 @@
     <label>K线数 <input id="limitInput" type="number" value="1000" step="100" style="width:80px"></label>
     <label>费率% <input id="feeInput" type="number" value="0.05" step="0.01" style="width:65px"></label>
     <label>滑点% <input id="slipInput" type="number" value="0.02" step="0.01" style="width:65px"></label>
+    <label>资金费%/8h <input id="fundingInput" type="number" value="0.01" step="0.01" style="width:70px"></label>
+    <label>信号阈值 <select id="thresholdInput"><option value="0.15">0.15</option><option value="0.25">0.25</option><option value="0.35">0.35</option></select></label>
+    <label>最小调仓 <select id="rebalanceInput"><option value="0.05">5%</option><option value="0.1" selected>10%</option><option value="0.2">20%</option></select></label>
     <button id="runBtn" class="primary"><span data-icon="play"></span>运行回测</button>
+    <button id="exportBtBtn" title="导出调仓记录"><span data-icon="download"></span>导出交易</button>
     <span style="font-size:11px;color:var(--text-dim)" id="btStatus"></span>
   </div>
 
@@ -48,11 +52,11 @@
   </div>
 
   <div class="row cols-2">
-    <!-- 样本外验证 -->
+    <!-- 时段外推验证 -->
     <div class="panel">
-      <h3><span data-icon="flask"></span>样本外验证 <span class="sub">前 70% 训练 · 后 30% 验证 检验过拟合</span></h3>
+      <h3><span data-icon="flask"></span>时段稳健性 <span class="sub">70/30 切分 · 200 bar 隔离带 · 不在浏览器重训模型</span></h3>
       <table>
-        <thead><tr><th>指标</th><th style="text-align:right">样本内 (70%)</th><th style="text-align:right">样本外 (30%)</th></tr></thead>
+        <thead><tr><th>指标</th><th style="text-align:right">前段 (70%)</th><th style="text-align:right">后段（隔离后）</th></tr></thead>
         <tbody id="oosBody"><tr><td colspan="3" class="placeholder">尚未运行</td></tr></tbody>
       </table>
       <div id="oosVerdict" style="font-size:12px;margin-top:10px;"></div>
@@ -64,6 +68,22 @@
         <thead><tr><th>指标</th><th style="text-align:right">多因子策略</th><th style="text-align:right">买入持有</th></tr></thead>
         <tbody id="compareBody"><tr><td colspan="3" class="placeholder">尚未运行</td></tr></tbody>
       </table>
+    </div>
+  </div>
+
+  <div class="row cols-2">
+    <div class="panel">
+      <h3><span data-icon="shield"></span>统计稳健性 <span class="sub">概率夏普比率 · 循环区块 Bootstrap 240 次</span></h3>
+      <div class="grid-metrics" id="robustMetrics"><div class="placeholder" style="grid-column:1/-1;">运行后计算</div></div>
+      <div class="fold-track" id="foldTrack"></div>
+      <div class="model-reason">时段切分用于检验收益稳定性，不会把已发布模型伪装成浏览器重新拟合后的样本外模型。</div>
+    </div>
+    <div class="panel">
+      <h3><span data-icon="scale"></span>参数敏感性 <span class="sub">同一信号路径下的阈值与成本压力</span></h3>
+      <div class="scroll-table" style="max-height:250px;"><table>
+        <thead><tr><th>实验</th><th style="text-align:right">净收益</th><th style="text-align:right">夏普</th><th style="text-align:right">回撤</th></tr></thead>
+        <tbody id="sensitivityBody"><tr><td colspan="4" class="placeholder">运行后计算</td></tr></tbody>
+      </table></div>
     </div>
   </div>
 

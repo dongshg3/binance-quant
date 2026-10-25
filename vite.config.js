@@ -11,6 +11,8 @@ export default defineConfig({
         screener: resolve(__dirname, 'screener.html'),
         backtest: resolve(__dirname, 'backtest.html'),
         strategy: resolve(__dirname, 'strategy.html'),
+        arena: resolve(__dirname, 'arena.html'),
+        evolution: resolve(__dirname, 'evolution.html'),
       },
     },
   },

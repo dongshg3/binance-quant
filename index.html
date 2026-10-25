@@ -79,10 +79,12 @@
         <h3><span data-icon="activity"></span>量化预测 <span class="sub">蒙特卡洛 4000 路径 · Holt 平滑 · 回归通道</span></h3>
         <div class="grid-metrics" id="forecastMetrics" style="margin-bottom:12px;"></div>
         <div id="coneChart" class="chart-box" style="height:200px;margin-bottom:12px;"></div>
-        <table class="cone-table">
-          <thead><tr><th>时间跨度</th><th>P5 悲观</th><th>P25</th><th>P50 中性</th><th>P75</th><th>P95 乐观</th></tr></thead>
-          <tbody id="coneBody"></tbody>
-        </table>
+        <div class="table-scroll" tabindex="0" aria-label="预测分位数表，可横向滚动">
+          <table class="cone-table">
+            <thead><tr><th>时间跨度</th><th>P5 悲观</th><th>P25</th><th>P50 中性</th><th>P75</th><th>P95 乐观</th></tr></thead>
+            <tbody id="coneBody"></tbody>
+          </table>
+        </div>
       </div>
 
       <!-- 多周期共振 -->
@@ -96,9 +98,30 @@
       </div>
 
       <!-- 条件胜率 -->
-      <div class="panel">
+      <div class="panel" style="margin-bottom:14px;">
         <h3><span data-icon="target"></span>历史条件胜率 <span class="sub">同类信号在样本内的后续表现</span></h3>
         <div class="grid-metrics" id="condMetrics"></div>
+      </div>
+
+      <!-- 逐币模型档案 -->
+      <div class="panel model-lab" style="margin-bottom:14px;" id="coinModelPanel">
+        <h3><span data-icon="cpu"></span>逐币自适应模型 <span class="sub" id="coinModelVersion">云端逐轮验证与晋级</span></h3>
+        <div id="coinModelContent"><div class="placeholder">读取模型档案…</div></div>
+        <div class="fold-track" id="coinFoldTrack"></div>
+        <div class="model-reason" id="coinModelReason"></div>
+        <div class="consensus-row" id="modelConsensus"></div>
+      </div>
+
+      <!-- 市场质量 -->
+      <div class="panel" style="margin-bottom:14px;">
+        <h3><span data-icon="activity"></span>市场质量与分布诊断 <span class="sub">收益形态 · 下行风险 · 趋势效率</span></h3>
+        <div class="grid-metrics" id="marketQualityMetrics"></div>
+      </div>
+
+      <!-- 实际贡献 -->
+      <div class="panel">
+        <h3><span data-icon="sliders"></span>信号贡献归因 <span class="sub">当前生效线性权重 × 因子值</span></h3>
+        <div id="contributionBars"></div>
       </div>
     </div>
 
