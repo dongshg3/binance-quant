@@ -5,6 +5,7 @@ import {
   Stats, SMA, EMA, RSI, MACD, Boll, ATR, StochRSI, ADX,
   VWAP, OBV, Keltner, Fib, efficiencyRatio, logLinReg, holtForecast, hurst,
 } from './stats.js';
+import { fundingDynamics, fundingDynamicScores } from './funding.js';
 
 export const FACTOR_WEIGHTS = { trend: 0.22, momentum: 0.18, meanRev: 0.13, volume: 0.13, volatility: 0.09, position: 0.05, htf: 0.10, futures: 0.10, news: 0.05 };
 export const GROUP_NAMES = { trend: '趋势', momentum: '动量', meanRev: '均值回归', volume: '量能', volatility: '波动率', position: '位置', htf: '高周期', futures: '合约数据', news: '消息面' };
@@ -220,6 +221,7 @@ export function computeFactors(candles, extraData, symbol) {
   const htfScore = htfParts.length ? Stats.mean(htfParts) : 0;
 
   let fundingScore = 0, lsRatioScore = 0, oiScore = 0;
+  const funding = fundingDynamics(extraData?.fundingHist, extraData?.fundingRate);
   if (extraData) {
     if (extraData.fundingRate != null) {
       const fr = extraData.fundingRate;
@@ -252,6 +254,9 @@ export function computeFactors(candles, extraData, symbol) {
     newsScore = parts.length ? Stats.mean(parts) : 0;
   }
 
+  const futuresParts = [fundingScore, lsRatioScore, oiScore];
+  // 新特征只由带显式契约的新模型启用，避免前端升级后旧 AST / 旧权重漂移。
+  if (MODEL?.featureSet?.fundingDynamics) futuresParts.push(...fundingDynamicScores(funding));
   const groups = {
     trend: [emaScore, ema200Score, adxScore, keltnerScore],
     momentum: [rsiScore, macdScore, stochScore, divergenceScore],
@@ -260,7 +265,7 @@ export function computeFactors(candles, extraData, symbol) {
     volatility: [squeezeScore],
     position: [fibScore],
     htf: [htfScore],
-    futures: [fundingScore, lsRatioScore, oiScore],
+    futures: futuresParts,
   };
   // 消息面有数据才入组：学习权重尚无 news 键时自动回退静态权重 0.05（实盘追踪积累后再进云端训练）
   if (nw) groups.news = [newsScore];
@@ -305,6 +310,8 @@ export function computeFactors(candles, extraData, symbol) {
       ewmaVol: Stats.ewmaVol(logRets),
       ema9: ema9[n], ema21: ema21[n], ema50: ema50[n], ema200: ema200[n],
       bbUpper: bbU[n], bbLower: bbL[n], fib,
+      fundingZ: funding.z, fundingDelta: funding.delta, fundingAccel: funding.accel,
+      fundingEvents: funding.events,
     },
   };
 }

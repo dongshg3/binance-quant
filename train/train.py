@@ -266,14 +266,14 @@ def map_htf(values, n, f):
 
 # ---------------- 八因子引擎（与前端 computeFactors 同构） ----------------
 def group_scores(ohlcv, fut=None):
-    """fut = (fr_arr, ls_arr, oi_chg_arr) 由 futures_data.align_to_bars 产出；
+    """fut 由 futures_data.align_to_bars 产出，含资金费率事件衍生值；
     为 None 时 futures 组全 0（与前端镜像降级模式一致：缺数据 = 中性）"""
     c = ohlcv[:, 4]; h = ohlcv[:, 2]; l = ohlcv[:, 3]; v = ohlcv[:, 5]
     n = len(c)
     if fut:
-        fr_arr, ls_arr, oi_arr = fut
+        fr_arr, ls_arr, oi_arr, fz_arr, fd_arr, fa_arr = fut
     else:
-        fr_arr = ls_arr = oi_arr = [None] * n
+        fr_arr = ls_arr = oi_arr = fz_arr = fd_arr = fa_arr = [None] * n
     rsi = RSI(c); macdh = MACD_hist(c)
     ema9, ema21, ema50, ema200 = EMA(c, 9), EMA(c, 21), EMA(c, 50), EMA(c, 200)
     bbU, bbM, bbL = Boll(c)
@@ -345,7 +345,8 @@ def group_scores(ohlcv, fut=None):
             elif slope > 0.02 and pslope < 0: obv_s = 0.3
             elif slope < -0.02 and pslope > 0: obv_s = -0.3
         out["volume"][i] = np.mean([vol_s, obv_s])
-        # futures（资金费率/多空比/OI 30h 变化率，阈值与前端逐字对齐）
+        # futures：绝对拥挤 + 真实 funding 事件的 z / Δ / Δ² + 多空比 + OI。
+        # 衍生方向只是候选特征，最终符号与权重由样本外训练决定。
         fr, lsr, oic = fr_arr[i], ls_arr[i], oi_arr[i]
         fr_s = 0.0
         if fr is not None:
@@ -358,7 +359,10 @@ def group_scores(ohlcv, fut=None):
         if oic is not None:
             if oic > 0.03: oi_s = rdir * 0.8
             elif oic < -0.03: oi_s = -rdir * 0.5
-        out["futures"][i] = np.mean([fr_s, ls_s, oi_s])
+        fz_s = clamp(-fz_arr[i] / 2, -1, 1) if fz_arr[i] is not None else 0.0
+        fd_s = clamp(-fd_arr[i] / 0.0005, -1, 1) if fd_arr[i] is not None else 0.0
+        fa_s = clamp(-fa_arr[i] / 0.0005, -1, 1) if fa_arr[i] is not None else 0.0
+        out["futures"][i] = np.mean([fr_s, ls_s, oi_s, fz_s, fd_s, fa_s])
         # volatility（挤压）
         sq_s = 0.0
         if i >= 20 and not np.isnan(bbw[i]):
@@ -962,6 +966,8 @@ def main():
     run = {
         "version": version,
         "trainedAt": trained_at,
+        "engine": "ridge-v9-funding-dynamics-offset-prequential",
+        "featureSet": {"fundingDynamics": True, "fundingEventWindow": 90, "microstructure": False},
         "symbols": used,
         "samples": int(len(y)),
         "fwdSet": FWD_SET,
@@ -1007,7 +1013,13 @@ def main():
     model = {
         "version": version,
         "trainedAt": trained_at,
-        "engine": "ridge-v8-offset-prequential",
+        "engine": "ridge-v9-funding-dynamics-offset-prequential",
+        "featureSet": {
+            "fundingDynamics": True,
+            "fundingEventWindow": 90,
+            "fundingMinEvents": 10,
+            "microstructure": False,
+        },
         "fwdSet": FWD_SET,
         "weights": final_weights,
         "scoreScale": round(score_scale, 8),

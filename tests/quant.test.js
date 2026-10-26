@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { evalModelAST, runBacktest, setModel, weightSourceInfo } from '../js/lib/quant.js';
+import { evalModelAST, runBacktest, setModel, weightSourceInfo, computeFactors } from '../js/lib/quant.js';
 
 function candles(n = 480) {
   let price = 100;
@@ -73,6 +73,23 @@ test('funding follows UTC timestamps rather than candle array indexes', () => {
     assert.ok(onClock.metrics.fundingEvents > 0);
     assert.equal(offClock.metrics.fundingEvents, 0);
     assert.equal(offClock.metrics.fundingCashflow, 0);
+  } finally {
+    setModel(null);
+  }
+});
+
+test('funding dynamics are gated by the model feature contract', () => {
+  const data = candles();
+  const extra = { fundingRate: 0.0011, fundingHist: Array.from({ length: 20 }, (_, i) => 0.0001 * Math.sin(i)) };
+  try {
+    setModel({ version: 1, weights: { futures: 1 }, scoreScale: 1, segments: {}, symbolMeta: {}, coinModels: {} });
+    const legacy = computeFactors(data, extra);
+    assert.equal(legacy.groups.futures.length, 3);
+    assert.ok(Number.isFinite(legacy.rawIndicators.fundingZ));
+    setModel({ version: 2, featureSet: { fundingDynamics: true }, weights: { futures: 1 }, scoreScale: 1, segments: {}, symbolMeta: {}, coinModels: {} });
+    const current = computeFactors(data, extra);
+    assert.equal(current.groups.futures.length, 6);
+    assert.notEqual(current.groupAverages.futures, legacy.groupAverages.futures);
   } finally {
     setModel(null);
   }

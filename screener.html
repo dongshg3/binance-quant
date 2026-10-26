@@ -33,6 +33,7 @@
       <option value="coin">逐币晋级模型</option>
       <option value="quality">高质量机会（≥65）</option>
       <option value="squeeze">波动挤压</option>
+      <option value="funding">费率极端（|z|≥2）</option>
       <option value="watch">我的关注</option>
     </select>
     <select id="modelFilter" aria-label="模型覆盖筛选">
@@ -93,12 +94,14 @@
           <th class="sortable" data-key="rsi">RSI</th>
           <th class="sortable" data-key="adx">ADX</th>
           <th class="sortable" data-key="annVol">年化波动</th>
+          <th class="sortable" data-key="fundingZ" title="最多最近90次真实资金费率事件">费率 z</th>
+          <th class="sortable" data-key="fundingDelta">费率 Δ</th>
           <th class="sortable" data-key="position">建议仓位</th>
           <th>市场状态</th>
           <th>信号</th>
           <th>关注</th>
         </tr></thead>
-        <tbody id="screenerBody"><tr><td colspan="15" class="placeholder">尚未扫描</td></tr></tbody>
+        <tbody id="screenerBody"><tr><td colspan="17" class="placeholder">尚未扫描</td></tr></tbody>
       </table>
     </div>
   </div>

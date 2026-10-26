@@ -130,25 +130,55 @@ def load_series(symbol, bar_start_ms, bar_end_ms):
     metrics.sort(key=lambda x: x[0])
     return funding, metrics
 
+def funding_dynamics(funding, min_events=10, window_events=90):
+    """按真实 funding 事件（不是 K 线根数）计算因果衍生值。
+
+    返回与 funding 等长的 (z, delta, accel) 列表。z 使用截至当前事件的最近
+    90 次事件；delta / accel 只使用当前及过去事件。样本不足或零方差时为 None。
+    """
+    funding = funding or []
+    rates = [float(r) for _, r in funding]
+    out = []
+    for j, rate in enumerate(rates):
+        z = delta = accel = None
+        if j >= 1:
+            delta = rate - rates[j - 1]
+        if j >= 2:
+            accel = rate - 2 * rates[j - 1] + rates[j - 2]
+        if j + 1 >= min_events:
+            hist = rates[max(0, j + 1 - window_events):j + 1]
+            mean = sum(hist) / len(hist)
+            variance = sum((x - mean) ** 2 for x in hist) / len(hist)
+            if variance > 0:
+                z = (rate - mean) / variance ** 0.5
+        out.append((z, delta, accel))
+    return out
+
+
 def align_to_bars(bar_times_ms, funding, metrics, oi_window_ms=30 * 3600 * 1000):
-    """把 funding / 多空比 / OI 30h 变化率对齐到每根 bar（仅用 ≤ bar 开盘时刻的值）。
-    返回 (fr_arr, ls_arr, oi_chg_arr)，缺失为 None。与前端定义逐字对齐：
-      fundingRate  → premiumIndex.lastFundingRate（最近 funding 事件）
-      多空比       → globalLongShortAccountRatio（账户数多空比）
-      OI 变化率    → openInterestHist 30 期首尾比值 - 1"""
+    """把合约数据对齐到每根 bar，只使用 ≤ bar 开盘时刻的事件。
+
+    返回 (fr, ls, oi_chg, funding_z, funding_delta, funding_accel)，缺失为 None。
+    资金费率衍生窗口是最近 90 次真实 funding 事件，不是 90 根 K 线。
+    """
+    funding = funding or []
+    metrics = metrics or []
     n = len(bar_times_ms)
     fr_t = [t for t, _ in funding]
     me_t = [t for t, _, _ in metrics]
-    fr_out, ls_out, oi_out = [None] * n, [None] * n, [None] * n
+    dynamics = funding_dynamics(funding)
+    names = ("fr_out", "ls_out", "oi_out", "fz_out", "fd_out", "fa_out")
+    arrays = {name: [None] * n for name in names}
     for i in range(n):
         t = bar_times_ms[i]
         j = bisect_right(fr_t, t) - 1
         if j >= 0:
-            fr_out[i] = funding[j][1]
+            arrays["fr_out"][i] = funding[j][1]
+            arrays["fz_out"][i], arrays["fd_out"][i], arrays["fa_out"][i] = dynamics[j]
         k = bisect_right(me_t, t) - 1
         if k >= 0:
-            ls_out[i] = metrics[k][2]
+            arrays["ls_out"][i] = metrics[k][2]
             k0 = bisect_right(me_t, t - oi_window_ms) - 1
             if k0 >= 0 and metrics[k0][1] > 0:
-                oi_out[i] = metrics[k][1] / metrics[k0][1] - 1
-    return fr_out, ls_out, oi_out
+                arrays["oi_out"][i] = metrics[k][1] / metrics[k0][1] - 1
+    return tuple(arrays[name] for name in names)

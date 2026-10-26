@@ -2,8 +2,9 @@
 // screener.js · 全市场扫描（全部 USDT 永续 / 现货）
 // ============================================================
 import { Stats } from './lib/stats.js';
-import { loadAllSymbols, loadTickers, fetchKlines, fetchAllPremiumIndex } from './lib/api.js';
+import { loadAllSymbols, loadTickers, fetchKlines, fetchAllPremiumIndex, fetchFundingHistory } from './lib/api.js';
 import { computeFactors, computePosition, detectRegime, signalOf, buildTradePlan, weightSourceInfo } from './lib/quant.js';
+import { fundingDynamics } from './lib/funding.js';
 import { renderNav, setNet, fmtPrice, fmtPct100, fmtPct, fmtNum, fmtVol, clsBySign, goDashboard, disclaimerHTML, icon, swapHTML } from './lib/ui.js';
 import { loadModel, getModel } from './lib/model.js';
 import { logSignal, labelOutcomes } from './lib/tracker.js';
@@ -17,7 +18,7 @@ const CACHE_KEY = 'bq_scan_cache_v2';
 const WATCH_KEY = 'bq_watchlist_v1';
 const state = {
   market: 'futures', interval: '1h',
-  symbols: [], tickers: {}, funding: {}, results: [],
+  symbols: [], tickers: {}, funding: {}, fundingDynamics: {}, results: [],
   scanning: false, autoTimer: null,
   sortKey: 'quality', sortDir: -1,
   watch: new Set(JSON.parse(localStorage.getItem(WATCH_KEY) || '[]')),
@@ -42,6 +43,7 @@ function filteredResults() {
   else if (filter === 'coin') list = list.filter(x => x.edgeKind === 'coin');
   else if (filter === 'quality') list = list.filter(x => qualityOf(x) >= 0.65);
   else if (filter === 'squeeze') list = list.filter(x => x.squeeze < 0.6);
+  else if (filter === 'funding') list = list.filter(x => Math.abs(x.fundingZ ?? 0) >= 2);
   else if (filter === 'watch') list = list.filter(x => state.watch.has(x.symbol));
   if (model !== 'all') list = list.filter(x => (x.coinStatus || 'uncovered') === model);
   return list;
@@ -120,8 +122,8 @@ async function init() {
   $('exportScanBtn').addEventListener('click', () => {
     const list = filteredResults();
     downloadCSV(`market-scan-${state.market}-${state.interval}-${Date.now()}.csv`, [
-      ['symbol', 'price', 'change24h_pct', 'quoteVolume', 'score', 'quality', 'xsPercentile', 'edgeIC', 'coinStatus', 'rsi', 'adx', 'annualVol', 'funding'],
-      ...list.map(x => [x.symbol, x.price, x.change24h, x.quoteVolume, x.score, qualityOf(x), x.xsPct, x.edgeIC, x.coinStatus, x.rsi, x.adx, x.annVol, x.funding]),
+      ['symbol', 'price', 'change24h_pct', 'quoteVolume', 'score', 'quality', 'xsPercentile', 'edgeIC', 'coinStatus', 'rsi', 'adx', 'annualVol', 'funding', 'fundingZ', 'fundingDelta', 'fundingAccel'],
+      ...list.map(x => [x.symbol, x.price, x.change24h, x.quoteVolume, x.score, qualityOf(x), x.xsPct, x.edgeIC, x.coinStatus, x.rsi, x.adx, x.annVol, x.funding, x.fundingZ, x.fundingDelta, x.fundingAccel]),
     ]);
   });
 
@@ -139,6 +141,28 @@ async function init() {
 
   // 自动开始首次扫描
   if (state.symbols.length) scanMarket();
+}
+
+// 资金费率历史只对高流动性 Top 24 拉取，避免给全市场增加数百次请求。
+async function loadFundingDynamics() {
+  state.fundingDynamics = {};
+  if (state.market !== 'futures') return;
+  const symbols = Object.keys(state.funding)
+    .filter(s => (state.tickers[s]?.quoteVolume ?? 0) > 0)
+    .sort((a, b) => state.tickers[b].quoteVolume - state.tickers[a].quoteVolume)
+    .slice(0, 24);
+  let index = 0;
+  async function worker() {
+    while (index < symbols.length) {
+      const symbol = symbols[index++];
+      try {
+        const history = await fetchFundingHistory(symbol, 90);
+        const dynamics = fundingDynamics(history, state.funding[symbol]?.fundingRate);
+        state.fundingDynamics[symbol] = { history, ...dynamics };
+      } catch (e) { /* 单币缺失不影响扫描 */ }
+    }
+  }
+  await Promise.all(Array.from({ length: 4 }, worker));
 }
 
 // ---------------- 扫描 ----------------
@@ -163,6 +187,8 @@ async function scanMarket() {
   } else {
     $('heatPanel').style.display = 'none';
   }
+  await loadFundingDynamics();
+  if (state.market === 'futures') renderHeatmap();
 
   const minVol = parseFloat($('minVolInput').value) || 0;
   const symbols = state.symbols.filter(s => (state.tickers[s]?.quoteVolume ?? Infinity) >= minVol);
@@ -179,7 +205,10 @@ async function scanMarket() {
         if (candles.length >= 60) {
           // 合约市场把资金费率喂给因子引擎（futures 因子组参与学习权重，不传则评分系统性缺失一组信号）
           const extra = {};
-          if (state.market === 'futures' && state.funding[sym]) extra.fundingRate = state.funding[sym].fundingRate;
+          if (state.market === 'futures' && state.funding[sym]) {
+            extra.fundingRate = state.funding[sym].fundingRate;
+            if (state.fundingDynamics[sym]?.history) extra.fundingHist = state.fundingDynamics[sym].history;
+          }
           // 消息面因子（云端每小时快照：FGI + 该币新闻情绪/热度，静态权重 0.05 参与评分）
           const nf = newsFactorFor(state.newsSnap, sym);
           if (nf) extra.news = nf;
@@ -215,6 +244,9 @@ async function scanMarket() {
               direction: pos.direction,
               regime: detectRegime(f.rawIndicators),
               funding: extra.fundingRate ?? null,
+              fundingZ: f.rawIndicators.fundingZ ?? null,
+              fundingDelta: f.rawIndicators.fundingDelta ?? null,
+              fundingAccel: f.rawIndicators.fundingAccel ?? null,
               edgeKind: edge.kind, edgeKey: edge.key, edgeFlipped: edge.flipped, edgeIC: edge.ic,
               coinStatus: edge.coinStatus || 'uncovered', coinT: edge.coinT, deltaIC: edge.deltaIC, modelType: edge.modelType || null,
             });
@@ -290,6 +322,7 @@ function renderBreadth() {
     { k: '|评分| P90 / P99', v: `${fmtNum(q(0.9), 3)} / ${fmtNum(q(0.99), 3)}`, cls: q(0.9) > 0.15 ? '' : 'bad' },
     { k: '挤压蓄势 (BBW<0.6均值)', v: r.filter(x => x.squeeze < 0.6).length },
     { k: '放量 (量>1.5×均量)', v: r.filter(x => x.volRatio > 1.5).length },
+    { k: '费率极端 / 衍生覆盖', v: `${r.filter(x => Math.abs(x.fundingZ ?? 0) >= 2).length} / ${r.filter(x => x.fundingZ != null).length}` },
     { k: '逐币已晋级 / 覆盖', v: `${r.filter(x => x.coinStatus === 'active').length} / ${r.filter(x => x.coinStatus && x.coinStatus !== 'uncovered').length}` },
     { k: '质量分中位数', v: fmtNum(Stats.percentile(r.map(qualityOf), 50) * 100, 1) },
   ];
@@ -317,16 +350,17 @@ function renderHeatmap() {
     .slice(0, 60);
   if (!entries.length) { $('heatGrid').innerHTML = '<div class="placeholder">资金费率数据不可用</div>'; return; }
   $('heatGrid').innerHTML = entries.map(sym => {
-    const f = state.funding[sym];
-    return `<div class="heat-cell" style="${fundingColor(f.fundingRate)}" data-sym="${sym}" title="${sym} · 资金费率 ${fmtPct(f.fundingRate, 4)}">
+    const f = state.funding[sym], d = state.fundingDynamics[sym];
+    return `<div class="heat-cell" style="${fundingColor(f.fundingRate)}" data-sym="${sym}" title="${sym} · 资金费率 ${fmtPct(f.fundingRate, 4)}${d?.z != null ? ` · z ${fmtNum(d.z, 2)} · Δ ${fmtPct(d.delta, 4)}` : ''}">
       <div class="hs">${sym.replace('USDT', '')}</div>
       <div class="hv">${fmtPct(f.fundingRate, 3, false)}</div>
+      ${d?.z != null ? `<div class="heat-z">z ${fmtNum(d.z, 1)}</div>` : ''}
     </div>`;
   }).join('');
   $('heatGrid').querySelectorAll('.heat-cell').forEach(cell => {
     cell.addEventListener('click', () => goDashboard(cell.dataset.sym, state.market, state.interval));
   });
-  $('heatSub').textContent = `按 24h 成交额 Top ${entries.length} · 红 = 多头付费（拥挤看多，警惕回撤） · 蓝 = 空头付费（拥挤看空，警惕反弹）`;
+  $('heatSub').textContent = `热力图 Top ${entries.length} · 衍生因子覆盖高流动性 Top ${Object.keys(state.fundingDynamics).length} · z ≥ 2 表示自身历史极端拥挤`;
 }
 
 // ---------------- 机会分级与质量分 ----------------
@@ -473,12 +507,14 @@ function renderTable() {
       <td class="${x.rsi > 70 ? 'down' : x.rsi < 30 ? 'up' : ''}">${fmtNum(x.rsi, 1)}</td>
       <td>${fmtNum(x.adx, 1)}</td>
       <td>${fmtPct(x.annVol, 0, false)}</td>
+      <td class="${Math.abs(x.fundingZ ?? 0) >= 2 ? 'down' : ''}">${x.fundingZ != null ? fmtNum(x.fundingZ, 2) : '—'}</td>
+      <td class="${clsBySign(x.fundingDelta)}">${x.fundingDelta != null ? fmtPct(x.fundingDelta, 3) : '—'}</td>
       <td>${x.position > 0 ? fmtPct(x.position, 0, false) : '—'}</td>
       <td><span class="chip ${x.regime.cls}">${x.regime.label}</span></td>
       <td><span class="chip ${sig.dir > 0 ? 'long' : sig.dir < 0 ? 'short' : 'flat'}">${sig.label}</span></td>
       <td><button class="watch-btn ${watched ? 'active' : ''}" data-watch="${x.symbol}" aria-label="${watched ? '取消关注' : '关注'} ${x.symbol}">${watched ? '★' : '☆'}</button></td>
     </tr>`;
-  }).join('') || '<tr><td colspan="15" class="placeholder">无匹配结果，试试放宽筛选条件</td></tr>';
+  }).join('') || '<tr><td colspan="17" class="placeholder">无匹配结果，试试放宽筛选条件</td></tr>';
 
   $('screenerBody').querySelectorAll('tr[data-sym]').forEach(tr => {
     tr.addEventListener('click', () => goDashboard(tr.dataset.sym, state.market, state.interval));

@@ -146,8 +146,15 @@
       </div>
       <!-- 合约数据 -->
       <div class="panel" id="futuresPanel">
-        <h3><span data-icon="database"></span>合约市场数据</h3>
+        <h3><span data-icon="database"></span>合约市场数据 <span class="sub">事件衍生 · 无未来函数</span></h3>
         <div class="grid-metrics" id="futuresMetrics" style="grid-template-columns:repeat(2,1fr);"></div>
+      </div>
+      <!-- 当前币实时微观结构 -->
+      <div class="panel" id="microPanel">
+        <h3><span data-icon="activity"></span>订单流与盘口 <span class="sub">实时观察 · 尚未进入历史训练</span></h3>
+        <div class="micro-status" id="microStatus">等待连接</div>
+        <div class="grid-metrics" id="microMetrics" style="grid-template-columns:repeat(2,1fr);"></div>
+        <div class="panel-footnote">OFI 由相邻最优价量更新计算；CVD 按主动成交方向累计。样本从本页打开时开始，不作为历史回测证据。</div>
       </div>
       <!-- 消息面 -->
       <div class="panel" id="newsPanel" style="display:none;">

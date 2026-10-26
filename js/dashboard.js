@@ -2,8 +2,10 @@
 // dashboard.js · 单币种深度分析 + 预测
 // ============================================================
 import { Stats, EMA } from './lib/stats.js';
-import { loadAllSymbols, loadTickers, fetchKlines, fetchFundingRate, fetchFundingHistory, fetchLongShortRatio, fetchOpenInterestChange, fetchTakerRatio, connectKlineWS, pollKlines, getDataMode } from './lib/api.js';
+import { loadAllSymbols, loadTickers, fetchKlines, fetchFundingRate, fetchFundingHistory, fetchLongShortRatio, fetchOpenInterestChange, fetchTakerRatio, connectKlineWS, pollKlines, connectMicrostructureWS, pollMicrostructure, getDataMode } from './lib/api.js';
 import { computeFactors, computePosition, detectRegime, signalOf, monteCarloCone, conditionalStats, pointForecast, regChannel, riskLevels, buildTradePlan, extremeGroups, fuseMTF, signalConfidence, garchVolForecast, btcLinkage, coinModelInfo, weightSourceInfo, GROUP_NAMES } from './lib/quant.js';
+import { fundingDynamics } from './lib/funding.js';
+import { bookMetrics, orderFlowImbalance, aggregateTrades } from './lib/microstructure.js';
 import { renderNav, setNet, fmtPrice, fmtPct, fmtPct100, fmtNum, fmtVol, clsBySign, getParams, buildSymbolPicker, disclaimerHTML, icon, pop } from './lib/ui.js';
 import { loadModel, modelBadgeHTML } from './lib/model.js';
 import { logSignal, labelOutcomes } from './lib/tracker.js';
@@ -20,7 +22,7 @@ const state = {
   candles: [],
   allSymbols: [],
   tickers: {},
-  ws: null,
+  ws: null, poller: null, microFeed: null, micro: null, extra: null,
   chart: null, candleSeries: null, ema9S: null, ema21S: null, volS: null, fcstS: null,
   coneChart: null,
 };
@@ -68,6 +70,7 @@ async function reload() {
   setNet('拉取K线…', 'connecting');
   if (state.ws) { state.ws.close(); state.ws = null; }
   if (state.poller) { state.poller.stop(); state.poller = null; }
+  resetMicrostructure();
 
   try {
     state.candles = await fetchKlines(state.symbol, state.interval, 400, state.market);
@@ -112,6 +115,7 @@ async function reload() {
     }
   } catch (e) { /* 消息面不可用不影响主流程 */ }
 
+  state.extra = extra;
   const factors = computeFactors(state.candles, extra, state.symbol);
   if (!factors) { setNet('数据不足', ''); return; }
   const pos = computePosition(factors.composite, state.candles, state.interval);
@@ -140,6 +144,8 @@ async function reload() {
   renderTradePlan(factors, pos, fused);
   renderRisk(factors, pos);
   renderFutures(extra);
+  renderMicrostructure();
+  connectMicrostructure();
   renderNews(newsView);
   renderForecast(factors, fused);
   renderCondStats(factors);
@@ -289,39 +295,107 @@ function renderFutures(extra) {
   panel.style.display = '';
   const fr = extra.fundingRate;
   const mirror = getDataMode() === 'mirror';
-  // 拥挤度 z-score：「极端」是相对该币自身近期分布而言，不是绝对阈值（约 30 天 ≈ 90 次 funding）
-  let crowdCell = null, crowdWarn = '';
-  const hist = extra.fundingHist;
-  if (hist && hist.length >= 10 && fr != null) {
-    const m = hist.reduce((a, b) => a + b, 0) / hist.length;
-    const sd = Math.sqrt(hist.reduce((s, x) => s + (x - m) ** 2, 0) / hist.length);
-    if (sd > 0) {
-      const z = (fr - m) / sd;
-      const oiRising = extra.oiChange != null && extra.oiChange > 0.03;
-      const az = Math.abs(z);
-      const label = az < 1 ? '平衡' : az < 2 ? (z > 0 ? '偏多拥挤' : '偏空拥挤') : (z > 0 ? '多头极端拥挤' : '空头极端拥挤');
-      crowdCell = {
-        k: '资金费率拥挤度 z',
-        v: `${fmtNum(z, 2)} · ${label}`,
-        cls: az >= 2 ? 'bad' : az >= 1 ? '' : 'good',
-      };
-      // 研究结论：极端拥挤 + 持仓量扩张 = 挤压危险区（过滤器：收紧风控，而非反向开仓信号）
-      if (az >= 2 && oiRising) {
-        crowdWarn = `<div style="grid-column:1/-1;font-size:11px;line-height:1.7;padding:8px 10px;border-radius:6px;background:rgba(246,70,93,.07);border:1px solid rgba(246,70,93,.25);">
-          ${icon('alert')} <b>挤压危险区</b>：${z > 0 ? '多头' : '空头'}极端拥挤（z=${fmtNum(z, 1)}）且持仓量 30 期扩张 ${fmtPct(extra.oiChange, 1)}——清算连锁风险升高，建议收紧止损、减小仓位，而不是逆势重仓。</div>`;
-      }
-    }
-  }
+  const funding = fundingDynamics(extra.fundingHist, fr);
+  const z = funding.z, az = Math.abs(z ?? 0);
+  const label = z == null ? '' : az < 1 ? '平衡' : az < 2 ? (z > 0 ? '偏多拥挤' : '偏空拥挤') : (z > 0 ? '多头极端拥挤' : '空头极端拥挤');
   const cells = [
     { k: '资金费率', v: fr != null ? fmtPct(fr, 4) : '—', cls: fr > 0.0005 ? 'bad' : fr < -0.0005 ? 'good' : '' },
     { k: '多空账户比', v: extra.lsRatio != null ? fmtNum(extra.lsRatio, 2) : '—' },
     { k: '持仓量30期变化', v: extra.oiChange != null ? fmtPct(extra.oiChange, 2) : '—', cls: clsBySign(extra.oiChange) },
     { k: '主动买卖比', v: extra.takerRatio != null ? fmtNum(extra.takerRatio, 2) : '—', cls: extra.takerRatio > 1.05 ? 'good' : extra.takerRatio < 0.95 ? 'bad' : '' },
+    { k: `费率拥挤度 z · 最近${Math.min(funding.events, 90)}次`, v: z != null ? `${fmtNum(z, 2)} · ${label}` : '—', cls: az >= 2 ? 'bad' : az < 1 && z != null ? 'good' : '' },
+    { k: '费率一次变化 Δ', v: funding.delta != null ? fmtPct(funding.delta, 4) : '—', cls: clsBySign(funding.delta) },
+    { k: '费率二次变化 Δ²', v: funding.accel != null ? fmtPct(funding.accel, 4) : '—', cls: clsBySign(funding.accel) },
   ];
-  if (crowdCell) cells.push(crowdCell);
+  let crowdWarn = '';
+  if (az >= 2 && extra.oiChange != null && extra.oiChange > 0.03) {
+    crowdWarn = `<div class="funding-warning">${icon('alert')} <b>挤压危险区</b>：${z > 0 ? '多头' : '空头'}极端拥挤且持仓量扩张 ${fmtPct(extra.oiChange, 1)}。清算连锁风险升高，应收紧风险控制，而非直接逆势开仓。</div>`;
+  }
   $('futuresMetrics').innerHTML = cells.map(c => `<div class="metric ${c.cls || ''}"><div class="k">${c.k}</div><div class="v">${c.v}</div></div>`).join('')
     + crowdWarn
-    + (mirror ? '<div style="grid-column:1/-1;font-size:10px;color:var(--text-faint);margin-top:4px;">镜像数据模式下合约专属数据不可用（资金费率 / 多空比 / 持仓量需直连币安合约 API）</div>' : '');
+    + `<div class="panel-footnote">z / Δ / Δ² 使用最近 ${Math.min(funding.events, 90)} 次真实 funding 事件，最多回看 90 次；至少 10 次才计算 z。</div>`
+    + (mirror ? '<div class="panel-footnote">镜像数据模式下合约专属数据不可用，K线分析不受影响。</div>' : '');
+}
+
+// ---------------- 单币微观结构：实时诊断，未进入历史训练 ----------------
+function resetMicrostructure() {
+  if (state.microFeed) { state.microFeed.close?.(); state.microFeed.stop?.(); state.microFeed = null; }
+  if (state.micro?.renderTimer) clearTimeout(state.micro.renderTimer);
+  state.micro = {
+    previousBook: null, book: null, ofi: 0, ofiNormalized: 0, depthUpdates: 0,
+    cvd: 0, buyVolume: 0, sellVolume: 0, tradeCount: 0, seen: new Set(),
+    lastEventTime: null, status: 'connecting', source: 'WebSocket', lastRender: 0, renderTimer: null,
+  };
+}
+
+function scheduleMicroRender() {
+  const m = state.micro;
+  if (!m || m.renderTimer) return;
+  const delay = Math.max(0, 600 - (Date.now() - m.lastRender));
+  m.renderTimer = setTimeout(() => { if (state.micro === m) { m.renderTimer = null; renderMicrostructure(); } }, delay);
+}
+
+function onMicroDepth(book) {
+  const m = state.micro;
+  if (!m || !book) return;
+  const flow = orderFlowImbalance(m.previousBook, book);
+  if (flow) { m.ofi += flow.ofi; m.ofiNormalized += flow.normalized; }
+  m.previousBook = book;
+  m.book = book;
+  m.depthUpdates++;
+  m.lastEventTime = book.eventTime || Date.now();
+  scheduleMicroRender();
+}
+
+function onMicroTrades(trades) {
+  const m = state.micro;
+  if (!m) return;
+  const list = Array.isArray(trades) ? trades : [trades];
+  const agg = aggregateTrades(list, m.seen);
+  for (const id of agg.ids) m.seen.add(id);
+  if (m.seen.size > 6000) m.seen = new Set([...m.seen].slice(-3000));
+  m.cvd += agg.cvd; m.buyVolume += agg.buyVolume; m.sellVolume += agg.sellVolume; m.tradeCount += agg.count;
+  if (agg.lastTime != null) m.lastEventTime = Math.max(m.lastEventTime || 0, agg.lastTime);
+  if (agg.count) scheduleMicroRender();
+}
+
+function connectMicrostructure() {
+  if (state.market !== 'futures') return;
+  state.microFeed = connectMicrostructureWS(state.symbol, onMicroDepth, onMicroTrades, status => {
+    const m = state.micro;
+    if (!m) return;
+    m.status = status;
+    if (status === 'failed' && !m.pollFallback) {
+      m.pollFallback = true; m.source = 'REST 5秒快照';
+      state.microFeed = pollMicrostructure(state.symbol, onMicroDepth, onMicroTrades, 5000);
+    }
+    scheduleMicroRender();
+  });
+}
+
+function renderMicrostructure() {
+  const panel = $('microPanel');
+  if (!panel) return;
+  if (state.market !== 'futures') { panel.style.display = 'none'; return; }
+  panel.style.display = '';
+  const m = state.micro;
+  if (!m) return;
+  m.lastRender = Date.now();
+  const b = bookMetrics(m.book);
+  const statusText = { connecting: '连接中', connected: '实时接收', disconnected: '重连中', failed: '快照兜底' }[m.status] || m.status;
+  const age = m.lastEventTime ? Math.max(0, Date.now() - m.lastEventTime) : null;
+  $('microStatus').textContent = `${statusText} · ${m.source} · ${m.depthUpdates} 次深度 / ${m.tradeCount} 笔成交${age != null ? ` · 数据年龄 ${(age / 1000).toFixed(1)}s` : ''}`;
+  const cells = [
+    { k: 'L1 买卖失衡', v: b ? fmtNum(b.imbalance1, 3) : '—', raw: b?.imbalance1 },
+    { k: 'L5 买卖失衡', v: b ? fmtNum(b.imbalance5, 3) : '—', raw: b?.imbalance5 },
+    { k: 'L20 买卖失衡', v: b ? fmtNum(b.imbalance20, 3) : '—', raw: b?.imbalance20 },
+    { k: 'Microprice 偏离', v: b ? `${fmtNum(b.micropriceDeviationBps, 2)} bps` : '—', raw: b?.micropriceDeviationBps },
+    { k: '盘口价差', v: b ? `${fmtNum(b.spreadBps, 2)} bps` : '—' },
+    { k: '累计 OFI', v: m.depthUpdates > 1 ? fmtNum(m.ofi, 2) : '等待第二帧', raw: m.ofi },
+    { k: '主动成交 CVD', v: m.tradeCount ? fmtNum(m.cvd, 4) : '—', raw: m.cvd },
+    { k: '主动买 / 卖量', v: `${fmtNum(m.buyVolume, 3)} / ${fmtNum(m.sellVolume, 3)}` },
+  ];
+  $('microMetrics').innerHTML = cells.map(c => `<div class="metric ${clsBySign(c.raw)}"><div class="k">${c.k}</div><div class="v">${c.v}</div></div>`).join('');
 }
 
 // ---------------- 消息面（云端每小时自动抓取：RSS 五源 + Reddit + FGI，VADER 情绪打分） ----------------
@@ -539,7 +613,7 @@ async function computeMTF() {
   return Promise.all(INTERVALS.map(async iv => {
     try {
       const candles = await fetchKlines(state.symbol, iv, 200, state.market);
-      const f = computeFactors(candles, null, state.symbol);
+      const f = computeFactors(candles, state.extra, state.symbol);
       if (!f) return { iv, score: null };
       return { iv, score: f.composite, raw: f.rawIndicators };
     } catch (e) { return { iv, score: null }; }
@@ -649,15 +723,20 @@ let quietTimer = null;
 function reloadQuiet() {
   clearTimeout(quietTimer);
   quietTimer = setTimeout(async () => {
-    const factors = computeFactors(state.candles, null, state.symbol);
+    const factors = computeFactors(state.candles, state.extra, state.symbol);
     if (!factors) return;
     const pos = computePosition(factors.composite, state.candles, state.interval);
-    renderOverview(factors, pos, {});
+    renderOverview(factors, pos, state.extra || {});
     renderFactors(factors);
     renderTradePlan(factors, pos);
     renderRisk(factors, pos);
     $('updateTime').textContent = '更新于 ' + new Date().toLocaleTimeString();
   }, 500);
 }
+
+window.addEventListener('beforeunload', () => {
+  state.microFeed?.close?.(); state.microFeed?.stop?.();
+  if (state.micro?.renderTimer) clearTimeout(state.micro.renderTimer);
+});
 
 init();

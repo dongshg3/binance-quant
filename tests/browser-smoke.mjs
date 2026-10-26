@@ -28,6 +28,9 @@ try {
   await dashboard.waitForSelector('#coinModelContent .metric');
   assert.equal(await dashboard.locator('#coinModelContent .metric').count(), 8);
   assert.ok(await dashboard.locator('#marketQualityMetrics .metric').count() >= 8);
+  assert.ok(await dashboard.locator('#futuresMetrics .metric').count() >= 7);
+  assert.equal(await dashboard.locator('#microMetrics .metric').count(), 8);
+  assert.ok((await dashboard.locator('#microPanel').textContent()).includes('尚未进入历史训练'));
   await dashboard.keyboard.press('Control+k');
   assert.equal(await dashboard.locator('.command-palette').isVisible(), true);
   await dashboard.keyboard.press('Escape');
@@ -64,6 +67,7 @@ try {
     symbol, price: 100 + i, change24h: i - 1, quoteVolume: 2e8, score: [0.4, -0.2, 0.05][i],
     rsi: 50 + i, adx: 30, squeeze: 0.8, volRatio: 1.8, annVol: 0.6, atr: 2, position: 0.2,
     direction: 1, regime: { label: '趋势市', cls: 'trend' }, funding: 0.0001,
+    fundingZ: i === 0 ? 2.4 : 0.3, fundingDelta: 0.00002, fundingAccel: -0.00001,
     edgeKind: 'coin', edgeIC: 0.03, coinStatus: i === 2 ? 'shadow' : 'active', coinT: 2.3, xsPct: 1 - i / 2, xsZ: 1 - i,
   }));
   const screener = await context.newPage(); watch(screener);
@@ -72,6 +76,9 @@ try {
   }, scanRows);
   await screener.goto('/screener.html', { waitUntil: 'domcontentloaded' });
   await screener.waitForSelector('#screenerBody tr[data-sym]');
+  await screener.locator('#signalFilter').selectOption('funding');
+  assert.equal(await screener.locator('#screenerBody tr[data-sym]').count(), 1);
+  await screener.locator('#signalFilter').selectOption('all');
   await screener.locator('#coinSearch').fill('BTC');
   await screener.waitForTimeout(150);
   assert.equal(await screener.locator('#screenerBody tr[data-sym]').count(), 1);

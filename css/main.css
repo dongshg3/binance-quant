@@ -994,6 +994,30 @@ button:not(:disabled):active { transform: translateY(1px); }
   .evidence-heading > small { max-width: 55%; }
 }
 
+/* 合约事件衍生与单币订单流诊断 */
+.panel-footnote {
+  grid-column: 1 / -1; margin-top: 9px; color: var(--text-faint);
+  font-size: 10px; line-height: 1.65;
+}
+.funding-warning {
+  grid-column: 1 / -1; padding: 10px 12px; border: 1px solid rgba(255, 107, 107, .25);
+  border-radius: 8px; background: var(--down-soft); color: var(--text-dim);
+  font-size: 11px; line-height: 1.7;
+}
+.funding-warning .ic { color: var(--down); margin-right: 5px; }
+.micro-status {
+  display: flex; align-items: center; min-height: 28px; margin: -3px 0 9px;
+  color: var(--text-dim); font-size: 11px; font-variant-numeric: tabular-nums;
+}
+.micro-status::before {
+  content: ''; width: 6px; height: 6px; margin-right: 7px; border-radius: 50%;
+  background: var(--accent); box-shadow: 0 0 0 4px var(--accent-soft);
+}
+#microMetrics .metric { animation: none; transition: background .25s ease, color .25s ease; }
+#microMetrics .metric .v { font-size: 14px; }
+#microPanel > .panel-footnote { margin-bottom: -2px; }
+.heat-cell .heat-z { margin-top: 2px; font-size: 9px; font-weight: 600; opacity: .78; }
+
 @media (prefers-reduced-motion: reduce) {
   .coverage-track i, .coin-detail-row td, .micro-diverging i { animation: none !important; }
   .expand-chevron, button { transition: none !important; }

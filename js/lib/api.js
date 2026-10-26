@@ -136,6 +136,17 @@ export async function fetchTakerRatio(symbol, period = '1h') {
   return null;
 }
 
+// 微观结构仅用于当前深度分析币；不要对全市场并发请求这些接口。
+export async function fetchDepth(symbol, limit = 20) {
+  const d = await fetchJSON(`${API.futuresRest}/depth?symbol=${symbol}&limit=${limit}`, 8000);
+  return { bids: d.bids || [], asks: d.asks || [], eventTime: d.E || d.T || Date.now() };
+}
+
+export async function fetchAggTrades(symbol, limit = 1000) {
+  const d = await fetchJSON(`${API.futuresRest}/aggTrades?symbol=${symbol}&limit=${limit}`, 10000);
+  return Array.isArray(d) ? d : [];
+}
+
 // 全市场资金费率（一次请求返回全部合约，用于热力图）
 export async function fetchAllPremiumIndex() {
   const data = await fetchJSON(`${API.futuresRest}/premiumIndex`, 20000);
@@ -201,5 +212,53 @@ export function pollKlines(symbol, interval, market, onCandle, intervalMs = 5000
       if (ks.length) onCandle(ks[ks.length - 1]);
     } catch (e) { /* 静默，下轮再试 */ }
   }, intervalMs);
+  return { stop() { stopped = true; clearInterval(timer); } };
+}
+
+// 单币 L2 部分深度 + 聚合成交。深度为 100ms 快照，OFI 由相邻快照的最优价量计算。
+export function connectMicrostructureWS(symbol, onDepth, onTrade, onState, maxAttempts = 3) {
+  const base = API.futuresWs.replace(/\/ws$/, '/stream');
+  const streams = `${symbol.toLowerCase()}@depth20@100ms/${symbol.toLowerCase()}@aggTrade`;
+  const url = `${base}?streams=${streams}`;
+  let ws = null, timer = null, reconnectTimer = null, closed = false, attempts = 0;
+  const schedule = () => {
+    if (closed) return;
+    if (++attempts > maxAttempts) { onState?.('failed'); return; }
+    reconnectTimer = setTimeout(connect, Math.min(15000, 2000 * attempts));
+  };
+  const connect = () => {
+    if (closed) return;
+    onState?.('connecting');
+    try { ws = new WebSocket(url); } catch (e) { schedule(); return; }
+    clearTimeout(timer);
+    timer = setTimeout(() => { if (ws?.readyState === WebSocket.CONNECTING) ws.close(); }, 8000);
+    ws.onopen = () => { clearTimeout(timer); attempts = 0; onState?.('connected'); };
+    ws.onmessage = ev => {
+      try {
+        const d = JSON.parse(ev.data).data;
+        if (d?.e === 'depthUpdate') onDepth?.({ bids: d.b || [], asks: d.a || [], eventTime: d.E || d.T || Date.now() });
+        else if (d?.e === 'aggTrade') onTrade?.(d);
+      } catch (e) { /* 忽略单条坏消息 */ }
+    };
+    ws.onclose = () => { clearTimeout(timer); onState?.('disconnected'); schedule(); };
+    ws.onerror = () => { try { ws.close(); } catch (e) {} };
+  };
+  connect();
+  return { close() { closed = true; clearTimeout(timer); clearTimeout(reconnectTimer); try { ws?.close(); } catch (e) {} } };
+}
+
+export function pollMicrostructure(symbol, onDepth, onTrades, intervalMs = 5000) {
+  let stopped = false, running = false;
+  const tick = async () => {
+    if (stopped || running) return;
+    running = true;
+    try {
+      const [book, trades] = await Promise.all([fetchDepth(symbol, 20), fetchAggTrades(symbol, 1000)]);
+      if (!stopped) { onDepth(book); onTrades(trades); }
+    } catch (e) { /* 下轮重试 */ }
+    finally { running = false; }
+  };
+  tick();
+  const timer = setInterval(tick, intervalMs);
   return { stop() { stopped = true; clearInterval(timer); } };
 }
