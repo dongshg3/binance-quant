@@ -6,11 +6,18 @@
 <title>模型进化 · 币安量化系统</title>
 <meta name="description" content="量化模型自动学习轨迹：因子权重变迁、IC 衰减、样本外表现、训练历史与浏览器端信号追踪">
 <script src="https://unpkg.com/lightweight-charts@4.1.0/dist/lightweight-charts.standalone.production.js"></script>
-<link rel="stylesheet" href="css/main.css?v=6">
+<link rel="stylesheet" href="css/main.css?v=7">
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%232563eb' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M9 5v4'/><rect width='4' height='6' x='7' y='9' rx='1'/><path d='M9 15v2'/><path d='M17 3v2'/><rect width='4' height='8' x='15' y='5' rx='1'/><path d='M17 13v3'/><path d='M3 3v16a2 2 0 0 0 2 2h16'/></svg>">
 </head>
 <body>
 <div class="page">
+  <nav class="section-nav" aria-label="模型进化页内导航">
+    <a href="#modelMetrics">模型总览</a>
+    <a href="#diagContent">诊断实验</a>
+    <a href="#coinModelPanel">逐币覆盖</a>
+    <a href="#histBody">训练历史</a>
+    <a href="#trackerMetrics">信号追踪</a>
+  </nav>
 
   <!-- 当前模型 -->
   <div class="panel" style="margin-bottom:14px;">
@@ -72,8 +79,8 @@
   </div>
 
   <!-- 逐币独立模型 -->
-  <div class="panel" style="margin-bottom:14px;">
-    <h3><span data-icon="target"></span>逐币独立模型 <span class="sub">单币种独立训练 · 50/50 收缩融合防过拟合 · 右半部分接入竞技场逐币族实盘战绩对照</span></h3>
+  <div class="panel coin-lab-panel" style="margin-bottom:14px;" id="coinModelPanel">
+    <h3><span data-icon="target"></span>逐币模型覆盖台 <span class="sub">父模型 offset + 残差 Ridge · 无前视 HGB 融合 · 可展开验证证据与模拟战绩对照</span></h3>
     <div id="coinContent"><div class="placeholder">等待 v9+ 模型产出逐币模型数据</div></div>
   </div>
 

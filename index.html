@@ -6,7 +6,7 @@
 <title>深度分析 · 币安量化系统</title>
 <meta name="description" content="币安全市场量化分析：多因子信号、蒙特卡洛预测、市场状态识别、风险管理">
 <script src="https://unpkg.com/lightweight-charts@4.1.0/dist/lightweight-charts.standalone.production.js"></script>
-<link rel="stylesheet" href="css/main.css?v=6">
+<link rel="stylesheet" href="css/main.css?v=7">
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%232563eb' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M9 5v4'/><rect width='4' height='6' x='7' y='9' rx='1'/><path d='M9 15v2'/><path d='M17 3v2'/><rect width='4' height='8' x='15' y='5' rx='1'/><path d='M17 13v3'/><path d='M3 3v16a2 2 0 0 0 2 2h16'/></svg>">
 </head>
 <body>
@@ -108,6 +108,8 @@
         <h3><span data-icon="cpu"></span>逐币自适应模型 <span class="sub" id="coinModelVersion">云端逐轮验证与晋级</span></h3>
         <div id="coinModelContent"><div class="placeholder">读取模型档案…</div></div>
         <div class="fold-track" id="coinFoldTrack"></div>
+        <div class="coin-inline-evidence" id="coinBlendPath"></div>
+        <div class="coin-inline-evidence" id="coinFactorEvidence"></div>
         <div class="model-reason" id="coinModelReason"></div>
         <div class="consensus-row" id="modelConsensus"></div>
       </div>

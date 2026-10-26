@@ -365,7 +365,7 @@ function renderCoinModel(factors, mtfRows, fused) {
     warmup: ['样本积累', 'flat', '历史长度或有效折数不足，当前沿用父模型'],
     uncovered: ['等待覆盖', 'flat', '该币将在下一轮云端训练中建立独立档案'],
   }[status];
-  const typeCN = { 'hgb-ridge-ensemble': 'HGB + Ridge 集成', 'adaptive-ridge': '自适应岭回归', 'hierarchical-parent': '分层父模型' };
+  const typeCN = { 'hgb-ridge-ensemble': 'HGB + 残差 Ridge', 'offset-ridge': '分层残差 Ridge', 'adaptive-ridge': '自适应岭回归（旧版）', 'hierarchical-parent': '分层父模型' };
   $('coinModelVersion').textContent = coin?.version ? `云端 v${coin.version} · ${new Date(coin.trainedAt).toLocaleString()}` : '云端逐轮验证与晋级';
   const cells = [
     { k: '候选模型', v: typeCN[coin?.modelType] || '等待独立训练' },
@@ -374,7 +374,7 @@ function renderCoinModel(factors, mtfRows, fused) {
     { k: '父模型增量 IC', v: coin?.deltaIC != null ? fmtNum(coin.deltaIC, 4) : '—', cls: (coin?.deltaIC ?? 0) >= 0.002 ? 'good' : '' },
     { k: '验证样本', v: coin?.n != null ? coin.n.toLocaleString() : '—' },
     { k: '非线性混合', v: coin?.hgbBlend ? fmtPct(coin.hgbBlend, 0, false) : '0%' },
-    { k: '父段收缩系数', v: coin?.shrinkage != null ? fmtNum(coin.shrinkage, 2) : '—' },
+    { k: '残差收缩系数', v: coin?.shrinkage != null ? fmtNum(coin.shrinkage, 2) : '—' },
     { k: '当前实际路由', v: effective.kind === 'coin' ? '逐币独立模型' : effective.kind === 'cat' ? '板块父模型' : effective.kind === 'size' ? '规模父模型' : '全局父模型' },
   ];
   $('coinModelContent').innerHTML = `<div class="model-status-line"><span class="chip ${statusMeta[1]}">${statusMeta[0]}</span><span>${statusMeta[2]}</span></div>`
@@ -383,6 +383,15 @@ function renderCoinModel(factors, mtfRows, fused) {
   $('coinFoldTrack').innerHTML = folds.length ? `<div class="fold-title">逐折样本外 IC <span>三折时间外推 · 200 bar purge</span></div><div class="fold-grid">${folds.map((v, i) => `
     <div class="fold-item"><div><span>Fold ${i + 1}</span><b class="${clsBySign(v)}">${fmtNum(v, 4)}</b></div><div class="fold-bar"><i style="width:${Math.min(100, Math.abs(v) / 0.1 * 100)}%" class="${v >= 0 ? 'pos' : 'neg'}"></i></div></div>`).join('')}</div>`
     : '<div class="fold-title">逐折样本外 IC <span>完成首轮训练后展示</span></div>';
+  const path = coin?.blendPath || [];
+  $('coinBlendPath').innerHTML = `<div class="evidence-heading"><span>无前视融合路径</span><small>${coin?.validationMode?.includes('prequential') ? 'Prequential nested selection' : '等待新版云端产物'}</small></div>`
+    + (path.length ? `<div class="blend-path compact">${path.map(p => `<div class="blend-step ${p.blend > 0 ? 'has-hgb' : ''}"><span>FOLD ${p.fold}</span><b>${p.blend > 0 ? `HGB ${Math.round(p.blend * 100)}%` : 'Ridge'}</b><small>仅用前 ${p.basedOnFolds} 折</small></div>`).join('<i class="blend-arrow">→</i>')}</div>`
+      : '<div class="evidence-empty">下一轮训练后，这里会展示每一折仅使用历史证据选择 Ridge / HGB 的过程。</div>');
+  const factorIC = coin?.factorIC || {};
+  const factorEntries = Object.entries(factorIC);
+  $('coinFactorEvidence').innerHTML = `<div class="evidence-heading"><span>本币单因子 OOS IC</span><small>方向与强度 · 非收益承诺</small></div>`
+    + (factorEntries.length ? `<div class="coin-factor-evidence dashboard-factors">${factorEntries.map(([g, ic]) => `<div class="coin-factor-cell"><div><span>${GROUP_NAMES[g] || g}</span><b class="${clsBySign(ic)}">${fmtNum(ic, 4)}</b></div><div class="micro-diverging"><i class="${ic >= 0 ? 'pos' : 'neg'}" style="width:${Math.min(50, Math.abs(ic) / 0.1 * 50)}%"></i></div></div>`).join('')}</div>`
+      : '<div class="evidence-empty">当前模型尚未包含逐币因子证据；档案与父模型路由不受影响。</div>');
   $('coinModelReason').textContent = coin?.reason || '覆盖不等于晋级：只有通过 OOS IC ≥ 0.02、NW t ≥ 2、至少两折为正且优于父模型的候选才会生效。';
 
   const fcst = pointForecast(state.candles, 12);

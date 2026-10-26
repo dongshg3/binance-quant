@@ -37,6 +37,29 @@ try {
   await dashboard.screenshot({ path: '.tmp/dashboard.png', fullPage: true });
   console.log('[ui] 深度分析、模型诊断、快捷导航、密度切换通过');
 
+  const evolution = await context.newPage(); watch(evolution);
+  await evolution.goto('/evolution.html', { waitUntil: 'domcontentloaded' });
+  await evolution.waitForSelector('.coin-model-row', { timeout: 45000 });
+  await evolution.locator('#coinModelSearch').fill('BTC');
+  const btcRows = evolution.locator('.coin-model-row:visible');
+  assert.ok(await btcRows.count() >= 1);
+  for (let i = 0; i < await btcRows.count(); i++) {
+    assert.ok((await btcRows.nth(i).getAttribute('data-sym')).includes('BTC'));
+  }
+  await btcRows.first().locator('.coin-expand').click();
+  assert.equal(await btcRows.first().locator('.coin-expand').getAttribute('aria-expanded'), 'true');
+  assert.equal(await evolution.locator('.coin-detail-row:visible .evidence-section').count(), 3);
+  await evolution.locator('#coinModelSearch').fill('');
+  await evolution.locator('#coinModelFilters [data-filter="shadow"]').click();
+  const shadowRows = evolution.locator('.coin-model-row:visible');
+  assert.ok(await shadowRows.count() >= 1);
+  for (let i = 0; i < Math.min(await shadowRows.count(), 20); i++) {
+    assert.equal(await shadowRows.nth(i).getAttribute('data-status'), 'shadow');
+  }
+  await evolution.locator('#coinModelFilters [data-filter="all"]').click();
+  await evolution.screenshot({ path: '.tmp/evolution.png', fullPage: true });
+  console.log('[ui] 逐币搜索、状态筛选、证据展开和页内导航通过');
+
   const scanRows = ['BTCUSDT', 'ETHUSDT', 'SOLUSDT'].map((symbol, i) => ({
     symbol, price: 100 + i, change24h: i - 1, quoteVolume: 2e8, score: [0.4, -0.2, 0.05][i],
     rsi: 50 + i, adx: 30, squeeze: 0.8, volRatio: 1.8, annVol: 0.6, atr: 2, position: 0.2,
@@ -88,7 +111,15 @@ try {
   if (overflow > 2) console.log('[mobile overflow]', await mobile.evaluate(() => [...document.querySelectorAll('body *')].map(el => ({ tag: el.tagName, id: el.id, cls: el.className, left: el.getBoundingClientRect().left, right: el.getBoundingClientRect().right, width: el.getBoundingClientRect().width })).filter(x => x.right > window.innerWidth + 2 || x.left < -2).slice(0, 30)));
   assert.ok(overflow <= 2, `移动端页面横向溢出 ${overflow}px`);
   await mobile.screenshot({ path: '.tmp/mobile.png', fullPage: true });
-  console.log('[ui] 390px 移动端布局通过');
+  await mobile.goto('/evolution.html', { waitUntil: 'domcontentloaded' });
+  await mobile.waitForSelector('.coin-model-row', { timeout: 45000 });
+  const evolutionOverflow = await mobile.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
+  if (evolutionOverflow > 2) console.log('[evolution mobile overflow]', await mobile.evaluate(() => [...document.querySelectorAll('body *')].map(el => ({ tag: el.tagName, id: el.id, cls: el.className, left: el.getBoundingClientRect().left, right: el.getBoundingClientRect().right, width: el.getBoundingClientRect().width })).filter(x => x.right > window.innerWidth + 2 || x.left < -2).slice(0, 30)));
+  assert.ok(evolutionOverflow <= 2, `逐币覆盖台移动端横向溢出 ${evolutionOverflow}px`);
+  await mobile.locator('#coinModelSearch').fill('UNI');
+  assert.ok(await mobile.locator('.coin-model-row:visible').count() >= 1);
+  await mobile.screenshot({ path: '.tmp/evolution-mobile.png', fullPage: true });
+  console.log('[ui] 390px 移动端布局与逐币覆盖台通过');
 
   assert.deepEqual(errors, [], `浏览器脚本错误：\n${errors.join('\n')}`);
   console.log('[ui] 全部页面无未捕获脚本错误');

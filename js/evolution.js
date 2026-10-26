@@ -312,6 +312,7 @@ async function renderCoinModels(model) {
   try { live = await getCoinLiveStats(); } catch (e) { live = null; }
   const bySym = live ? live.bySym : {};
   const ov = live ? live.overall : null;
+  const esc = value => String(value ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
   const list = Object.entries(coins).sort((a, b) => (b[1].ic ?? -1) - (a[1].ic ?? -1));
   const valid = list.filter(([, v]) => v.ic != null);
@@ -322,9 +323,19 @@ async function renderCoinModels(model) {
   const shadowN = list.filter(([, v]) => v.status === 'shadow').length;
   const warmupN = list.filter(([, v]) => v.status === 'warmup').length;
   const hgbN = list.filter(([, v]) => isActive(v) && v.hgbBlend > 0).length;
+  const coverageN = Number(model.meta?.symbols) || list.length;
+  const coveragePct = Math.min(100, list.length / Math.max(coverageN, 1) * 100);
+  const activePct = activeN / Math.max(list.length, 1) * 100;
+  const typeCN = {
+    'hgb-ridge-ensemble': 'HGB + 残差 Ridge',
+    'offset-ridge': '分层残差 Ridge',
+    'adaptive-ridge': '自适应 Ridge（旧版）',
+    'hierarchical-parent': '分层父模型',
+  };
 
   const rows = list.map(([sym, v]) => {
     const base = sym.replace(/USDT$/, '');
+    const safeId = base.replace(/[^a-zA-Z0-9_-]/g, '');
     const lv = bySym[sym];
     let liveCells, verdict;
     if (!lv || !lv.signals) {
@@ -344,30 +355,75 @@ async function renderCoinModels(model) {
     }
     const st = v.status || 'active';
     const stateChip = st === 'active' ? '<span class="model-state active">已晋级</span>' : st === 'shadow' ? '<span class="model-state shadow">影子</span>' : '<span class="model-state warmup">积累</span>';
-    return `<tr style="cursor:default">
-      <td><b>${base}</b></td><td>${stateChip}</td>
+    const factorRows = GROUP_ORDER.map(g => {
+      const ic = v.factorIC?.[g];
+      const width = ic != null ? Math.min(50, Math.abs(ic) / 0.1 * 50) : 0;
+      return `<div class="coin-factor-cell">
+        <div><span>${GROUP_NAMES[g] || g}</span><b class="${ic > 0 ? 'up' : ic < 0 ? 'down' : ''}">${ic != null ? fmtNum(ic, 4) : '—'}</b></div>
+        <div class="micro-diverging"><i class="${ic >= 0 ? 'pos' : 'neg'}" style="width:${width}%"></i></div>
+      </div>`;
+    }).join('');
+    const path = v.blendPath || [];
+    const blendPath = path.length ? `<div class="blend-path">${path.map(p => `
+      <div class="blend-step ${p.blend > 0 ? 'has-hgb' : ''}" title="仅使用前 ${p.basedOnFolds} 折选择">
+        <span>FOLD ${p.fold}</span><b>${p.blend > 0 ? `HGB ${Math.round(p.blend * 100)}%` : 'Ridge'}</b><small>历史 ${p.basedOnFolds} 折</small>
+      </div>`).join('<i class="blend-arrow">→</i>')}</div>`
+      : '<div class="evidence-empty">当前为旧版产物；下一轮训练后展示逐折无前视融合路径。</div>';
+    const validation = v.validationMode?.includes('prequential') ? 'Purged + Prequential' : 'Purged Walk-Forward（旧版）';
+    const detail = `<tr class="coin-detail-row" id="coin-detail-${safeId}" hidden><td colspan="9">
+      <div class="coin-evidence-grid">
+        <section class="evidence-section">
+          <div class="evidence-heading"><span>验证结构</span><small>${esc(validation)}</small></div>
+          <div class="evidence-kv">
+            <div><span>模型结构</span><b>${esc(typeCN[v.modelType] || v.modelType || '—')}</b></div>
+            <div><span>父模型 OOS IC</span><b>${v.parentIC != null ? fmtNum(v.parentIC, 4) : '—'}</b></div>
+            <div><span>纯 Ridge OOS IC</span><b>${v.ridgeIC != null ? fmtNum(v.ridgeIC, 4) : '—'}</b></div>
+            <div><span>部署 HGB 比例</span><b>${v.hgbBlend ? fmtPct(v.hgbBlend, 0, false) : '0%'}</b></div>
+          </div>
+          <div class="evidence-note">${esc(v.reason || '历史样本或有效折数不足，继续使用父模型。')}</div>
+        </section>
+        <section class="evidence-section evidence-wide">
+          <div class="evidence-heading"><span>逐折融合路径</span><small>当前折不可参与自己的参数选择</small></div>
+          ${blendPath}
+        </section>
+        <section class="evidence-section evidence-wide">
+          <div class="evidence-heading"><span>单因子样本外 IC</span><small>因子值与工程化未来收益 · 非成本后收益</small></div>
+          <div class="coin-factor-evidence">${factorRows}</div>
+        </section>
+      </div>
+    </td></tr>`;
+    return `<tr class="coin-model-row" data-sym="${esc(sym)}" data-status="${st}">
+      <td><button type="button" class="coin-expand" aria-expanded="false" aria-controls="coin-detail-${safeId}" aria-label="查看 ${esc(base)} 模型证据"><span class="expand-chevron">›</span><b>${esc(base)}</b></button></td><td>${stateChip}</td>
       <td class="${v.ic >= 0.02 ? 'up' : ''}" style="font-weight:600">${fmtNum(v.ic, 4)}</td>
       <td class="${Math.abs(v.t ?? 0) >= 2 ? 'up' : ''}">${v.t != null ? fmtNum(v.t, 2) : '—'}</td>
       <td>${v.n ?? '—'}</td>
       ${liveCells}
       <td>${verdict}</td>
-    </tr>`;
+    </tr>${detail}`;
   }).join('');
 
-  // 训练 IC vs 实盘收益 的跨币种一致性（Spearman）：>0 说明训练优势在实盘兑现
+  // 训练 IC vs 模拟实盘收益的跨币种一致性，分开观察，不互相替代。
   const pairs = list
     .map(([sym, v]) => [v.ic, bySym[sym] && bySym[sym].n >= 1 ? bySym[sym].meanRet : null])
     .filter(p => p[1] != null);
   const rho = pairs.length >= 5 ? spearman(pairs.map(p => p[0]), pairs.map(p => p[1])) : null;
 
   const liveMetrics = ov ? `
-      <div class="metric"><div class="k">实盘信号（逐币族）</div><div class="v">${ov.signals} <small style="color:var(--text-faint)">已结算 ${ov.n}</small></div></div>
-      <div class="metric ${ov.n >= 8 ? (ov.winRate > 0.52 ? 'good' : ov.winRate < 0.48 ? 'bad' : '') : ''}"><div class="k">实盘胜率</div><div class="v">${ov.winRate != null ? fmtPct(ov.winRate, 1, false) : '—'}</div></div>
-      <div class="metric ${ov.totalRet > 0 ? 'good' : ov.totalRet < 0 ? 'bad' : ''}"><div class="k">实盘合计净收益</div><div class="v">${ov.totalRet != null ? fmtPct(ov.totalRet, 2) : '—'}</div></div>
-      <div class="metric ${rho > 0.3 ? 'good' : rho < 0 ? 'bad' : ''}"><div class="k">训练IC × 实盘收益一致性</div><div class="v">${rho != null ? `ρ=${fmtNum(rho, 2)}` : '样本不足'} <small style="color:var(--text-faint)">${pairs.length} 币</small></div></div>` : '';
+      <div class="metric"><div class="k">模拟实盘信号（逐币族）</div><div class="v">${ov.signals} <small style="color:var(--text-faint)">已结算 ${ov.n}</small></div></div>
+      <div class="metric ${ov.n >= 8 ? (ov.winRate > 0.52 ? 'good' : ov.winRate < 0.48 ? 'bad' : '') : ''}"><div class="k">模拟实盘胜率</div><div class="v">${ov.winRate != null ? fmtPct(ov.winRate, 1, false) : '—'}</div></div>
+      <div class="metric ${ov.totalRet > 0 ? 'good' : ov.totalRet < 0 ? 'bad' : ''}"><div class="k">模拟实盘合计净收益</div><div class="v">${ov.totalRet != null ? fmtPct(ov.totalRet, 2) : '—'}</div></div>
+      <div class="metric ${rho > 0.3 ? 'good' : rho < 0 ? 'bad' : ''}"><div class="k">训练IC × 模拟收益一致性</div><div class="v">${rho != null ? `ρ=${fmtNum(rho, 2)}` : '样本不足'} <small style="color:var(--text-faint)">${pairs.length} 币</small></div></div>` : '';
 
   el.innerHTML = `
-    <div class="grid-metrics" style="margin-bottom:10px;">
+    <div class="coin-coverage">
+      <div class="coin-coverage-head">
+        <div><span class="eyebrow">MODEL COVERAGE</span><h4>${list.length} / ${coverageN} 个币种已建立档案</h4><p>全量持续学习，严格证据晋级；影子模型不会接管评分。</p></div>
+        <div class="coverage-number"><b>${fmtPct(activePct / 100, 1, false)}</b><span>严格晋级率</span></div>
+      </div>
+      <div class="coverage-track" role="progressbar" aria-label="逐币档案覆盖率" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${coveragePct.toFixed(1)}"><i style="width:${coveragePct}%"></i></div>
+      <div class="coverage-caption"><span>档案覆盖 ${fmtPct(coveragePct / 100, 1, false)}</span><span>${activeN} 晋级 · ${shadowN} 影子 · ${warmupN} 积累</span></div>
+    </div>
+    <div class="grid-metrics model-summary-metrics">
       <div class="metric ${activeN ? 'good' : ''}"><div class="k">已晋级 / 全量档案</div><div class="v">${activeN} / ${list.length}</div></div>
       <div class="metric"><div class="k">影子 / 样本积累</div><div class="v">${shadowN} / ${warmupN}</div></div>
       <div class="metric"><div class="k">非线性集成生效</div><div class="v">${hgbN} 个</div></div>
@@ -375,17 +431,64 @@ async function renderCoinModels(model) {
       <div class="metric"><div class="k">有效候选 IC 为正占比</div><div class="v">${valid.length ? fmtPct(posN / valid.length, 1, false) : '—'}</div></div>
       ${liveMetrics}
     </div>
-    <div style="max-height:360px;overflow:auto;">
-      <table class="table">
-        <thead><tr><th>币种</th><th>模型状态</th><th>OOS IC</th><th>NW t</th><th>验证样本</th><th>实盘结算</th><th>实盘胜率</th><th>实盘净收益</th><th>兑现判定</th></tr></thead>
-        <tbody>${rows}</tbody>
+    <div class="model-table-tools">
+      <label class="model-search"><span data-icon="search"></span><input id="coinModelSearch" type="search" placeholder="搜索币种，如 BTC / UNI" autocomplete="off" aria-label="搜索逐币模型"></label>
+      <div class="model-filter" id="coinModelFilters" role="group" aria-label="按模型状态筛选">
+        ${[['all', '全部', list.length], ['active', '已晋级', activeN], ['shadow', '影子', shadowN], ['warmup', '积累', warmupN]].map(([key, label, n]) => `<button type="button" data-filter="${key}" class="${key === 'all' ? 'active' : ''}" aria-pressed="${key === 'all'}">${label}<span>${n}</span></button>`).join('')}
+      </div>
+      <span class="model-result-count" id="coinModelCount">${list.length} / ${list.length} 币</span>
+    </div>
+    <div class="coin-model-table-wrap">
+      <table class="table coin-model-table">
+        <thead><tr><th>币种 / 证据</th><th>模型状态</th><th>OOS IC</th><th>NW t</th><th>验证样本</th><th>模拟结算</th><th>模拟胜率</th><th>模拟净收益</th><th>兑现判定</th></tr></thead>
+        <tbody>${rows}<tr id="coinModelEmpty" hidden><td colspan="9"><div class="empty-filter">没有符合当前条件的币种，试试清除搜索或切换状态。</div></td></tr></tbody>
       </table>
     </div>
-    <div style="font-size:10px;color:var(--text-faint);margin-top:8px;line-height:1.7;">
+    <div class="model-method-note">
       晋级要求：至少 1700 bar 历史、三折时间外推、200 bar purge、OOS IC ≥ 0.02、NW t ≥ 2、至少两折正 IC，且相对父模型增量 ≥ 0.002。
-      权重收缩系数随有效历史自适应；HGB 挑战者必须多折稳定胜出并通过浏览器 AST 对拍。影子和预热币继续使用父模型。<br>
-      模拟实盘战绩含手续费与滑点；结算 ≥ 8 笔且净收益为正记为「兑现」，为负记为「背离」，与训练 IC 分开观察。
+      新版使用父模型 offset + 残差 Ridge；HGB 比例按 prequential 方式仅由此前折选择，并通过浏览器 AST 对拍。影子和预热币继续使用父模型。<br>
+      模拟实盘战绩含手续费与滑点；结算 ≥ 8 笔且净收益为正记为「兑现」，为负记为「背离」。IC 是预测排序指标，不代表成本后收益。
     </div>`;
+
+  let filter = 'all';
+  const applyFilter = () => {
+    const query = $('coinModelSearch').value.trim().toLowerCase();
+    let visible = 0;
+    el.querySelectorAll('.coin-model-row').forEach(row => {
+      const show = (filter === 'all' || row.dataset.status === filter) && (!query || row.dataset.sym.toLowerCase().includes(query));
+      row.hidden = !show;
+      const detail = row.nextElementSibling;
+      if (!show && detail?.classList.contains('coin-detail-row')) {
+        detail.hidden = true;
+        row.querySelector('.coin-expand')?.setAttribute('aria-expanded', 'false');
+        row.classList.remove('expanded');
+      }
+      if (show) visible++;
+    });
+    $('coinModelCount').textContent = `${visible} / ${list.length} 币`;
+    $('coinModelEmpty').hidden = visible !== 0;
+  };
+  $('coinModelSearch').addEventListener('input', applyFilter);
+  $('coinModelFilters').addEventListener('click', event => {
+    const button = event.target.closest('button[data-filter]');
+    if (!button) return;
+    filter = button.dataset.filter;
+    $('coinModelFilters').querySelectorAll('button').forEach(b => {
+      b.classList.toggle('active', b === button);
+      b.setAttribute('aria-pressed', String(b === button));
+    });
+    applyFilter();
+  });
+  el.querySelector('.coin-model-table tbody').addEventListener('click', event => {
+    const button = event.target.closest('.coin-expand');
+    if (!button) return;
+    const row = button.closest('.coin-model-row');
+    const detail = row.nextElementSibling;
+    const expanded = button.getAttribute('aria-expanded') !== 'true';
+    button.setAttribute('aria-expanded', String(expanded));
+    row.classList.toggle('expanded', expanded);
+    if (detail?.classList.contains('coin-detail-row')) detail.hidden = !expanded;
+  });
 }
 
 // ---------------- 权重对比 ----------------

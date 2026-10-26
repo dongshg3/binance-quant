@@ -33,7 +33,14 @@ def _ridge(Xtr: np.ndarray, ytr: np.ndarray, Xte: np.ndarray, lam: float = 5.0):
     return Zte @ w, w / sd
 
 
-def _window_ics(pred: np.ndarray, y: np.ndarray, spearman, window: int = 64):
+def _window_ics(pred: np.ndarray, y: np.ndarray, spearman, window: int = 32):
+    """Local IC series with enough windows for the production HAC test.
+
+    A 64-bar window produced only 18 observations on the current 1175-bar OOS
+    path, while newey_west_t requires 30 and therefore returned None for every
+    coin.  Thirty-two bars retain a meaningful local rank sample and yield 36
+    windows on that path; the t >= 2 promotion threshold remains unchanged.
+    """
     out = []
     for lo in range(0, len(y), window):
         p = pred[lo:lo + window]
@@ -58,14 +65,58 @@ def _fit_hgb(Xtr: np.ndarray, ytr: np.ndarray):
     return _fit_single("hgb", Xtr, ytr, params, 17)
 
 
+def _fit_offset_ridge(Xtr, ytr, Xte, parent_vec, shrink, groups):
+    """Fit coin-specific residuals around a fixed hierarchical parent.
+
+    The parent is an offset rather than a prediction target: the coin only
+    learns deviations that its own history supports.  Shrinkage limits those
+    deviations without refitting or weakening the parent with future data.
+    """
+    parent_vec = np.asarray(parent_vec, dtype=np.float64)
+    residual_y = ytr - Xtr @ parent_vec
+    _, residual_raw = _ridge(Xtr, residual_y, Xte[:1])
+    residual = _normalized(residual_raw, groups)
+    residual_vec = np.asarray([residual[g] for g in groups])
+    weights = parent_vec + float(shrink) * residual_vec
+    return Xte @ weights, weights
+
+
+def _safe_ic(pred, y, spearman):
+    value = spearman(pred, y)
+    return float(value) if value is not None and np.isfinite(value) else 0.0
+
+
+def _choose_blend(history, spearman):
+    """Choose HGB weight using only completed, strictly earlier OOS folds."""
+    if not history or any(f.get("hgbZ") is None for f in history):
+        return 0.0
+    ridge_folds = [_safe_ic(f["ridgeZ"], f["y"], spearman) for f in history]
+    ridge_mean = float(np.mean(ridge_folds))
+    candidates = []
+    for blend in (0.25, 0.50, 0.75, 1.0):
+        ics = [
+            _safe_ic((1.0 - blend) * f["ridgeZ"] + blend * f["hgbZ"], f["y"], spearman)
+            for f in history
+        ]
+        candidates.append((float(np.mean(ics)), blend, ics))
+    best_mean, best_blend, best_folds = max(candidates, key=lambda row: row[0])
+    wins = sum(c >= r - 0.002 for c, r in zip(best_folds, ridge_folds))
+    required_wins = max(1, int(np.ceil(len(history) * 2.0 / 3.0)))
+    if best_mean <= ridge_mean + 0.004 or wins < required_wins:
+        return 0.0
+    return float(best_blend)
+
+
 def train_all_coin_models(*, X, y, ss, tt, nn, symbol_meta, parent_weights_of,
                           spearman, newey_west_t, groups, embargo=200,
                           hgb_enabled=True):
-    """Train and validate all symbols; return a frontend-compatible dictionary.
+    """Train every coin with purged, prequential model selection.
 
     Folds cover only the last 30% of each symbol's history.  The parent model
     was trained on the first 70%, so parent comparisons remain out-of-sample.
-    Each fold trains strictly before its test block with a purge gap.
+    Fold one always uses Ridge; each later fold selects its HGB blend only
+    from earlier folds.  Promotion metrics therefore never score the same OOS
+    predictions that were used to choose that fold's challenger weight.
     """
     out = {}
     X = np.asarray(X, dtype=np.float64)
@@ -74,6 +125,7 @@ def train_all_coin_models(*, X, y, ss, tt, nn, symbol_meta, parent_weights_of,
     tt = np.asarray(tt, dtype=np.float64)
     nn = np.asarray(nn, dtype=np.float64)
     d = len(groups)
+    validation_mode = "purged-prequential-nested-blend-v1"
 
     for sym in np.unique(ss):
         sym = str(sym)
@@ -89,7 +141,8 @@ def train_all_coin_models(*, X, y, ss, tt, nn, symbol_meta, parent_weights_of,
             "modelType": "hierarchical-parent",
             "ic": None, "t": None, "n": 0,
             "foldICs": [], "parentIC": None, "deltaIC": None,
-            "hgbBlend": 0.0,
+            "hgbBlend": 0.0, "blendPath": [], "factorIC": {},
+            "validationMode": validation_mode,
         }
         if len(yc) < 1700:
             base["reason"] = "历史样本不足 1700 bar，继续积累并沿用父模型"
@@ -105,30 +158,30 @@ def train_all_coin_models(*, X, y, ss, tt, nn, symbol_meta, parent_weights_of,
                 continue
             Xtr, ytr, Xte, yte = Xc[tr], yc[tr], Xc[te], yc[te]
 
-            # Empirical-Bayes shrinkage: more history permits more coin-specific
-            # deviation, while short/noisy histories stay close to the parent.
+            # Empirical-Bayes shrinkage on the residual around the parent.
             shrink = float(np.clip(len(ytr) / (len(ytr) + 4000.0), 0.20, 0.68))
-            _, w_raw = _ridge(Xtr, ytr, Xte[:1])
-            own = _normalized(w_raw, groups)
-            blend_weights = {
-                g: shrink * own[g] + (1.0 - shrink) * float(parent.get(g, 0.0))
-                for g in groups
-            }
-            wv = np.asarray([blend_weights[g] for g in groups])
-            pred_r = Xte @ wv
+            pred_r, wv = _fit_offset_ridge(Xtr, ytr, Xte, parent_vec, shrink, groups)
             pred_parent = Xte @ parent_vec
+            # Scaling is estimated on training predictions only; test-fold
+            # dispersion is never allowed to influence the validation score.
+            lr_scale = max(float(np.std(Xtr @ wv)), 1e-12)
+            ridge_z = pred_r / lr_scale
 
-            pred_h = None
+            hgb_z = None
             if hgb_enabled:
                 try:
                     from nlkit.models import _predict_single
                     hm = _fit_hgb(Xtr, ytr)
                     pred_h = _predict_single(hm, Xte, {})
+                    train_h = _predict_single(hm, Xtr, {})
+                    h_scale = max(float(np.std(train_h)), 1e-12)
+                    hgb_z = pred_h / h_scale
                 except Exception:
-                    pred_h = None
+                    hgb_z = None
             fold_data.append({
-                "y": yte, "ridge": pred_r, "parent": pred_parent,
-                "hgb": pred_h, "shrink": shrink,
+                "y": yte, "ridgeZ": ridge_z, "parent": pred_parent,
+                "hgbZ": hgb_z, "shrink": shrink,
+                "factor": [Xte[:, j] for j in range(d)],
                 "trainMaxFrac": float(np.max(frac[tr])), "testMinFrac": float(np.min(frac[te])),
                 "trainN": int(tr.sum()), "testN": int(te.sum()),
             })
@@ -138,43 +191,32 @@ def train_all_coin_models(*, X, y, ss, tt, nn, symbol_meta, parent_weights_of,
             out[sym] = base
             continue
 
+        # Prequential/nested selection: a fold cannot see itself or the future.
+        blend_path = []
+        for i, fold in enumerate(fold_data):
+            blend = _choose_blend(fold_data[:i], spearman) if i else 0.0
+            fold["selectedZ"] = ((1.0 - blend) * fold["ridgeZ"] + blend * fold["hgbZ"]
+                                 if blend else fold["ridgeZ"])
+            blend_path.append({"fold": i + 1, "blend": float(blend), "basedOnFolds": i})
+        best_blend = _choose_blend(fold_data, spearman) if hgb_enabled else 0.0
+        have_hgb = all(f["hgbZ"] is not None for f in fold_data)
+        if not have_hgb:
+            best_blend = 0.0
+
         yo = np.concatenate([f["y"] for f in fold_data])
-        pr = np.concatenate([f["ridge"] for f in fold_data])
+        pr = np.concatenate([f["ridgeZ"] for f in fold_data])
         pp = np.concatenate([f["parent"] for f in fold_data])
-        have_hgb = all(f["hgb"] is not None for f in fold_data)
-        ph = np.concatenate([f["hgb"] for f in fold_data]) if have_hgb else None
+        selected = np.concatenate([f["selectedZ"] for f in fold_data])
+        best_folds = [_safe_ic(f["selectedZ"], f["y"], spearman) for f in fold_data]
+        parent_folds = [_safe_ic(f["parent"], f["y"], spearman) for f in fold_data]
+        factor_ic = {
+            g: round(_safe_ic(np.concatenate([f["factor"][j] for f in fold_data]), yo, spearman), 4)
+            for j, g in enumerate(groups)
+        }
 
-        lr_scale = float(np.std(pr)) or 1.0
-        h_scale = (float(np.std(ph)) if ph is not None else 0.0) or 1.0
-        ridge_z = pr / max(lr_scale, 1e-12)
-        hgb_z = ph / max(h_scale, 1e-12) if ph is not None else None
-        bounds = np.cumsum([0] + [len(f["y"]) for f in fold_data])
-
-        def fold_ics(pred):
-            vals = []
-            for i in range(len(fold_data)):
-                a, b = bounds[i], bounds[i + 1]
-                ic = spearman(pred[a:b], yo[a:b])
-                vals.append(float(ic) if ic is not None and np.isfinite(ic) else 0.0)
-            return vals
-
-        ridge_folds = fold_ics(ridge_z)
-        parent_folds = fold_ics(pp)
-        best_blend, best_folds = 0.0, ridge_folds
-        if hgb_z is not None:
-            for b in (0.25, 0.50, 0.75, 1.0):
-                cand = (1.0 - b) * ridge_z + b * hgb_z
-                cand_folds = fold_ics(cand)
-                # A challenger must improve the mean and not rely on one fold.
-                wins = sum(c >= r - 0.002 for c, r in zip(cand_folds, ridge_folds))
-                if (np.mean(cand_folds) > np.mean(best_folds) + 0.004 and wins >= 2):
-                    best_blend, best_folds = b, cand_folds
-
-        selected = (1.0 - best_blend) * ridge_z + best_blend * hgb_z if best_blend else ridge_z
-        ic = spearman(selected, yo)
-        parent_ic = spearman(pp, yo)
-        ic = float(ic) if ic is not None and np.isfinite(ic) else 0.0
-        parent_ic = float(parent_ic) if parent_ic is not None and np.isfinite(parent_ic) else 0.0
+        ic = _safe_ic(selected, yo, spearman)
+        parent_ic = _safe_ic(pp, yo, spearman)
+        ridge_ic = _safe_ic(pr, yo, spearman)
         nw = newey_west_t(_window_ics(selected, yo, spearman))
         nw = float(nw) if nw is not None and np.isfinite(nw) else 0.0
         positive_folds = sum(v > 0 for v in best_folds)
@@ -182,15 +224,10 @@ def train_all_coin_models(*, X, y, ss, tt, nn, symbol_meta, parent_weights_of,
         active = bool(ic >= 0.02 and nw >= 2.0 and positive_folds >= 2 and delta >= 0.002)
 
         # Final deployment fit uses all currently available history.  Metrics
-        # above remain strictly walk-forward and are not recomputed in-sample.
+        # above remain prequential OOS and are never recomputed in-sample.
         shrink = float(np.clip(len(yc) / (len(yc) + 4000.0), 0.20, 0.68))
-        _, final_raw = _ridge(Xc, yc, Xc[:1])
-        own_final = _normalized(final_raw, groups)
-        final_weights = {
-            g: shrink * own_final[g] + (1.0 - shrink) * float(parent.get(g, 0.0))
-            for g in groups
-        }
-        final_vec = np.asarray([final_weights[g] for g in groups])
+        _, final_vec = _fit_offset_ridge(Xc, yc, Xc[:1], parent_vec, shrink, groups)
+        final_weights = {g: float(final_vec[j]) for j, g in enumerate(groups)}
         final_linear = Xc @ final_vec
         final_lr_scale = float(np.std(final_linear)) or 1.0
 
@@ -205,16 +242,18 @@ def train_all_coin_models(*, X, y, ss, tt, nn, symbol_meta, parent_weights_of,
             "scoreScale": round(max(final_lr_scale, 1e-8), 8),
             "linearScale": round(max(final_lr_scale, 1e-8), 8),
             "status": "active" if active else "shadow",
-            "modelType": "hgb-ridge-ensemble" if best_blend else "adaptive-ridge",
+            "modelType": "hgb-ridge-ensemble" if best_blend else "offset-ridge",
             "ic": round(ic, 4), "t": round(nw, 2), "n": int(len(yo)),
             "foldICs": [round(v, 4) for v in best_folds],
             "folds": [{"trainN": f["trainN"], "testN": f["testN"],
                        "trainMaxFrac": round(f["trainMaxFrac"], 5), "testMinFrac": round(f["testMinFrac"], 5)}
                       for f in fold_data],
-            "parentIC": round(parent_ic, 4), "deltaIC": round(delta, 4),
+            "parentIC": round(parent_ic, 4), "parentFoldICs": [round(v, 4) for v in parent_folds],
+            "ridgeIC": round(ridge_ic, 4), "deltaIC": round(delta, 4),
             "shrinkage": round(shrink, 4),
-            "hgbBlend": float(best_blend),
-            "reason": "通过多折时间外推与父模型增量门槛" if active else "；".join(reasons),
+            "hgbBlend": float(best_blend), "blendPath": blend_path,
+            "factorIC": factor_ic, "validationMode": validation_mode,
+            "reason": "通过无前视多折验证与父模型增量门槛" if active else "；".join(reasons),
         }
 
         if active and best_blend > 0 and have_hgb:
@@ -241,7 +280,7 @@ def train_all_coin_models(*, X, y, ss, tt, nn, symbol_meta, parent_weights_of,
             except Exception as exc:
                 # 导出失败时不能让线性回退冒用非线性模型的验证成绩。
                 rec["status"] = "shadow"
-                rec["modelType"] = "adaptive-ridge"
+                rec["modelType"] = "offset-ridge"
                 rec["hgbBlend"] = 0.0
                 rec["reason"] = "非线性模型导出对拍失败，已停用并回退父模型"
                 rec["exportFallback"] = f"{type(exc).__name__}: {exc}"

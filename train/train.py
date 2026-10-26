@@ -989,6 +989,7 @@ def main():
             "shadow": sum(v.get("status") == "shadow" for v in coin_models.values()),
             "warmup": sum(v.get("status") == "warmup" for v in coin_models.values()),
             "hgb": sum(v.get("status") == "active" and v.get("hgbBlend", 0) > 0 for v in coin_models.values()),
+            "validationMode": "purged-prequential-nested-blend-v1",
             "icMean": round(float(np.mean([v["ic"] for v in coin_models.values() if v.get("ic") is not None])), 4)
                       if any(v.get("ic") is not None for v in coin_models.values()) else None,
         },
@@ -1006,7 +1007,7 @@ def main():
     model = {
         "version": version,
         "trainedAt": trained_at,
-        "engine": "ridge-v7-coin-ensemble",
+        "engine": "ridge-v8-offset-prequential",
         "fwdSet": FWD_SET,
         "weights": final_weights,
         "scoreScale": round(score_scale, 8),

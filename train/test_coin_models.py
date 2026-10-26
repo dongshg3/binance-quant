@@ -56,6 +56,46 @@ class CoinModelTests(unittest.TestCase):
         self.assertEqual(warm["status"], "warmup")
         self.assertEqual(warm["n"], 0)
 
+    def test_window_ics_support_production_newey_west(self):
+        from nlkit.stats import newey_west_t as production_nw_t
+        rng = np.random.default_rng(123)
+        pred = rng.normal(size=1175)
+        y = 0.5 * pred + rng.normal(size=1175)
+        windows = coin_models._window_ics(pred, y, spearman)
+        self.assertGreaterEqual(len(windows), 30)
+        t_value = production_nw_t(windows)
+        self.assertIsNotNone(t_value)
+        self.assertTrue(np.isfinite(t_value))
+        self.assertGreater(t_value, 0.0)
+
+    def test_offset_ridge_matches_parent_plus_shrunk_residual(self):
+        data = dataset()
+        X, y = data["X"], data["y"]
+        parent = np.asarray([0.25, -0.10])
+        shrink = 0.4
+        pred, weights = coin_models._fit_offset_ridge(
+            X, y, X, parent, shrink, data["groups"])
+        _, raw = coin_models._ridge(X, y - X @ parent, X[:1])
+        residual = coin_models._normalized(raw, data["groups"])
+        expected = parent + shrink * np.asarray([residual[g] for g in data["groups"]])
+        np.testing.assert_allclose(weights, expected)
+        np.testing.assert_allclose(pred, X @ expected)
+
+    def test_blend_selection_is_prequential_and_evidence_is_exported(self):
+        y = np.arange(8, dtype=float)
+        ridge = np.random.default_rng(7).normal(size=8)
+        bad = {"y": y, "ridgeZ": ridge, "hgbZ": -y}
+        good = {"y": y, "ridgeZ": ridge, "hgbZ": y}
+        self.assertEqual(coin_models._choose_blend([bad], spearman), 0.0)
+        self.assertGreater(coin_models._choose_blend([bad, good, good], spearman), 0.0)
+
+        rec = coin_models.train_all_coin_models(**dataset(), hgb_enabled=False)["TESTUSDT"]
+        self.assertEqual(rec["validationMode"], "purged-prequential-nested-blend-v1")
+        self.assertEqual([p["basedOnFolds"] for p in rec["blendPath"]], [0, 1, 2])
+        self.assertEqual(rec["blendPath"][0]["blend"], 0.0)
+        self.assertEqual(set(rec["factorIC"]), {"trend", "momentum"})
+        self.assertIn("ridgeIC", rec)
+
     def test_failed_ast_export_cannot_reuse_hgb_metrics(self):
         with patch.object(coin_models, "_fit_hgb", return_value=object()), \
              patch("nlkit.models._predict_single", side_effect=lambda _m, x, _p: np.sin(x[:, 0] * 2)), \
