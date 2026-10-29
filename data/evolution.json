@@ -17131,5 +17131,336 @@
    "icPrev": null,
    "gate": "skipped(<30样本)"
   }
+ },
+ {
+  "version": 74,
+  "trainedAt": "2026-10-29T06:30:43+00:00",
+  "engine": "ridge-v9-funding-dynamics-offset-prequential",
+  "featureSet": {
+   "fundingDynamics": true,
+   "fundingEventWindow": 90,
+   "microstructure": false
+  },
+  "symbols": 396,
+  "samples": 1377380,
+  "fwdSet": [
+   2,
+   4,
+   8
+  ],
+  "weights": {
+   "trend": 0.0102,
+   "momentum": -0.0419,
+   "meanRev": 0.1646,
+   "volume": -0.2326,
+   "volatility": -0.0744,
+   "position": -0.1157,
+   "htf": -0.01,
+   "futures": -0.3505
+  },
+  "factorIC": {
+   "trend": -0.0483,
+   "momentum": 0.0582,
+   "meanRev": 0.0581,
+   "volume": -0.0363,
+   "volatility": -0.0198,
+   "position": 0.0023,
+   "htf": -0.0049,
+   "futures": 0.0002
+  },
+  "icInSample": 0.0613,
+  "icOOS": 0.0564,
+  "icXS": 0.0486,
+  "icXSRaw4": 0.0475,
+  "nwT": 7.07,
+  "icPerSym": 0.0625,
+  "icPerSymMedian": 0.0648,
+  "icDecay": {
+   "1": 0.0255,
+   "2": 0.0244,
+   "4": 0.0189,
+   "8": 0.0261,
+   "12": 0.024,
+   "24": 0.0436
+  },
+  "gapInOut": 0.0049,
+  "randIC": {
+   "mean": -0.0013,
+   "std": 0.0341,
+   "percentile": 0.96
+  },
+  "lsSpread": 0.097361,
+  "lsSharpeOOS": 1.48,
+  "dcor": {
+   "trend": {
+    "dcor": 0.0842,
+    "p": 0.016
+   },
+   "momentum": {
+    "dcor": 0.0628,
+    "p": 0.016
+   },
+   "meanRev": {
+    "dcor": 0.0698,
+    "p": 0.016
+   },
+   "volume": {
+    "dcor": 0.073,
+    "p": 0.016
+   },
+   "volatility": {
+    "dcor": 0.0418,
+    "p": 0.082
+   },
+   "position": {
+    "dcor": 0.0547,
+    "p": 0.016
+   },
+   "htf": {
+    "dcor": 0.0586,
+    "p": 0.016
+   },
+   "futures": {
+    "dcor": 0.0426,
+    "p": 0.213
+   },
+   "_composite": {
+    "dcor": 0.0846,
+    "p": 0.016
+   }
+  },
+  "conditionalIC": {
+   "byAdx": {
+    "低": 0.0461,
+    "中": 0.0509,
+    "高": 0.0707
+   },
+   "byVol": {
+    "低": 0.0352,
+    "中": 0.0632,
+    "高": 0.0705
+   },
+   "byFunding": {
+    "低": 0.0566,
+    "高": 0.0671
+   }
+  },
+  "segments": {
+   "size:large": {
+    "icXS": -0.0216,
+    "nwT": -1.58,
+    "n": 71170,
+    "symbols": 30,
+    "good": false,
+    "flipped": false,
+    "modelType": "ridge"
+   },
+   "size:mid": {
+    "icXS": 0.0149,
+    "nwT": 1.38,
+    "n": 138671,
+    "symbols": 59,
+    "good": false,
+    "flipped": false,
+    "modelType": "ridge"
+   },
+   "size:small": {
+    "icXS": 0.0537,
+    "nwT": 7.41,
+    "n": 737473,
+    "symbols": 307,
+    "good": true,
+    "flipped": false,
+    "modelType": "ridge"
+   },
+   "cat:ai": {
+    "icXS": -0.0019,
+    "nwT": -0.09,
+    "n": 20800,
+    "symbols": 8,
+    "good": false,
+    "flipped": false,
+    "modelType": "ridge"
+   },
+   "cat:defi": {
+    "icXS": -0.012,
+    "nwT": -1.08,
+    "n": 63940,
+    "symbols": 25,
+    "good": false,
+    "flipped": false,
+    "modelType": "ridge"
+   },
+   "cat:gaming": {
+    "icXS": 0.0617,
+    "nwT": 3.12,
+    "n": 28600,
+    "symbols": 11,
+    "good": true,
+    "flipped": false,
+    "modelType": "ridge"
+   },
+   "cat:infra": {
+    "icXS": 0.0158,
+    "nwT": 0.99,
+    "n": 28600,
+    "symbols": 11,
+    "good": false,
+    "flipped": false,
+    "modelType": "ridge"
+   },
+   "cat:l1": {
+    "icXS": -0.0129,
+    "nwT": -1.14,
+    "n": 80600,
+    "symbols": 31,
+    "good": false,
+    "flipped": false,
+    "modelType": "ridge"
+   },
+   "cat:l2": {
+    "icXS": 0.0824,
+    "nwT": 4.48,
+    "n": 23400,
+    "symbols": 9,
+    "good": true,
+    "flipped": false,
+    "modelType": "ridge"
+   },
+   "cat:meme": {
+    "icXS": 0.058,
+    "nwT": 4.24,
+    "n": 41600,
+    "symbols": 16,
+    "good": true,
+    "flipped": false,
+    "modelType": "ridge"
+   },
+   "cat:other": {
+    "icXS": 0.0495,
+    "nwT": 5.8,
+    "n": 654574,
+    "symbols": 283,
+    "good": true,
+    "flipped": false,
+    "modelType": "ridge"
+   }
+  },
+  "etExperiments": {
+   "global": {
+    "ridge": 0.0512,
+    "et": 0.0562,
+    "distilled": 0.0617,
+    "folds": 3,
+    "improvement": 0.005,
+    "adopted": false
+   },
+   "size:large": {
+    "ridge": -0.0152,
+    "et": -0.0115,
+    "distilled": -0.0103,
+    "folds": 3,
+    "improvement": 0.0037,
+    "adopted": false
+   },
+   "size:mid": {
+    "ridge": 0.0289,
+    "et": 0.0239,
+    "distilled": 0.0369,
+    "folds": 3,
+    "improvement": -0.005,
+    "adopted": false
+   },
+   "size:small": {
+    "ridge": 0.0605,
+    "et": 0.0649,
+    "distilled": 0.0692,
+    "folds": 3,
+    "improvement": 0.0044,
+    "adopted": false
+   },
+   "cat:ai": {
+    "ridge": 0.0102,
+    "et": 0.0203,
+    "distilled": 0.0085,
+    "folds": 3,
+    "improvement": 0.0101,
+    "adopted": false
+   },
+   "cat:defi": {
+    "ridge": 0.006,
+    "et": 0.0054,
+    "distilled": 0.0138,
+    "folds": 3,
+    "improvement": -0.0006,
+    "adopted": false
+   },
+   "cat:gaming": {
+    "ridge": 0.0395,
+    "et": 0.0341,
+    "distilled": 0.0564,
+    "folds": 3,
+    "improvement": -0.0054,
+    "adopted": false
+   },
+   "cat:infra": {
+    "ridge": 0.0369,
+    "et": 0.0386,
+    "distilled": 0.0469,
+    "folds": 3,
+    "improvement": 0.0017,
+    "adopted": false
+   },
+   "cat:l1": {
+    "ridge": 0.0014,
+    "et": -0.0058,
+    "distilled": -0.0052,
+    "folds": 3,
+    "improvement": -0.0072,
+    "adopted": false
+   },
+   "cat:l2": {
+    "ridge": 0.0502,
+    "et": 0.0493,
+    "distilled": 0.0562,
+    "folds": 3,
+    "improvement": -0.0009,
+    "adopted": false
+   },
+   "cat:meme": {
+    "ridge": 0.0468,
+    "et": 0.0516,
+    "distilled": 0.0611,
+    "folds": 3,
+    "improvement": 0.0048,
+    "adopted": false
+   },
+   "cat:other": {
+    "ridge": 0.0552,
+    "et": 0.0623,
+    "distilled": 0.0648,
+    "folds": 3,
+    "improvement": 0.0071,
+    "adopted": false
+   }
+  },
+  "coinModels": {
+   "covered": 396,
+   "adopted": 79,
+   "shadow": 307,
+   "warmup": 10,
+   "hgb": 43,
+   "validationMode": "purged-prequential-nested-blend-v1",
+   "icMean": 0.0514
+  },
+  "accepted": true,
+  "rejectReason": "",
+  "alpha": 0.6,
+  "tracker": {
+   "n": 0,
+   "icNew": null,
+   "icPrev": null,
+   "gate": "skipped(<30样本)"
+  }
  }
 ]
