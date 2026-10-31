@@ -6,68 +6,15 @@
   "where": "GitHub Actions runner",
   "note": "无人值守，每小时两个槽位；不依赖任何人的电脑"
  },
- "updatedAt": "2026-10-31T17:59:32+00:00",
+ "updatedAt": "2026-10-31T21:29:55+00:00",
  "engine": "nlkit-1.0",
  "loop": {
-  "generation": 624,
-  "nTrials": 3744,
-  "ledgerEntries": 3744,
+  "generation": 627,
+  "nTrials": 3762,
+  "ledgerEntries": 3762,
   "passedAllGates": 0,
   "startedAt": "2026-10-17T09:10:37+00:00",
   "history": [
-   {
-    "generation": 613,
-    "at": "2026-10-31T01:00:35+00:00",
-    "nEval": 6,
-    "nPassed": 0,
-    "topObjective": 3.177,
-    "topSharpe": 3.177,
-    "topIC": 0.0112,
-    "topDSR": 0.0307,
-    "pbo": 0.1857,
-    "promoted": false,
-    "families": [
-     "gated",
-     "hgb",
-     "mlp",
-     "ridge"
-    ]
-   },
-   {
-    "generation": 614,
-    "at": "2026-10-31T01:01:46+00:00",
-    "nEval": 6,
-    "nPassed": 0,
-    "topObjective": 1.568,
-    "topSharpe": 1.568,
-    "topIC": 0.0101,
-    "topDSR": 0.0026,
-    "pbo": 0.3571,
-    "promoted": false,
-    "families": [
-     "gated",
-     "hgb",
-     "mlp"
-    ]
-   },
-   {
-    "generation": 615,
-    "at": "2026-10-31T01:02:57+00:00",
-    "nEval": 6,
-    "nPassed": 0,
-    "topObjective": 0.963,
-    "topSharpe": 0.963,
-    "topIC": 0.0086,
-    "topDSR": 0.001,
-    "pbo": 0.5429,
-    "promoted": false,
-    "families": [
-     "et",
-     "gated",
-     "hgb",
-     "ridge"
-    ]
-   },
    {
     "generation": 616,
     "at": "2026-10-31T06:55:03+00:00",
@@ -221,6 +168,60 @@
      "hgb",
      "mlp",
      "ridge"
+    ]
+   },
+   {
+    "generation": 625,
+    "at": "2026-10-31T21:25:34+00:00",
+    "nEval": 6,
+    "nPassed": 0,
+    "topObjective": 3.872,
+    "topSharpe": 3.872,
+    "topIC": 0.0115,
+    "topDSR": 0.0679,
+    "pbo": 0.0429,
+    "promoted": false,
+    "families": [
+     "et",
+     "gated",
+     "hgb",
+     "ridge"
+    ]
+   },
+   {
+    "generation": 626,
+    "at": "2026-10-31T21:28:13+00:00",
+    "nEval": 6,
+    "nPassed": 0,
+    "topObjective": 1.53,
+    "topSharpe": 1.53,
+    "topIC": 0.0082,
+    "topDSR": 0.0025,
+    "pbo": 0.2286,
+    "promoted": false,
+    "families": [
+     "et",
+     "gated",
+     "hgb",
+     "mlp"
+    ]
+   },
+   {
+    "generation": 627,
+    "at": "2026-10-31T21:29:54+00:00",
+    "nEval": 6,
+    "nPassed": 0,
+    "topObjective": -0.298,
+    "topSharpe": -0.298,
+    "topIC": -0.0063,
+    "topDSR": 0.0001,
+    "pbo": 0.2143,
+    "promoted": false,
+    "families": [
+     "et",
+     "gated",
+     "hgb",
+     "mlp"
     ]
    }
   ]
@@ -387,6 +388,27 @@
    ]
   },
   {
+   "generation": 625,
+   "family": "hgb",
+   "featureBatch": "all",
+   "holding": 12,
+   "topFrac": 0.05,
+   "costTier": "taker",
+   "icXS": 0.0115,
+   "icNWt": 1.78,
+   "netMeanBp": 37.198,
+   "grossMeanBp": 49.053,
+   "netSharpe": 3.872,
+   "dsr": 0.0679,
+   "mktBeta": -0.08,
+   "passed": false,
+   "reasons": [
+    "XS IC 0.0115 < 0.015",
+    "IC NW t 1.78 < 2.0",
+    "Deflated Sharpe 0.0679 < 0.95"
+   ]
+  },
+  {
    "generation": 134,
    "family": "hgb",
    "featureBatch": "fut",
@@ -420,27 +442,6 @@
    "grossMeanBp": 21.821,
    "netSharpe": 3.854,
    "dsr": 0.0446,
-   "mktBeta": 0.391,
-   "passed": false,
-   "reasons": [
-    "XS IC -0.0097 < 0.015",
-    "IC NW t -1.88 < 2.0",
-    "净收益 NW t 1.601 < 2.0"
-   ]
-  },
-  {
-   "generation": 262,
-   "family": "hgb",
-   "featureBatch": "fut",
-   "holding": 8,
-   "topFrac": 0.1,
-   "costTier": "maker",
-   "icXS": -0.0097,
-   "icNWt": -1.88,
-   "netMeanBp": 21.779,
-   "grossMeanBp": 21.821,
-   "netSharpe": 3.854,
-   "dsr": 0.0327,
    "mktBeta": 0.391,
    "passed": false,
    "reasons": [
