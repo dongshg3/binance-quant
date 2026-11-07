@@ -6,10 +6,11 @@
   "description": "币安量化交易分析与预测系统 — 全市场扫描 · 多因子信号 · 概率预测 · 回测引擎",
   "scripts": {
     "dev": "vite",
-    "build": "vite build",
+    "build": "vite build && node scripts/copy-static.mjs",
     "preview": "vite preview",
     "test": "node --test tests/*.test.js",
     "test:ui": "node tests/browser-smoke.mjs",
+    "test:arena": "node tests/arena-masters.mjs",
     "test:visual": "node tests/visual-regression.mjs",
     "test:visual:update": "node tests/visual-regression.mjs --update"
   },
