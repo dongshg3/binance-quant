@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>模型进化 · 币安量化系统</title>
+<meta name="description" content="量化模型自动学习轨迹：因子权重变迁、IC 衰减、样本外表现、训练历史与浏览器端信号追踪">
+<script src="https://unpkg.com/lightweight-charts@4.1.0/dist/lightweight-charts.standalone.production.js"></script>
+<link rel="stylesheet" href="css/main.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%232563eb' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M9 5v4'/><rect width='4' height='6' x='7' y='9' rx='1'/><path d='M9 15v2'/><path d='M17 3v2'/><rect width='4' height='8' x='15' y='5' rx='1'/><path d='M17 13v3'/><path d='M3 3v16a2 2 0 0 0 2 2h16'/></svg>">
+</head>
+<body>
+<div class="page">
+
+  <!-- 当前模型 -->
+  <div class="panel" style="margin-bottom:14px;">
+    <h3><span data-icon="cpu"></span>当前模型 <span class="sub" id="modelSub">加载中…</span></h3>
+    <div class="grid-metrics" id="modelMetrics"><div class="placeholder" style="grid-column:1/-1;">正在拉取最新模型…</div></div>
+  </div>
+
+  <!-- 权重对比 -->
+  <div class="panel" style="margin-bottom:14px;">
+    <h3><span data-icon="scale"></span>学习权重 vs 静态权重 <span class="sub">岭回归从历史数据学习 · 全部 8 组权重均参与学习</span></h3>
+    <div id="weightCompare"></div>
+  </div>
+
+  <!-- 因子 IC -->
+  <div class="panel" style="margin-bottom:14px;">
+    <h3><span data-icon="activity"></span>因子有效性（IC 分析） <span class="sub">Spearman 秩相关 · 因子值 vs 未来 12 bar 收益</span></h3>
+    <table class="table" style="margin-top:6px;">
+      <thead><tr><th>因子组</th><th>IC</th><th>有效性判断</th><th>学习权重</th></tr></thead>
+      <tbody id="icBody"><tr><td colspan="4" style="color:var(--text-dim)">加载中…</td></tr></tbody>
+    </table>
+    <div style="font-size:10px;color:var(--text-faint);margin-top:8px;line-height:1.6;">
+      |IC| &lt; 0.02 视为疑噪声（降权）；0.02~0.05 弱有效；&gt; 0.05 有效。负 IC 表示因子反向有效（做空信号），岭回归会自动学到负权重。
+    </div>
+  </div>
+
+  <!-- 过拟合诊断 -->
+  <div class="panel" style="margin-bottom:14px;">
+    <h3><span data-icon="flask"></span>诚实诊断（防过拟合） <span class="sub">Purged Walk-Forward · 横截面/单币种双口径 · IC 衰减 · 随机基准对照</span></h3>
+    <div id="diagContent"><div class="placeholder">等待 v5+ 模型产出诊断数据</div></div>
+  </div>
+
+  <!-- 信息存在性检验 -->
+  <div class="panel" style="margin-bottom:14px;">
+    <h3><span data-icon="search"></span>信息存在性检验 <span class="sub">dCor 距离相关（非线性信息）· 条件 IC（信息在哪个市场状态存在）· Newey-West t</span></h3>
+    <div id="infoContent"><div class="placeholder">等待 v8+ 模型产出检验数据</div></div>
+  </div>
+
+  <!-- 分段专业化模型 -->
+  <div class="panel" style="margin-bottom:14px;">
+    <h3><span data-icon="layers"></span>分段专业化模型 <span class="sub">规模分层 × 板块分类独立训练 · 前端按币种自动选用达标分段 · 显著负 IC 反向启用</span></h3>
+    <div id="segContent"><div class="placeholder">等待 v8+ 模型产出分段数据</div></div>
+  </div>
+
+  <!-- 非线性对照实验 -->
+  <div class="panel" style="margin-bottom:14px;">
+    <h3><span data-icon="flask"></span>非线性对照实验 <span class="sub">Ridge vs ExtraTrees（随机森林族）· Purged K 折同条件对比 · 胜出则知识蒸馏回线性权重</span></h3>
+    <div id="etContent"><div class="placeholder">等待 v9+ 模型产出对照实验数据</div></div>
+  </div>
+
+  <!-- 双管线：本地 / 云端各自独立迭代，产物分文件，分开呈现，互不覆盖 -->
+  <div class="panel" style="margin-bottom:14px;">
+    <h3><span data-icon="cpu"></span>本地管线 · 零 Token 自动迭代 <span class="sub">作者本机常驻进程 · 每代只消耗本地 CPU，不调用任何外部模型接口 · 算力更足，可跑更长的搜索</span></h3>
+    <div id="nlStatusLocal"><div class="placeholder">正在读取本地管线产物…</div></div>
+  </div>
+
+  <div class="panel" style="margin-bottom:14px;">
+    <h3><span data-icon="cloud"></span>云端管线 · 零 Token 自动迭代 <span class="sub">GitHub Actions runner · 无人值守，每小时两个槽位 · 不依赖任何人的电脑是否开机</span></h3>
+    <div id="nlStatusCloud"><div class="placeholder">正在读取云端管线产物…</div></div>
+  </div>
+
+  <!-- 逐币独立模型 -->
+  <div class="panel" style="margin-bottom:14px;">
+    <h3><span data-icon="target"></span>逐币独立模型 <span class="sub">单币种独立训练 · 50/50 收缩融合防过拟合 · 右半部分接入竞技场逐币族实盘战绩对照</span></h3>
+    <div id="coinContent"><div class="placeholder">等待 v9+ 模型产出逐币模型数据</div></div>
+  </div>
+
+  <!-- 权重变迁 -->
+  <div class="panel" style="margin-bottom:14px;">
+    <h3><span data-icon="chartLine"></span>权重变迁 <span class="sub">每次自动训练的组权重轨迹</span></h3>
+    <div id="weightChart" style="height:260px;"></div>
+  </div>
+
+  <!-- IC 衰减 / 样本外 -->
+  <div class="panel" style="margin-bottom:14px;">
+    <h3><span data-icon="target"></span>诚实 IC 轨迹 <span class="sub">横截面 IC（选币能力）+ 单币种 IC（择时能力）· Purged 70/30</span></h3>
+    <div id="icChart" style="height:220px;"></div>
+  </div>
+
+  <!-- 训练历史 -->
+  <div class="panel" style="margin-bottom:14px;">
+    <h3><span data-icon="history"></span>训练运行历史 <span class="sub">GitHub Actions 每 6 小时自动训练 · 展示诚实口径</span></h3>
+    <table class="table" style="margin-top:6px;">
+      <thead><tr><th>版本</th><th>训练时间 (UTC)</th><th>币种数</th><th>样本数</th><th>横截面 IC</th><th>单币种 IC</th><th>混合 IC*</th><th>实盘 IC</th><th>闸门</th></tr></thead>
+      <tbody id="histBody"><tr><td colspan="9" style="color:var(--text-dim)">加载中…</td></tr></tbody>
+    </table>
+    <div style="font-size:10px;color:var(--text-faint);margin-top:6px;">*混合 IC 容易被跨币种同涨同跌虚增，仅作参考；判断模型请以前两列为准。</div>
+  </div>
+
+  <!-- 浏览器信号追踪 -->
+  <div class="panel" style="margin-bottom:14px;">
+    <h3><span data-icon="radio"></span>浏览器信号追踪 <span class="sub">本机 IndexedDB · 信号 → 实际走势的本地验证</span></h3>
+    <div class="grid-metrics" id="trackerMetrics"><div class="placeholder" style="grid-column:1/-1;">暂无数据——访问「深度分析」页即开始自动记录信号</div></div>
+    <div id="trackerTables" style="margin-top:10px;"></div>
+    <div style="margin-top:12px;">
+      <button id="exportBtn" class="primary"><span data-icon="download"></span>导出 CSV</button>
+      <span style="font-size:11px;color:var(--text-dim);margin-left:10px;" id="exportStatus">数据仅存于本浏览器 · 导出后放入项目 data/tracker/ 目录，云端训练自动用于更新闸门（不参与拟合，防过拟合）</span>
+    </div>
+  </div>
+
+  <div id="disclaimerSlot"></div>
+</div>
+<script type="module" src="js/evolution.js"></script>
+</body>
+</html>
