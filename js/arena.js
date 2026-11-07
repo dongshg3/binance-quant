@@ -2,13 +2,15 @@
 // arena.js（页面）· 策略竞技场：云端状态展示 + 选手详情
 // 引擎在云端（GitHub Actions 每 30 分钟），本页只读 data/arena/state.json
 // ============================================================
-import { ARENA_INTERVALS, FAMILIES, FEE_RT, getArenaState, getChampionSignals, getPlayerDetail } from './lib/arena.js';
+import { ARENA_INTERVALS, FAMILIES, FEE_RT, MIN_RANK_N, getArenaState, getChampionSignals, getPlayerDetail } from './lib/arena.js';
 import { loadTickers } from './lib/api.js';
 import { GROUP_NAMES } from './lib/quant.js';
 import { renderNav, setNet, fmtPct, fmtNum, fmtTime, disclaimerHTML, icon, goDashboard, clsBySign } from './lib/ui.js';
+import { initMasterArchive } from './masters.js';
 
 renderNav('arena');
 document.getElementById('disclaimerSlot').innerHTML = disclaimerHTML();
+initMasterArchive();
 const $ = id => document.getElementById(id);
 
 const IV_NAMES = { '15m': '15 分钟', '1h': '1 小时', '4h': '4 小时', '1d': '日线' };
@@ -171,24 +173,25 @@ async function render() {
   ];
   $('arenaMetrics').innerHTML = cells.map(c => `<div class="metric"><div class="k">${c.k}</div><div class="v">${c.v}</div></div>`).join('');
 
-  // 云端运行状态
+  // 云端运行状态：调度间隔不等于保证执行时间，GitHub 队列可能延迟。
   const cs = $('cloudStatus');
   if (state.updatedAt) {
     const agoMin = Math.max(0, Math.round((Date.now() - new Date(state.updatedAt).getTime()) / 60000));
-    cs.textContent = `云端引擎每 30 分钟自动运行 · 上次更新 ${agoMin} 分钟前 · 不开网站也持续运行`;
+    cs.textContent = `云端每 15 分钟一个触发槽 · 上次状态更新 ${agoMin} 分钟前 · 调度可能延迟`;
   } else {
     cs.textContent = '云端引擎尚未产出状态（等待首轮运行）';
   }
 
-  // 四周期选手池
+  // 原策略池与大师转译分区展示，避免同一选手重复占据两张表。
   $('poolPanels').innerHTML = Object.keys(ARENA_INTERVALS).map(iv => {
     const blk = state.intervals[iv];
+    const legacyPlayers = blk.players.filter(p => p.family !== 'master');
     const cfg = ARENA_INTERVALS[iv];
     const seasonPct = Math.min(100, (Date.now() - blk.seasonStart) / cfg.seasonMs * 100);
     const pctTxt = seasonPct < 10 ? seasonPct.toFixed(1) : seasonPct.toFixed(0);
     const elapsedD = (Date.now() - blk.seasonStart) / 864e5;
     const seasonD = cfg.seasonMs / 864e5;
-    const rows = blk.players.map((p, i) => {
+    const rows = legacyPlayers.map((p, i) => {
       const isCtrl = CONTROL.has(p.family);
       const champ = p.isChampion ? `<span class="chip trend" style="padding:1px 7px;">${icon('crown')}冠军</span>` : '';
       const ctrlTag = isCtrl ? `<span class="chip ${p.family === 'learned' || p.family === 'coin' ? 'trend' : 'flat'}" style="padding:1px 7px;">${CTRL_TAGS[p.family]}</span>` : '';
@@ -200,12 +203,12 @@ async function render() {
       </tr>
       <tr class="pd-row"><td colspan="4" style="padding:0;border:none;"><div class="pd-wrap"><div class="pd-inner"><div class="pd-content"></div></div></div></td></tr>`;
     }).join('');
-    const randomRank = blk.players.findIndex(p => p.family === 'random') + 1;
-    const verdict = blk.players.length && blk.players[0].stats.n >= 8
+    const randomRank = legacyPlayers.findIndex(p => p.family === 'random') + 1;
+    const verdict = legacyPlayers.length && legacyPlayers[0].stats.n >= MIN_RANK_N
       ? (randomRank > 0 && randomRank <= 3
-        ? `<span class="chip short">${icon('alert')} 随机组第 ${randomRank} 名 · 当前周期 alpha 存疑</span>`
-        : `<span class="chip long">${icon('check')} 随机组第 ${randomRank || '—'} 名 · 最优策略暂时超越噪声</span>`)
-      : `<span class="chip flat">样本不足 8 笔，排名暂无统计意义</span>`;
+        ? `<span class="chip short">${icon('alert')} 随机组第 ${randomRank} 名 · 当前相对优势存疑</span>`
+        : `<span class="chip long">${icon('check')} 随机组第 ${randomRank || '—'} 名 · 仅表示暂时领先对照</span>`)
+      : `<span class="chip flat">样本不足 ${MIN_RANK_N} 笔，排名暂无统计意义</span>`;
     return `
     <div class="panel" style="margin-bottom:14px;">
       <h3>${icon('layers')} ${IV_NAMES[iv]}周期 <span class="sub">赛季进度 ${pctTxt}% · 已进行 ${elapsedD.toFixed(1)} / ${seasonD.toFixed(0)} 天 · 待结算 ${blk.pending} · 已结算 ${blk.filled}</span></h3>
@@ -238,7 +241,7 @@ async function render() {
         </div>
         <div style="display:flex;justify-content:space-between;align-items:center;margin-top:4px;">
           <span style="font-weight:700;font-size:15px;">${fmtNum(s.score, 3)}</span>
-          <span style="font-size:10px;color:var(--text-faint);">${(FAMILIES[s.family] || {}).name || s.family} g${s.generation}</span>
+          <span style="font-size:10px;color:var(--text-faint);">${s.masterName || (FAMILIES[s.family] || {}).name || s.family} g${s.generation}</span>
         </div>
         <div class="meta">${fmtTime(s.signalBarTime)} · ${stateTxt}</div>
       </div>`;
@@ -276,10 +279,10 @@ async function init() {
   try {
     await render();
   } catch (e) {
-    $('arenaMetrics').innerHTML = `<div class="placeholder" style="grid-column:1/-1;">云端状态暂未就绪（${e.message}）· 引擎每 30 分钟产出一次，稍后刷新</div>`;
+    $('arenaMetrics').innerHTML = `<div class="placeholder" style="grid-column:1/-1;">云端状态暂未就绪（${e.message}）· 请稍后刷新</div>`;
     setNet('等待云端首轮运行', 'connecting');
   }
-  // 每 5 分钟自动刷新（云端每 30 分钟产出新状态）
+  // 每 5 分钟刷新；云端调度与实际状态更新可能延迟。
   setInterval(() => { render().catch(() => {}); }, 5 * 60 * 1000);
 }
 
