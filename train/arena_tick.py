@@ -38,6 +38,7 @@ ARENA_DIR = os.path.join(DATA_DIR, "arena")
 STATE_PATH = os.path.join(ARENA_DIR, "state.json")
 SEED_PATH = os.path.join(ARENA_DIR, "seed_browser_raw.json")
 MODEL_PATH = os.path.join(DATA_DIR, "model.json")
+MASTER_PATH = os.path.join(DATA_DIR, "masters.json")
 
 FAPI = "https://fapi.binance.com/fapi/v1"
 SCAN_SYMBOLS = 24
@@ -47,6 +48,7 @@ KEEP_FILLED = 500                          # state.json 保留的已结算信号
 KEEP_INVALID = 50
 GEN_BACKFILL_BARS = 8                      # 信号生成最多回填的已收盘 bar 数（GitHub 定时队列常延迟数小时，需覆盖 tick 间隔）
 KLINES_LIMIT = 140                         # 同时满足因子计算（>=80）与结算窗口（horizon<=30+3）
+MIN_RANK_N = 30                            # 少于 30 笔只积累样本，不参与冠军或自然选择排名
 
 ARENA_INTERVALS = {
     "15m": {"ms": 900000,      "seasonMs": 3 * 86400000,  "horizon": 8,  "entryThreshold": 0.20},
@@ -67,6 +69,7 @@ FAMILIES = {
     "staticRef":  {"name": "静态对照", "weights": {"trend": 0.22, "momentum": 0.18, "meanRev": 0.13, "volume": 0.13, "volatility": 0.09, "position": 0.05, "htf": 0.10, "futures": 0.10}},
     "learned":    {"name": "云端模型", "weights": None},
     "coin":       {"name": "逐币模型", "weights": None},
+    "master":     {"name": "交易员转译", "weights": None},
 }
 CONTROL_FAMILIES = {"random", "staticRef", "learned", "coin"}
 
@@ -143,10 +146,8 @@ def derive_stats(agg):
 
 
 def rank_key(stats):
-    """赛季排名分数：带符号 t 值（稳定盈利者居前，稳定亏损者居末）。
-    注：浏览器旧版用 |t|，会把稳定亏损的选手排到第一并加冕冠军——
-    其信号原样展示等于反向指标被当成正策略，且进化会淘汰弱者留下亏者，已修正。"""
-    if stats["n"] >= 8:
+    """带符号 t 值；不足 MIN_RANK_N 的候选统一排在有样本选手之后。"""
+    if stats["n"] >= MIN_RANK_N:
         return stats["tStat"]
     return -999 + stats["n"] * 0.01
 
@@ -175,10 +176,14 @@ def mutate_weights(w, sigma=0.20):
     return out
 
 
-def new_player(iv, fam, model, generation=0, parent=None):
+def new_player(iv, fam, model, generation=0, parent=None, master=None):
     cfg = ARENA_INTERVALS[iv]
     if fam in ("learned", "coin"):
         w = dict((model or {}).get("weights") or FAMILIES["hybrid"]["weights"])
+    elif fam == "master":
+        if not master or not master.get("weights"):
+            raise ValueError("master 选手必须提供公开档案的转译权重")
+        w = dict(master["weights"])
     elif FAMILIES[fam]["weights"]:
         w = dict(FAMILIES[fam]["weights"])
     else:
@@ -196,6 +201,10 @@ def new_player(iv, fam, model, generation=0, parent=None):
     }
     if fam in ("learned", "coin"):
         p["modelTrainedAt"] = (model or {}).get("trainedAt")
+    if fam == "master":
+        p["masterId"] = master["id"]
+        p["masterName"] = master["name"]
+        p["translationVersion"] = 1
     return p
 
 
@@ -273,13 +282,37 @@ def load_state(model):
     }
 
 
-def ensure_pools(state, model):
-    have = {(p["interval"], p["family"]) for p in state["players"] if p.get("status") != "retired"}
+def load_masters():
+    """读取证据档案；只有显式数据兼容的研究转译才可入池。"""
+    with open(MASTER_PATH, encoding="utf-8") as f:
+        masters = json.load(f)
+    if len(masters) != 50 or len({m["id"] for m in masters}) != 50:
+        raise ValueError("masters.json 必须恰好包含 50 个唯一档案")
+    for m in masters:
+        if not m.get("sources") or not all(s.get("url", "").startswith("http") for s in m["sources"]):
+            raise ValueError(f"{m['id']} 缺少可访问来源")
+        if m.get("eligibleForArena"):
+            w = m.get("weights") or {}
+            if set(w) != set(GROUPS) or not all(math.isfinite(v) for v in w.values()):
+                raise ValueError(f"{m['id']} 转译权重不完整")
+            if abs(sum(abs(v) for v in w.values()) - 1.0) > 1e-9:
+                raise ValueError(f"{m['id']} 转译权重未归一化")
+    return masters
+
+
+def ensure_pools(state, model, masters):
+    active = [p for p in state["players"] if p.get("status") != "retired"]
+    have = {(p["interval"], p["family"]) for p in active}
+    have_master = {(p["interval"], p.get("masterId")) for p in active if p["family"] == "master"}
     for iv in ARENA_INTERVALS:
         for fam in FAMILIES:
-            if (iv, fam) not in have:
+            if fam != "master" and (iv, fam) not in have:
                 state["players"].append(new_player(iv, fam, model))
                 print(f"[arena] 新选手 {iv}/{fam}")
+        for master in masters:
+            if master.get("eligibleForArena") and (iv, master["id"]) not in have_master:
+                state["players"].append(new_player(iv, "master", model, master=master))
+                print(f"[arena] 新转译 {iv}/{master['id']}")
 
 
 def sync_learned(state, model):
@@ -365,6 +398,9 @@ def generate_signals(state, model, iv, symbols, klines_cache):
                 if p["family"] == "coin" and coin_models and coin_models.get(sym):
                     rec["coinIc"] = coin_models[sym].get("ic")
                     rec["coinN"] = coin_models[sym].get("n")
+                if p["family"] == "master":
+                    rec["masterId"] = p["masterId"]
+                    rec["masterName"] = p["masterName"]
                 state["signals"].append(rec)
                 existing_ids.add(sid)
                 created += 1
@@ -452,6 +488,7 @@ def maybe_run_season(state, iv):
     champion_evo = evolvable[0] if evolvable else None
     n_ev = len(evolvable)
     retire_n = max(1, int(n_ev * 0.3))
+    master_pool_size = sum(1 for p in players if p["family"] == "master")
 
     for r in evolvable[n_ev - retire_n:]:
         r["p"]["status"] = "retired"
@@ -459,12 +496,16 @@ def maybe_run_season(state, iv):
         r["p"]["retiredReason"] = f"赛季末 t={r['ss']['tStat']:.2f} n={r['ss']['n']} 排名末位"
     survivors = evolvable[:max(1, int(n_ev * 0.5))]
     active_count = sum(1 for p in players if p["status"] == "active")
-    room = max(0, 14 - active_count + retire_n)
+    # 原通用池维持 14 个；大师池另按赛季初人数保留等量变异位置，不覆盖旧选手。
+    room = max(0, 14 + master_pool_size - active_count + retire_n)
     for r in survivors:
         if room <= 0:
             break
         parent = r["p"]
-        child = new_player(iv, parent["family"], None, parent["generation"] + 1, parent["id"])
+        master = None
+        if parent["family"] == "master":
+            master = {"id": parent["masterId"], "name": parent["masterName"], "weights": parent["weights"]}
+        child = new_player(iv, parent["family"], None, parent["generation"] + 1, parent["id"], master=master)
         child["weights"] = mutate_weights(parent["weights"], 0.20)
         child["params"] = {
             "horizon": max(4, min(30, parent["params"]["horizon"] + round((random.random() * 2 - 1) * 3))),
@@ -486,11 +527,11 @@ def maybe_run_season(state, iv):
     log = {
         "interval": iv, "finishedAt": now_ms(),
         "players": len(ranked),
-        "champion": {"family": champion["p"]["family"], "name": champion["p"]["familyName"],
+        "champion": {"family": champion["p"]["family"], "name": champion["p"].get("masterName") or champion["p"]["familyName"],
                      "gen": champion["p"]["generation"], "stats": champion["ss"]},
         "randomRank": fam_rank.get("random"), "staticRank": fam_rank.get("staticRef"),
         "learnedRank": fam_rank.get("learned"), "coinRank": fam_rank.get("coin"),
-        "table": [{"family": r["p"]["family"], "name": r["p"]["familyName"], "gen": r["p"]["generation"],
+        "table": [{"family": r["p"]["family"], "name": r["p"].get("masterName") or r["p"]["familyName"], "gen": r["p"]["generation"],
                    "n": r["ss"]["n"], "tStat": round(r["ss"]["tStat"], 2),
                    "meanRet": round(r["ss"]["meanRet"], 5), "winRate": round(r["ss"]["winRate"], 3),
                    "retired": r["p"]["status"] == "retired"} for r in ranked],
@@ -536,8 +577,9 @@ def main():
     except Exception as e:  # noqa
         print(f"[arena] model.json 读取失败（learned/coin 族用占位权重）：{e}")
 
+    masters = load_masters()
     state = load_state(model)
-    ensure_pools(state, model)
+    ensure_pools(state, model, masters)
     sync_learned(state, model)
 
     # 币种池（6 小时缓存）
