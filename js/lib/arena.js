@@ -19,9 +19,10 @@ export const FAMILIES = {
   trend:      { name: '趋势跟随' }, meanRev: { name: '均值回归' }, momentum: { name: '动量突破' },
   hybrid:     { name: '混合均衡' }, contrarian: { name: '逆向反转' }, volumeOnly: { name: '纯量能' },
   htfTrend:   { name: '高周期趋势' }, random: { name: '随机对照' }, staticRef: { name: '静态对照' },
-  learned:    { name: '云端模型' }, coin: { name: '逐币模型' },
+  learned:    { name: '云端模型' }, coin: { name: '逐币模型' }, master: { name: '交易员转译' },
 };
 const CONTROL_FAMILIES = new Set(['random', 'staticRef', 'learned', 'coin']);
+export const MIN_RANK_N = 30;
 export const FEE_RT = 0.0014; // 往返手续费 + 滑点（与引擎一致）
 
 const STATE_URL = 'data/arena/state.json';
@@ -64,7 +65,7 @@ function deriveStats(agg) {
 function rankScore(st) {
   // 带符号 t 值：稳定盈利居前、稳定亏损居末（旧版 |t| 会把稳定亏损者排第一，已修正）
   const n = st.n || 0;
-  return n >= 8 ? (st.tStat || 0) : -999 + n * 0.01;
+  return n >= MIN_RANK_N ? (st.tStat || 0) : -999 + n * 0.01;
 }
 
 // ---------------- 页面数据接口 ----------------
