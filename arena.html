@@ -6,6 +6,7 @@
 <title>策略竞技场 · 币安量化系统</title>
 <meta name="description" content="多周期策略选手池：7 策略族 + 4 组基准（随机 / 静态 / 云端全局 / 云端逐币）× 4 周期全自动模拟实盘，赛季末自然选择进化，随机对照组实时校验 alpha 存在性">
 <link rel="stylesheet" href="css/main.css?v=7">
+<link rel="stylesheet" href="css/arena-masters.css?v=1">
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%232563eb' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M9 5v4'/><rect width='4' height='6' x='7' y='9' rx='1'/><path d='M9 15v2'/><path d='M17 3v2'/><rect width='4' height='8' x='15' y='5' rx='1'/><path d='M17 13v3'/><path d='M3 3v16a2 2 0 0 0 2 2h16'/></svg>">
 <style>
   /* 选手详情展开：grid-rows 平滑形变过渡 */
@@ -42,15 +43,35 @@
 <body>
 <div class="page">
 
-  <!-- 总览 -->
+  <!-- 50 位交易员：公开证据与本项目转译 -->
+  <section class="panel master-hero" aria-labelledby="masterTitle">
+    <div class="master-hero-head">
+      <div><h2 id="masterTitle"><span data-icon="book"></span>50 位交易员策略研究库</h2><p class="master-hero-intro">覆盖日内、短波段、系统化趋势与活跃交易。这里展示的是可核验的公开方法与本项目转译，不是收益排名，也不宣称掌握任何交易员的非公开系统。</p></div>
+      <a class="master-json-link" href="data/masters.json" download="masters.json"><span data-icon="download"></span>下载证据库</a>
+    </div>
+    <div class="master-metrics" id="masterMetrics"><div class="placeholder">正在读取 50 份策略档案…</div></div>
+    <div class="master-method"><b>三层信息严格分开：</b>公开原规则／二手整理／本项目八因子转译。数据兼容者进入 15m、1h、4h、1d 四周期云端模拟；期权、统计套利与市场轮廓等缺数据的策略只保留档案。所有收益均来自成本后逐笔模拟，样本不足时不作有效性结论。</div>
+    <div class="master-cloud-note" id="masterCloudNote">正在读取云端调度与状态…</div>
+  </section>
+
+  <section class="panel master-browser" aria-label="策略档案检索">
+    <div class="master-browser-head"><h3><span data-icon="layers"></span>大师档案与云端转译 <span class="sub">点击交易员展开公开规则、转译公式、失效条件和实际模拟</span></h3><span class="master-result-count" id="masterResultCount">—</span></div>
+    <div class="master-filters">
+      <label class="master-filter"><span data-icon="search"></span><input id="masterSearch" type="search" placeholder="搜索姓名、方法、周期或关键词" aria-label="搜索交易员档案" autocomplete="off"></label>
+      <select id="masterCategory" aria-label="按策略族筛选"><option value="all">全部策略族</option></select>
+      <select id="masterEvidence" aria-label="按证据等级筛选"><option value="all">全部证据等级</option><option value="A">A · 公开规则／访谈</option><option value="B">B · 访谈原则／整理</option><option value="C">C · 高层公开原则</option></select>
+      <select id="masterPool" aria-label="按云端入池状态筛选"><option value="all">档案与入池全部</option><option value="arena">仅云端可转译</option><option value="archive">仅研究档案</option></select>
+    </div>
+    <div id="masterList" aria-live="polite"><div class="placeholder">正在加载公开策略证据…</div></div>
+  </section>
+
+  <!-- 原策略池总览 -->
   <div class="panel" style="margin-bottom:14px;">
-    <h3><span data-icon="swords"></span>策略竞技场 <span class="sub">7 策略族 + 4 组基准 · 4 周期 · 云端全自动模拟实盘 · 赛季制自然选择</span></h3>
+    <h3><span data-icon="swords"></span>原策略竞技场 <span class="sub">7 策略族 + 4 组基准 · 4 周期 · 云端前向模拟 · 赛季制自然选择</span></h3>
     <div class="grid-metrics" id="arenaMetrics"><div class="placeholder" style="grid-column:1/-1;">正在读取云端竞技场状态…</div></div>
     <div style="font-size:11px;color:var(--text-dim);line-height:1.8;margin-top:10px;">
-      机制：K 线收盘后冻结信号 → 下一根开盘入场 → 到期结算（含手续费滑点）→ 赛季末按样本外战绩淘汰末位 30%、复制变异强者。
-      <b>随机对照组</b>与<b>静态对照组</b>永在场：冠军若跑不赢随机组，说明当前市场没有可交易的 alpha——这比任何预测都诚实。
-      <b>云端模型组</b>（全局权重）与<b>逐币模型组</b>（42 个单币种专训权重）同步参赛：它们的长期排名就是云端训练成果的实盘裁判。
-      引擎运行在云端（每 30 分钟一轮），<b>不开网站也持续运行</b>，进程不受任何人控制；点击选手行可查看其持仓、操作记录、策略权重与迭代谱系。
+      机制：K 线收盘后冻结信号 → 下一根开盘入场 → 到期结算（含手续费滑点）→ 赛季末按前向模拟战绩淘汰末位 30%、复制变异强者。至少 30 笔才参与正常排名；至少 100 笔且 t≥2 仅标记为模拟候选，不等于可实盘。
+      <b>随机与静态对照组</b>用于检验相对表现；<b>云端模型与逐币模型</b>同步参赛。点击选手行可查看持仓、结算、权重与迭代谱系。GitHub 调度可能延迟，本站不执行真实订单。
     </div>
     <div style="margin-top:8px;"><span class="cloud-badge"><span class="dot"></span><span id="cloudStatus">云端引擎运行状态读取中…</span></span></div>
   </div>
