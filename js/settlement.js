@@ -160,6 +160,51 @@ function main(d) {
     )
     .join('');
 
+  // 总闸
+  const gt = d.gate || {};
+  const vs = gt.variants || [];
+  const pick = (n) => vs.find((v) => v.name === n) || {};
+  const vNone = pick('none');
+  const vGate = pick('hyst30');
+  const q4 = (gt.quarterly || []).find((q) => /Q4/.test(q.q || '')) || {};
+  $('gateMetrics').innerHTML = [
+    metric('开闸后均值', `${num(vGate.mean)}<small>bp</small>`, `${vGate.trades || 0} 笔`, 'good'),
+    metric('不开闸均值', `${num(vNone.mean)}<small>bp</small>`, `${vNone.trades || 0} 笔`),
+    metric('最大回撤 有闸 / 无闸', `${num(vGate.dd)}% / ${num(vNone.dd)}%`, '样本外'),
+    metric('Q4 开闸占比', pct(q4.armedShare), `出手 ${q4.gatedTrades || 0} / ${q4.baseTrades || 0}`),
+  ].join('');
+
+  $('gateBody').innerHTML = vs
+    .map((v) => {
+      const hl = v.name === 'hyst30' ? 'style="background:rgba(37,99,235,0.06)"' : '';
+      const label = {
+        none: '不开闸（对照）', mean30: '滚动30天均值≥15bp',
+        hyst30: '滞回：<10 停 / ≥25 开', win30: '滚动30天胜率≥60%',
+        lastN20: '最近20笔均值≥15bp', soft30: '软闸：0~30bp 线性降仓',
+      }[v.name] || v.name;
+      return `<tr ${hl}><td>${label}</td><td>${v.trades}</td>
+        <td class="${signCls(v.mean)}">${num(v.mean)}</td><td>${num(v.median)}</td>
+        <td>${pct(v.win)}</td><td class="bad">${num(v.p05)}</td>
+        <td>${num(v.dd)}%</td><td>${v.blocked}</td><td>${v.flips}</td></tr>`;
+    })
+    .join('');
+
+  $('gateQBody').innerHTML = (gt.quarterly || [])
+    .map((q) =>
+      row([
+        q.q,
+        q.events,
+        q.baseTrades,
+        num(q.baseMean),
+        q.gatedTrades,
+        num(q.gatedMean),
+        num(q.ddNone) + '%',
+        num(q.ddGate) + '%',
+        pct(q.armedShare),
+      ])
+    )
+    .join('');
+
   // 分币种
   $('symBody').innerHTML = (d.persymbol || [])
     .map((s) =>
