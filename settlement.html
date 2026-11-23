@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>结算窗口 · 币安量化系统</title>
+<meta name="description" content="资金费率结算窗口的预测模型：逐笔重建真实成本、极值理论尾部、仓位规则、影子回放与季度稳定性">
+<link rel="stylesheet" href="css/main.css?v=7">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%232563eb' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M9 5v4'/><rect width='4' height='6' x='7' y='9' rx='1'/><path d='M9 15v2'/><path d='M17 3v2'/><rect width='4' height='8' x='15' y='5' rx='1'/><path d='M17 13v3'/><path d='M3 3v16a2 2 0 0 0 2 2h16'/></svg>">
+</head>
+<body>
+<div class="page">
+
+  <div class="panel">
+    <h3><span data-icon="candlestick"></span>结算窗口预测模型 <span class="sub" id="winSub">加载中…</span></h3>
+    <p style="color:var(--text-dim);font-size:12px;line-height:1.9;">
+      资金费率每 8 小时结算一次。结算瞬间做「吃费率」的方向，收益 = 费率 − 结算前后几秒的价格冲击。
+      本页研究的核心问题只有一个：<b>那几秒的价格冲击能不能提前预测</b>。标签来自币安 aggTrades 逐笔成交重建的
+      <b>真实成交价</b>（T−2s 市价进 / T+0.3s 市价出，主动方 VWAP），不使用任何 1 分钟 K 线——
+      实测两者相关系数只有 0.31，1m 口径会把系统性亏损记成盈利。
+    </p>
+  </div>
+
+  <div class="panel">
+    <h3><span data-icon="radar"></span>核心结论 <span class="sub">全样本 · 逐笔真实成本</span></h3>
+    <div class="grid-metrics" id="headMetrics"><div class="placeholder">加载中…</div></div>
+  </div>
+
+  <div class="panel">
+    <h3><span data-icon="cpu"></span>数据覆盖 <span class="sub">结算事件与已定价样本</span></h3>
+    <div class="grid-metrics" id="covMetrics"></div>
+    <div style="overflow:auto;margin-top:12px;">
+      <table>
+        <thead><tr>
+          <th>年份</th><th>结算场次</th><th>币种</th><th>|费率|≥0.3%</th><th>≥0.5%</th><th>≥0.9%</th>
+          <th>已逐笔定价</th><th>净收益均值(bp)</th><th>胜率</th>
+        </tr></thead>
+        <tbody id="covBody"><tr><td colspan="9" class="placeholder">加载中…</td></tr></tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="panel">
+    <h3><span data-icon="flask"></span>规则对比 <span class="sub">样本外 · 同一批结算事件</span></h3>
+    <p style="color:var(--text-dim);font-size:12px;">
+      每条规则都在同一批样本外事件上评估。「模型」= 用 35 个特征（多尺度波动、路径签名、资金费上下文、BTC 市场因子）
+      预测该场成本，再用 <code>费率 − 预测成本 − 10bp 手续费 = 净期望</code> 决定做不做、做多大。
+    </p>
+    <div style="overflow:auto;">
+      <table>
+        <thead><tr>
+          <th>规则</th><th>笔数</th><th>均值(bp)</th><th>中位(bp)</th><th>胜率</th><th>p05(bp)</th><th>累计(bp)</th><th>捕获率</th>
+        </tr></thead>
+        <tbody id="ruleBody"><tr><td colspan="8" class="placeholder">加载中…</td></tr></tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="panel">
+    <h3><span data-icon="alert"></span>季度稳定性 <span class="sub">同一规则在不同季度的表现</span></h3>
+    <p style="color:var(--text-dim);font-size:12px;">
+      这是整页最该看的一张表：基线的绝对收益在单调衰减。币圈资金费套利是拥挤交易，能吃到的那部分价差正在被抹平——
+      所以策略必须带「当季实测」总闸，而不是相信一个跨年不变的均值。
+    </p>
+    <div style="overflow:auto;">
+      <table>
+        <thead><tr>
+          <th>季度</th><th>样本</th><th>基线笔数</th><th>基线均值(bp)</th><th>基线胜率</th><th>完美后见(bp)</th><th>全部样本(bp)</th><th>全部胜率</th>
+        </tr></thead>
+        <tbody id="qBody"><tr><td colspan="8" class="placeholder">加载中…</td></tr></tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="row cols-main-side">
+    <div class="panel">
+      <h3><span data-icon="alert"></span>尾部风险 <span class="sub">极值理论 GPD</span></h3>
+      <p style="color:var(--text-dim);font-size:12px;">
+        对超过阈值的损失拟合广义帕累托分布（GPD），外推极端分位。形状参数 ξ 决定尾部有多厚：
+        ξ&gt;0 是厚尾，ξ≈0 接近指数尾。
+      </p>
+      <div class="grid-metrics" id="evtMetrics"></div>
+    </div>
+    <div class="panel">
+      <h3><span data-icon="flask"></span>仓位规则 <span class="sub">20x · 复利示意</span></h3>
+      <p style="color:var(--text-dim);font-size:12px;">
+        名义倍数 = 净期望 ÷ C，上限截断。C 越大越保守。下表只看风险指标——复利终值在这种样本量下没有参考意义，已省略。
+      </p>
+      <div style="overflow:auto;">
+        <table>
+          <thead><tr><th>规则</th><th>平均名义</th><th>最大回撤</th><th>最差单场</th></tr></thead>
+          <tbody id="sizBody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <div class="panel">
+    <h3><span data-icon="cpu"></span>影子回放 <span class="sub" id="shadowSub">只读 · 不接实盘</span></h3>
+    <p style="color:var(--text-dim);font-size:12px;">
+      模型在生产环境里长这样：每场结算前算出「该不该做、做多大」，只记录不执行。下表是它在样本外的逐场决策，
+      可以和「现行口径（|费率|≥0.9% 就满仓）」逐行比对——<b>跳过</b>的那些场次事后净收益是多少，一眼就能看出模型筛掉了什么。
+    </p>
+    <div class="grid-metrics" id="shadowMetrics"></div>
+    <div style="overflow:auto;margin-top:12px;">
+      <table>
+        <thead><tr>
+          <th>时间(UTC)</th><th>币种</th><th>费率(bp)</th><th>预测成本(bp)</th><th>净期望(bp)</th>
+          <th>决策</th><th>名义倍数</th><th>事后净(bp)</th><th>权益影响</th>
+        </tr></thead>
+        <tbody id="shadowBody"><tr><td colspan="9" class="placeholder">加载中…</td></tr></tbody>
+      </table>
+    </div>
+    <h4 style="color:var(--accent);font-size:14px;margin:16px 0 8px;">按月</h4>
+    <div style="overflow:auto;">
+      <table>
+        <thead><tr><th>月份</th><th>结算场次</th><th>出手</th><th>单场均值(bp)</th><th>胜率</th><th>累计(bp×仓位)</th></tr></thead>
+        <tbody id="monthBody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="row cols-2">
+    <div class="panel">
+      <h3><span data-icon="radar"></span>分币种 <span class="sub">样本量前 14</span></h3>
+      <div style="overflow:auto;">
+        <table>
+          <thead><tr><th>币种</th><th>场次</th><th>成本均值</th><th>净均值</th><th>净中位</th><th>胜率</th><th>币种内 IC</th></tr></thead>
+          <tbody id="symBody"></tbody>
+        </table>
+      </div>
+    </div>
+    <div class="panel">
+      <h3><span data-icon="flask"></span>时效降权 <span class="sub">样本越新权重越高</span></h3>
+      <p style="color:var(--text-dim);font-size:12px;">按半衰期给样本加权后重训，看 IC 与经济性是否改善。</p>
+      <div style="overflow:auto;">
+        <table>
+          <thead><tr><th>半衰期</th><th>OOS 样本</th><th>IC</th><th>MAE</th><th>笔数</th><th>均值(bp)</th><th>胜率</th><th>p05</th></tr></thead>
+          <tbody id="recBody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <div class="panel">
+    <h3><span data-icon="book"></span>方法与边界</h3>
+    <ul style="color:var(--text-dim);font-size:13px;line-height:2;padding-left:20px;">
+      <li><b>标签</b>：每场结算取 aggTrades 逐笔，按主动方 VWAP 重建 T−2s 买、T+0.3s 卖的成交价；窗口无成交时回看/后找最近一笔并记录偏移毫秒。</li>
+      <li><b>特征</b>：只用结算前信息（多尺度波动、路径签名面积、成交笔数、资金费历史、BTC 因子），无未来函数。</li>
+      <li><b>验证</b>：扩张窗时间序列交叉验证，样本外从 2026-06 起；参数选择只看训练段。</li>
+      <li><b>已知边界</b>：没有 L2 订单簿与队列位置，结算瞬间的真实冲击可能比回测更大；样本外只有一年多；0.3~0.5% 费率段本身几乎不赚钱，靠模型筛掉。</li>
+      <li><b>不是</b>：不是实盘成交记录，不是收益承诺，不含容量与滑点。</li>
+    </ul>
+  </div>
+
+  <div id="disclaimerSlot"></div>
+</div>
+<script type="module" src="js/settlement.js"></script>
+<script type="module" src="js/visual-fx.js"></script>
+</body>
+</html>
