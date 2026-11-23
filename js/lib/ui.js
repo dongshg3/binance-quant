@@ -91,6 +91,7 @@ export function renderNav(active) {
     { href: 'index.html', id: 'dashboard', label: '深度分析', ic: 'candlestick' },
     { href: 'screener.html', id: 'screener', label: '全市场扫描', ic: 'radar' },
     { href: 'arena.html', id: 'arena', label: '策略竞技场', ic: 'swords' },
+    { href: 'settlement.html', id: 'settlement', label: '结算窗口', ic: 'candlestick' },
     { href: 'backtest.html', id: 'backtest', label: '回测中心', ic: 'flask' },
     { href: 'strategy.html', id: 'strategy', label: '策略方法论', ic: 'book' },
     { href: 'evolution.html', id: 'evolution', label: '模型进化', ic: 'cpu' },
