@@ -12,6 +12,7 @@ export default defineConfig({
         backtest: resolve(__dirname, 'backtest.html'),
         strategy: resolve(__dirname, 'strategy.html'),
         arena: resolve(__dirname, 'arena.html'),
+        settlement: resolve(__dirname, 'settlement.html'),
         evolution: resolve(__dirname, 'evolution.html'),
       },
     },
