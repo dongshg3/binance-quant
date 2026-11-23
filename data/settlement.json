@@ -1,0 +1,1074 @@
+{
+ "updatedAt": "2026-11-23T11:44:37Z",
+ "window": {
+  "from": "2025-01-01 08:00:00+00:00",
+  "to": "2026-10-31 23:00:00+00:00",
+  "days": 668,
+  "symbols": 56,
+  "events": 173075
+ },
+ "headline": {
+  "costMean": 40.3,
+  "netMean": 17.6,
+  "netMedian": 11.7,
+  "win": 0.674,
+  "p05": -34.1,
+  "bestRule": {
+   "name": "hgb_log rate-pred-10>=60bp",
+   "trades": 101,
+   "mean": 42.9,
+   "p05": -38.3
+  },
+  "liveRule": {
+   "name": "基线B |rate|>=0.9%",
+   "trades": 206,
+   "mean": 28.7,
+   "p05": -40.8
+  },
+  "ic": 0.53,
+  "auc": 0.677
+ },
+ "coverage": {
+  "eventsTotal": 173075,
+  "symbolsTotal": 56,
+  "from": "2025-01-01 08:00:00+00:00",
+  "to": "2026-10-31 23:00:00+00:00",
+  "tagged": 1708,
+  "taggedShare": 0.972,
+  "buckets": {
+   "ge_003": 1758,
+   "ge_005": 892,
+   "ge_009": 373,
+   "ge_020": 58
+  },
+  "years": [
+   {
+    "year": 2025,
+    "events": 90587,
+    "symbols": 56,
+    "ge03": 586,
+    "ge05": 324,
+    "ge09": 145,
+    "tagged": 541,
+    "netMean": 27.8,
+    "win": 0.734
+   },
+   {
+    "year": 2026,
+    "events": 82488,
+    "symbols": 56,
+    "ge03": 1172,
+    "ge05": 568,
+    "ge09": 228,
+    "tagged": 1167,
+    "netMean": 12.9,
+    "win": 0.647
+   }
+  ]
+ },
+ "label": {
+  "n": 1708,
+  "costMean": 40.3,
+  "costMedian": 32.7,
+  "netMean": 17.6,
+  "netMedian": 11.7,
+  "win": 0.674,
+  "p05": -34.1
+ },
+ "model": {
+  "icRidge": 0.549,
+  "icHgb": 0.54,
+  "icQ90": 0.608,
+  "auc": 0.677,
+  "mae": 25.4,
+  "baseMae": 28.8,
+  "bias": -10.2,
+  "features": 36
+ },
+ "rules": [
+  {
+   "rule": "全部(|rate|>=0.5%)",
+   "trades": 1025,
+   "mean": 9.3,
+   "median": 9.1,
+   "win": 0.62,
+   "p05": -38.9,
+   "total": 9560.0,
+   "capture": 0.171
+  },
+  {
+   "rule": "基线B |rate|>=0.9%",
+   "trades": 206,
+   "mean": 28.7,
+   "median": 26.6,
+   "win": 0.796,
+   "p05": -40.8,
+   "total": 5917.0,
+   "capture": 0.237
+  },
+  {
+   "rule": "基线B2 |rate|>=1.2%",
+   "trades": 109,
+   "mean": 34.8,
+   "median": 31.5,
+   "win": 0.789,
+   "p05": -42.7,
+   "total": 3794.0,
+   "capture": 0.236
+  },
+  {
+   "rule": "ridge_log rate-pred-10>=20bp",
+   "trades": 369,
+   "mean": 23.4,
+   "median": 21.4,
+   "win": 0.748,
+   "p05": -37.9,
+   "total": 8630.0,
+   "capture": 0.256
+  },
+  {
+   "rule": "ridge_log rate-pred-10>=40bp",
+   "trades": 194,
+   "mean": 32.3,
+   "median": 31.5,
+   "win": 0.825,
+   "p05": -34.0,
+   "total": 6262.0,
+   "capture": 0.272
+  },
+  {
+   "rule": "ridge_log rate-pred-10>=60bp",
+   "trades": 113,
+   "mean": 39.7,
+   "median": 34.9,
+   "win": 0.841,
+   "p05": -39.7,
+   "total": 4487.0,
+   "capture": 0.285
+  },
+  {
+   "rule": "hgb_log rate-pred-10>=20bp",
+   "trades": 329,
+   "mean": 24.8,
+   "median": 22.1,
+   "win": 0.775,
+   "p05": -41.2,
+   "total": 8145.0,
+   "capture": 0.262
+  },
+  {
+   "rule": "hgb_log rate-pred-10>=40bp",
+   "trades": 183,
+   "mean": 33.9,
+   "median": 31.5,
+   "win": 0.847,
+   "p05": -31.4,
+   "total": 6196.0,
+   "capture": 0.288
+  },
+  {
+   "rule": "hgb_log rate-pred-10>=60bp",
+   "trades": 101,
+   "mean": 42.9,
+   "median": 36.7,
+   "win": 0.861,
+   "p05": -38.3,
+   "total": 4334.0,
+   "capture": 0.315
+  },
+  {
+   "rule": "hgb_q90 rate>=q90+10+0",
+   "trades": 231,
+   "mean": 30.2,
+   "median": 27.4,
+   "win": 0.831,
+   "p05": -30.8,
+   "total": 6988.0,
+   "capture": 0.287
+  },
+  {
+   "rule": "hgb_q90 rate>=q90+10+20",
+   "trades": 96,
+   "mean": 42.9,
+   "median": 35.1,
+   "win": 0.854,
+   "p05": -39.2,
+   "total": 4118.0,
+   "capture": 0.305
+  },
+  {
+   "rule": "hgb_q90 rate>=q90+10+40",
+   "trades": 38,
+   "mean": 59.8,
+   "median": 49.6,
+   "win": 0.895,
+   "p05": -39.6,
+   "total": 2273.0,
+   "capture": 0.352
+  },
+  {
+   "rule": "clf p>=0.6",
+   "trades": 747,
+   "mean": 14.8,
+   "median": 13.7,
+   "win": 0.703,
+   "p05": -34.1,
+   "total": 11027.0,
+   "capture": 0.242
+  },
+  {
+   "rule": "clf p>=0.7",
+   "trades": 609,
+   "mean": 17.2,
+   "median": 15.4,
+   "win": 0.727,
+   "p05": -30.8,
+   "total": 10470.0,
+   "capture": 0.264
+  },
+  {
+   "rule": "clf p>=0.8",
+   "trades": 413,
+   "mean": 21.1,
+   "median": 18.1,
+   "win": 0.76,
+   "p05": -27.8,
+   "total": 8710.0,
+   "capture": 0.285
+  }
+ ],
+ "quarterly": [
+  {
+   "q": "2025Q1",
+   "n": 127,
+   "baseN": 51,
+   "baseMean": 88.8,
+   "baseWin": 0.941,
+   "hindMean": 97.0,
+   "allMean": 49.9,
+   "allWin": 0.882
+  },
+  {
+   "q": "2025Q2",
+   "n": 123,
+   "baseN": 37,
+   "baseMean": 88.2,
+   "baseWin": 0.946,
+   "hindMean": 96.7,
+   "allMean": 35.7,
+   "allWin": 0.772
+  },
+  {
+   "q": "2025Q3",
+   "n": 84,
+   "baseN": 20,
+   "baseMean": 47.6,
+   "baseWin": 0.8,
+   "hindMean": 75.9,
+   "allMean": 16.3,
+   "allWin": 0.726
+  },
+  {
+   "q": "2025Q4",
+   "n": 207,
+   "baseN": 34,
+   "baseMean": 70.9,
+   "baseWin": 0.882,
+   "hindMean": 85.1,
+   "allMean": 14.2,
+   "allWin": 0.623
+  },
+  {
+   "q": "2026Q1",
+   "n": 286,
+   "baseN": 40,
+   "baseMean": 113.2,
+   "baseWin": 0.975,
+   "hindMean": 96.8,
+   "allMean": 31.0,
+   "allWin": 0.776
+  },
+  {
+   "q": "2026Q2",
+   "n": 211,
+   "baseN": 49,
+   "baseMean": 36.5,
+   "baseWin": 0.878,
+   "hindMean": 58.8,
+   "allMean": 16.6,
+   "allWin": 0.744
+  },
+  {
+   "q": "2026Q3",
+   "n": 510,
+   "baseN": 104,
+   "baseMean": 23.1,
+   "baseWin": 0.788,
+   "hindMean": 62.7,
+   "allMean": 6.1,
+   "allWin": 0.59
+  },
+  {
+   "q": "2026Q4",
+   "n": 160,
+   "baseN": 35,
+   "baseMean": 1.8,
+   "baseWin": 0.629,
+   "hindMean": 58.1,
+   "allMean": -2.8,
+   "allWin": 0.469
+  }
+ ],
+ "evt": {
+  "xi": 0.028,
+  "sigma": 34.9,
+  "u": 52.3,
+  "nTail": 513,
+  "costMean": 40.3,
+  "costP95": 116.9,
+  "costMax": 307.6,
+  "var": {
+   "q95": 116.5,
+   "q99": 176.9,
+   "q999": 268.2
+  },
+  "hit20x": {
+   "q95": 23.3,
+   "q99": 35.4,
+   "q999": 53.6
+  }
+ },
+ "sizing": [
+  {
+   "name": "满仓（对照）",
+   "trades": null,
+   "avgNotional": null,
+   "dd": 92.0,
+   "worst": -34.9,
+   "final": "≥1e6"
+  },
+  {
+   "name": "基线 |rate|≥0.9% 固定",
+   "trades": null,
+   "avgNotional": null,
+   "dd": 49.4,
+   "worst": -34.9,
+   "final": "≥1e6"
+  },
+  {
+   "name": "μ/20bp 上限 1.0×",
+   "trades": 1049,
+   "avgNotional": 0.56,
+   "dd": 55.3,
+   "worst": -34.9,
+   "final": "≥1e6"
+  },
+  {
+   "name": "μ/50bp 上限 1.0×",
+   "trades": 1049,
+   "avgNotional": 0.37,
+   "dd": 43.3,
+   "worst": -34.9,
+   "final": "≥1e6"
+  },
+  {
+   "name": "μ/20bp 上限 0.5×",
+   "trades": 1049,
+   "avgNotional": 0.33,
+   "dd": 35.0,
+   "worst": -17.5,
+   "final": "≥1e6"
+  },
+  {
+   "name": "μ/50bp 上限 0.5×",
+   "trades": 1049,
+   "avgNotional": 0.26,
+   "dd": 28.5,
+   "worst": -17.5,
+   "final": "≥1e6"
+  }
+ ],
+ "persymbol": [
+  {
+   "sym": "STEEMUSDT",
+   "n": 123,
+   "costMean": 28.9,
+   "netMean": 23.1,
+   "netMed": 18.5,
+   "win": 0.813,
+   "ic": 0.2
+  },
+  {
+   "sym": "LSKUSDT",
+   "n": 119,
+   "costMean": 56.9,
+   "netMean": -4.8,
+   "netMed": -6.4,
+   "win": 0.361,
+   "ic": 0.303
+  },
+  {
+   "sym": "ARKUSDT",
+   "n": 113,
+   "costMean": 52.8,
+   "netMean": 16.2,
+   "netMed": 4.5,
+   "win": 0.575,
+   "ic": 0.235
+  },
+  {
+   "sym": "ONGUSDT",
+   "n": 101,
+   "costMean": 54.1,
+   "netMean": 16.6,
+   "netMed": 12.8,
+   "win": 0.703,
+   "ic": 0.604
+  },
+  {
+   "sym": "TUSDT",
+   "n": 96,
+   "costMean": 51.7,
+   "netMean": 0.7,
+   "netMed": -5.3,
+   "win": 0.448,
+   "ic": 0.487
+  },
+  {
+   "sym": "ACEUSDT",
+   "n": 86,
+   "costMean": 40.7,
+   "netMean": 13.2,
+   "netMed": 10.7,
+   "win": 0.674,
+   "ic": 0.44
+  },
+  {
+   "sym": "SKLUSDT",
+   "n": 66,
+   "costMean": 32.7,
+   "netMean": 20.9,
+   "netMed": 16.3,
+   "win": 0.803,
+   "ic": 0.161
+  },
+  {
+   "sym": "ENJUSDT",
+   "n": 65,
+   "costMean": 31.9,
+   "netMean": 16.0,
+   "netMed": 18.5,
+   "win": 0.723,
+   "ic": 0.457
+  },
+  {
+   "sym": "MAGICUSDT",
+   "n": 59,
+   "costMean": 31.6,
+   "netMean": 34.9,
+   "netMed": 21.7,
+   "win": 0.712,
+   "ic": 0.14
+  },
+  {
+   "sym": "BLURUSDT",
+   "n": 59,
+   "costMean": 38.2,
+   "netMean": 23.9,
+   "netMed": 20.1,
+   "win": 0.746,
+   "ic": 0.366
+  },
+  {
+   "sym": "ONTUSDT",
+   "n": 56,
+   "costMean": 35.4,
+   "netMean": 17.6,
+   "netMed": 8.3,
+   "win": 0.661,
+   "ic": 0.412
+  },
+  {
+   "sym": "AXLUSDT",
+   "n": 55,
+   "costMean": 33.5,
+   "netMean": 25.7,
+   "netMed": 11.9,
+   "win": 0.727,
+   "ic": 0.491
+  },
+  {
+   "sym": "SUPERUSDT",
+   "n": 51,
+   "costMean": 37.2,
+   "netMean": 16.9,
+   "netMed": 10.7,
+   "win": 0.725,
+   "ic": 0.442
+  },
+  {
+   "sym": "IOSTUSDT",
+   "n": 51,
+   "costMean": 40.5,
+   "netMean": 27.0,
+   "netMed": 19.3,
+   "win": 0.804,
+   "ic": 0.636
+  }
+ ],
+ "recency": [
+  {
+   "hl": null,
+   "n": 1025,
+   "ic": 0.549,
+   "mae": 25.4,
+   "trades": 189,
+   "mean": 32.4,
+   "win": 0.825,
+   "p05": -35.7
+  },
+  {
+   "hl": 365,
+   "n": 1025,
+   "ic": 0.549,
+   "mae": 25.2,
+   "trades": 190,
+   "mean": 32.6,
+   "win": 0.826,
+   "p05": -35.3
+  },
+  {
+   "hl": 180,
+   "n": 1025,
+   "ic": 0.54,
+   "mae": 25.2,
+   "trades": 185,
+   "mean": 32.7,
+   "win": 0.822,
+   "p05": -37.0
+  },
+  {
+   "hl": 90,
+   "n": 1025,
+   "ic": 0.52,
+   "mae": 25.3,
+   "trades": 173,
+   "mean": 33.1,
+   "win": 0.821,
+   "p05": -39.7
+  }
+ ],
+ "shadow": {
+  "params": {
+   "gate_bp": 25.0,
+   "div_bp": 25.0,
+   "cap": 0.6,
+   "lev": 20.0,
+   "oos_from": "2026-06-28 20:00:00"
+  },
+  "oos": {
+   "events": 682,
+   "trades": 142,
+   "hitRate": 0.208,
+   "shadow": {
+    "trades": 142,
+    "mean_net_bp": 22.9,
+    "win": 0.789,
+    "p05_bp": -29.5,
+    "terminal_x": 40.75,
+    "max_dd": 0.247
+   },
+   "liveRule": {
+    "trades": 145,
+    "mean_net_bp": 18.8,
+    "terminal_x": 127.73,
+    "max_dd": 0.494
+   }
+  },
+  "months": [
+   {
+    "month": "2026-06",
+    "events": 12,
+    "trades": 7,
+    "mean_net_bp": 39.0,
+    "win": 0.857,
+    "sum_bp_x_size": 163.6
+   },
+   {
+    "month": "2026-07",
+    "events": 114,
+    "trades": 26,
+    "mean_net_bp": 36.7,
+    "win": 0.808,
+    "sum_bp_x_size": 573.0
+   },
+   {
+    "month": "2026-08",
+    "events": 148,
+    "trades": 25,
+    "mean_net_bp": 25.7,
+    "win": 0.84,
+    "sum_bp_x_size": 386.2
+   },
+   {
+    "month": "2026-09",
+    "events": 248,
+    "trades": 46,
+    "mean_net_bp": 22.2,
+    "win": 0.826,
+    "sum_bp_x_size": 614.0
+   },
+   {
+    "month": "2026-10",
+    "events": 160,
+    "trades": 38,
+    "mean_net_bp": 9.4,
+    "win": 0.684,
+    "sum_bp_x_size": 213.9
+   }
+  ],
+  "decisions": [
+   {
+    "ts": "2026-10-22 01:00",
+    "sym": "IOSTUSDT",
+    "rate_bp": -47.9,
+    "pred_cost_bp": 70.2,
+    "mu_bp": -32.3,
+    "decision": "跳过",
+    "size_x": 0.0,
+    "real_net_bp": -39.8,
+    "pnl_pct": -0.0
+   },
+   {
+    "ts": "2026-10-22 02:00",
+    "sym": "IOSTUSDT",
+    "rate_bp": -36.1,
+    "pred_cost_bp": 65.3,
+    "mu_bp": -39.2,
+    "decision": "跳过",
+    "size_x": 0.0,
+    "real_net_bp": -40.4,
+    "pnl_pct": -0.0
+   },
+   {
+    "ts": "2026-10-22 04:00",
+    "sym": "MEWUSDT",
+    "rate_bp": -44.9,
+    "pred_cost_bp": 23.6,
+    "mu_bp": 11.3,
+    "decision": "跳过",
+    "size_x": 0.0,
+    "real_net_bp": 7.1,
+    "pnl_pct": 0.0
+   },
+   {
+    "ts": "2026-10-22 20:00",
+    "sym": "ALTUSDT",
+    "rate_bp": -84.5,
+    "pred_cost_bp": 39.1,
+    "mu_bp": 35.4,
+    "decision": "做",
+    "size_x": 0.6,
+    "real_net_bp": 9.3,
+    "pnl_pct": 1.11
+   },
+   {
+    "ts": "2026-10-23 00:00",
+    "sym": "ALTUSDT",
+    "rate_bp": -99.0,
+    "pred_cost_bp": 56.4,
+    "mu_bp": 32.6,
+    "decision": "做",
+    "size_x": 0.6,
+    "real_net_bp": 1.8,
+    "pnl_pct": 0.21
+   },
+   {
+    "ts": "2026-10-23 04:00",
+    "sym": "ALTUSDT",
+    "rate_bp": -49.0,
+    "pred_cost_bp": 42.9,
+    "mu_bp": -3.9,
+    "decision": "跳过",
+    "size_x": 0.0,
+    "real_net_bp": 9.2,
+    "pnl_pct": 0.0
+   },
+   {
+    "ts": "2026-10-23 08:00",
+    "sym": "ALTUSDT",
+    "rate_bp": -65.8,
+    "pred_cost_bp": 35.5,
+    "mu_bp": 20.3,
+    "decision": "跳过",
+    "size_x": 0.0,
+    "real_net_bp": -22.0,
+    "pnl_pct": -0.0
+   },
+   {
+    "ts": "2026-10-23 12:00",
+    "sym": "ALTUSDT",
+    "rate_bp": -55.1,
+    "pred_cost_bp": 33.2,
+    "mu_bp": 11.9,
+    "decision": "跳过",
+    "size_x": 0.0,
+    "real_net_bp": 14.8,
+    "pnl_pct": 0.0
+   },
+   {
+    "ts": "2026-10-23 16:00",
+    "sym": "ALTUSDT",
+    "rate_bp": -76.5,
+    "pred_cost_bp": 38.8,
+    "mu_bp": 27.7,
+    "decision": "做",
+    "size_x": 0.6,
+    "real_net_bp": 20.9,
+    "pnl_pct": 2.51
+   },
+   {
+    "ts": "2026-10-23 16:00",
+    "sym": "ARKUSDT",
+    "rate_bp": -108.9,
+    "pred_cost_bp": 63.0,
+    "mu_bp": 35.9,
+    "decision": "做",
+    "size_x": 0.6,
+    "real_net_bp": -73.9,
+    "pnl_pct": -8.87
+   },
+   {
+    "ts": "2026-10-23 20:00",
+    "sym": "ALTUSDT",
+    "rate_bp": -108.3,
+    "pred_cost_bp": 57.3,
+    "mu_bp": 41.0,
+    "decision": "做",
+    "size_x": 0.6,
+    "real_net_bp": 39.0,
+    "pnl_pct": 4.69
+   },
+   {
+    "ts": "2026-10-23 20:00",
+    "sym": "ARKUSDT",
+    "rate_bp": -134.8,
+    "pred_cost_bp": 81.7,
+    "mu_bp": 43.1,
+    "decision": "做",
+    "size_x": 0.6,
+    "real_net_bp": -1.6,
+    "pnl_pct": -0.19
+   },
+   {
+    "ts": "2026-10-24 00:00",
+    "sym": "ALTUSDT",
+    "rate_bp": -77.8,
+    "pred_cost_bp": 49.8,
+    "mu_bp": 18.0,
+    "decision": "跳过",
+    "size_x": 0.0,
+    "real_net_bp": -7.9,
+    "pnl_pct": -0.0
+   },
+   {
+    "ts": "2026-10-24 00:00",
+    "sym": "ARKUSDT",
+    "rate_bp": -143.0,
+    "pred_cost_bp": 84.9,
+    "mu_bp": 48.1,
+    "decision": "做",
+    "size_x": 0.6,
+    "real_net_bp": -174.6,
+    "pnl_pct": -20.95
+   },
+   {
+    "ts": "2026-10-24 04:00",
+    "sym": "ALTUSDT",
+    "rate_bp": -57.1,
+    "pred_cost_bp": 38.9,
+    "mu_bp": 8.2,
+    "decision": "跳过",
+    "size_x": 0.0,
+    "real_net_bp": 5.5,
+    "pnl_pct": 0.0
+   },
+   {
+    "ts": "2026-10-24 04:00",
+    "sym": "ARKUSDT",
+    "rate_bp": -173.1,
+    "pred_cost_bp": 107.5,
+    "mu_bp": 55.5,
+    "decision": "做",
+    "size_x": 0.6,
+    "real_net_bp": 21.4,
+    "pnl_pct": 2.57
+   },
+   {
+    "ts": "2026-10-24 08:00",
+    "sym": "ARKUSDT",
+    "rate_bp": -200.0,
+    "pred_cost_bp": 112.5,
+    "mu_bp": 77.5,
+    "decision": "做",
+    "size_x": 0.6,
+    "real_net_bp": 36.8,
+    "pnl_pct": 4.42
+   },
+   {
+    "ts": "2026-10-24 09:00",
+    "sym": "ARKUSDT",
+    "rate_bp": -69.3,
+    "pred_cost_bp": 66.9,
+    "mu_bp": -7.6,
+    "decision": "跳过",
+    "size_x": 0.0,
+    "real_net_bp": -17.3,
+    "pnl_pct": -0.0
+   },
+   {
+    "ts": "2026-10-25 04:00",
+    "sym": "STEEMUSDT",
+    "rate_bp": -54.5,
+    "pred_cost_bp": 29.1,
+    "mu_bp": 15.4,
+    "decision": "跳过",
+    "size_x": 0.0,
+    "real_net_bp": 16.2,
+    "pnl_pct": 0.0
+   },
+   {
+    "ts": "2026-10-25 04:00",
+    "sym": "TUSDT",
+    "rate_bp": -115.7,
+    "pred_cost_bp": 78.8,
+    "mu_bp": 26.9,
+    "decision": "做",
+    "size_x": 0.6,
+    "real_net_bp": -8.3,
+    "pnl_pct": -0.99
+   },
+   {
+    "ts": "2026-10-25 08:00",
+    "sym": "STEEMUSDT",
+    "rate_bp": -43.6,
+    "pred_cost_bp": 12.5,
+    "mu_bp": 21.1,
+    "decision": "跳过",
+    "size_x": 0.0,
+    "real_net_bp": -2.4,
+    "pnl_pct": -0.0
+   },
+   {
+    "ts": "2026-10-25 08:00",
+    "sym": "TUSDT",
+    "rate_bp": -200.0,
+    "pred_cost_bp": 118.2,
+    "mu_bp": 71.8,
+    "decision": "做",
+    "size_x": 0.6,
+    "real_net_bp": 36.2,
+    "pnl_pct": 4.35
+   },
+   {
+    "ts": "2026-10-25 09:00",
+    "sym": "TUSDT",
+    "rate_bp": -104.9,
+    "pred_cost_bp": 76.8,
+    "mu_bp": 18.1,
+    "decision": "跳过",
+    "size_x": 0.0,
+    "real_net_bp": -99.2,
+    "pnl_pct": -0.0
+   },
+   {
+    "ts": "2026-10-25 10:00",
+    "sym": "TUSDT",
+    "rate_bp": -89.5,
+    "pred_cost_bp": 69.3,
+    "mu_bp": 10.2,
+    "decision": "跳过",
+    "size_x": 0.0,
+    "real_net_bp": -50.0,
+    "pnl_pct": -0.0
+   },
+   {
+    "ts": "2026-10-25 11:00",
+    "sym": "TUSDT",
+    "rate_bp": -74.0,
+    "pred_cost_bp": 56.3,
+    "mu_bp": 7.7,
+    "decision": "跳过",
+    "size_x": 0.0,
+    "real_net_bp": -17.6,
+    "pnl_pct": -0.0
+   },
+   {
+    "ts": "2026-10-25 12:00",
+    "sym": "ANKRUSDT",
+    "rate_bp": -35.1,
+    "pred_cost_bp": 7.1,
+    "mu_bp": 18.0,
+    "decision": "跳过",
+    "size_x": 0.0,
+    "real_net_bp": 17.5,
+    "pnl_pct": 0.0
+   },
+   {
+    "ts": "2026-10-25 12:00",
+    "sym": "TUSDT",
+    "rate_bp": -62.2,
+    "pred_cost_bp": 50.2,
+    "mu_bp": 2.0,
+    "decision": "跳过",
+    "size_x": 0.0,
+    "real_net_bp": -8.6,
+    "pnl_pct": -0.0
+   },
+   {
+    "ts": "2026-10-25 12:00",
+    "sym": "STEEMUSDT",
+    "rate_bp": -71.2,
+    "pred_cost_bp": 24.4,
+    "mu_bp": 36.8,
+    "decision": "做",
+    "size_x": 0.6,
+    "real_net_bp": 12.2,
+    "pnl_pct": 1.46
+   },
+   {
+    "ts": "2026-10-25 12:00",
+    "sym": "POLYXUSDT",
+    "rate_bp": -96.8,
+    "pred_cost_bp": 46.5,
+    "mu_bp": 40.3,
+    "decision": "做",
+    "size_x": 0.6,
+    "real_net_bp": 19.8,
+    "pnl_pct": 2.37
+   },
+   {
+    "ts": "2026-10-25 13:00",
+    "sym": "TUSDT",
+    "rate_bp": -31.8,
+    "pred_cost_bp": 33.2,
+    "mu_bp": -11.3,
+    "decision": "跳过",
+    "size_x": 0.0,
+    "real_net_bp": -62.0,
+    "pnl_pct": -0.0
+   },
+   {
+    "ts": "2026-10-25 14:00",
+    "sym": "TUSDT",
+    "rate_bp": -58.3,
+    "pred_cost_bp": 48.5,
+    "mu_bp": -0.2,
+    "decision": "跳过",
+    "size_x": 0.0,
+    "real_net_bp": -5.3,
+    "pnl_pct": -0.0
+   },
+   {
+    "ts": "2026-10-25 15:00",
+    "sym": "TUSDT",
+    "rate_bp": -39.4,
+    "pred_cost_bp": 36.2,
+    "mu_bp": -6.9,
+    "decision": "跳过",
+    "size_x": 0.0,
+    "real_net_bp": -23.9,
+    "pnl_pct": -0.0
+   },
+   {
+    "ts": "2026-10-25 16:00",
+    "sym": "TUSDT",
+    "rate_bp": -41.8,
+    "pred_cost_bp": 36.8,
+    "mu_bp": -5.0,
+    "decision": "跳过",
+    "size_x": 0.0,
+    "real_net_bp": -169.0,
+    "pnl_pct": -0.0
+   },
+   {
+    "ts": "2026-10-25 17:00",
+    "sym": "TUSDT",
+    "rate_bp": -33.9,
+    "pred_cost_bp": 31.2,
+    "mu_bp": -7.3,
+    "decision": "跳过",
+    "size_x": 0.0,
+    "real_net_bp": -34.4,
+    "pnl_pct": -0.0
+   },
+   {
+    "ts": "2026-10-25 18:00",
+    "sym": "TUSDT",
+    "rate_bp": -30.4,
+    "pred_cost_bp": 28.2,
+    "mu_bp": -7.8,
+    "decision": "跳过",
+    "size_x": 0.0,
+    "real_net_bp": -21.0,
+    "pnl_pct": -0.0
+   },
+   {
+    "ts": "2026-10-25 19:00",
+    "sym": "TUSDT",
+    "rate_bp": -32.0,
+    "pred_cost_bp": 26.4,
+    "mu_bp": -4.5,
+    "decision": "跳过",
+    "size_x": 0.0,
+    "real_net_bp": -22.1,
+    "pnl_pct": -0.0
+   },
+   {
+    "ts": "2026-10-25 21:00",
+    "sym": "TUSDT",
+    "rate_bp": -31.9,
+    "pred_cost_bp": 23.9,
+    "mu_bp": -2.0,
+    "decision": "跳过",
+    "size_x": 0.0,
+    "real_net_bp": -18.8,
+    "pnl_pct": -0.0
+   },
+   {
+    "ts": "2026-10-25 22:00",
+    "sym": "TUSDT",
+    "rate_bp": -35.2,
+    "pred_cost_bp": 22.7,
+    "mu_bp": 2.4,
+    "decision": "跳过",
+    "size_x": 0.0,
+    "real_net_bp": -29.8,
+    "pnl_pct": -0.0
+   },
+   {
+    "ts": "2026-10-25 23:00",
+    "sym": "TUSDT",
+    "rate_bp": -43.8,
+    "pred_cost_bp": 27.2,
+    "mu_bp": 6.6,
+    "decision": "跳过",
+    "size_x": 0.0,
+    "real_net_bp": -39.9,
+    "pnl_pct": -0.0
+   },
+   {
+    "ts": "2026-10-26 00:00",
+    "sym": "TUSDT",
+    "rate_bp": -52.2,
+    "pred_cost_bp": 35.6,
+    "mu_bp": 6.6,
+    "decision": "跳过",
+    "size_x": 0.0,
+    "real_net_bp": 13.4,
+    "pnl_pct": 0.0
+   }
+  ]
+ },
+ "disclaimer": "标签为 aggTrades 逐笔重建的真实成本（T−2s 进 / T+0.3s 出，主动方 VWAP），不使用 1m K 线；全部为历史回放，不是实盘记录，也不构成收益承诺。复利倍数为数学示意，不含容量、滑点与资金上限。"
+}
