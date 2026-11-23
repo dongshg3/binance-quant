@@ -1,5 +1,5 @@
 {
- "updatedAt": "2026-11-23T11:44:37Z",
+ "updatedAt": "2026-11-23T11:59:30Z",
  "window": {
   "from": "2025-01-01 08:00:00+00:00",
   "to": "2026-10-31 23:00:00+00:00",
@@ -1067,6 +1067,162 @@
     "size_x": 0.0,
     "real_net_bp": 13.4,
     "pnl_pct": 0.0
+   }
+  ]
+ },
+ "gate": {
+  "note": "总闸只用「已经结算完成」的交易结果，8h 一场天然滞后；滚动 30 天、至少 8 笔才生效，避免小样本乱停。",
+  "params": {
+   "gate_bp": 25.0,
+   "div_bp": 25.0,
+   "cap": 0.6,
+   "lev": 20.0,
+   "oos_from": "2026-06-28 20:00:00",
+   "oos_events": 682
+  },
+  "variants": [
+   {
+    "name": "none",
+    "trades": 150,
+    "mean": 21.1,
+    "median": 21.4,
+    "win": 0.767,
+    "p05": -38.2,
+    "dd": 25.8,
+    "blocked": 0,
+    "flips": 0
+   },
+   {
+    "name": "mean30",
+    "trades": 118,
+    "mean": 23.7,
+    "median": 23.3,
+    "win": 0.78,
+    "p05": -32.6,
+    "dd": 14.2,
+    "blocked": 32,
+    "flips": 1
+   },
+   {
+    "name": "hyst30",
+    "trades": 120,
+    "mean": 24.2,
+    "median": 23.3,
+    "win": 0.783,
+    "p05": -31.9,
+    "dd": 14.2,
+    "blocked": 30,
+    "flips": 1
+   },
+   {
+    "name": "win30",
+    "trades": 120,
+    "mean": 24.2,
+    "median": 23.3,
+    "win": 0.783,
+    "p05": -31.9,
+    "dd": 14.2,
+    "blocked": 30,
+    "flips": 1
+   },
+   {
+    "name": "lastN20",
+    "trades": 71,
+    "mean": 25.7,
+    "median": 23.8,
+    "win": 0.761,
+    "p05": -22.5,
+    "dd": 14.2,
+    "blocked": 79,
+    "flips": 10
+   },
+   {
+    "name": "soft30",
+    "trades": 136,
+    "mean": 20.3,
+    "median": 20.9,
+    "win": 0.757,
+    "p05": -39.2,
+    "dd": 12.2,
+    "blocked": 14,
+    "flips": 1
+   }
+  ],
+  "quarterly": [
+   {
+    "q": "2026Q2",
+    "events": 12,
+    "baseTrades": 7,
+    "baseMean": 39.0,
+    "gatedTrades": 7,
+    "gatedMean": 39.0,
+    "ddNone": 0.3,
+    "ddGate": 0.3,
+    "armedShare": 1.0
+   },
+   {
+    "q": "2026Q3",
+    "events": 510,
+    "baseTrades": 103,
+    "baseMean": 24.8,
+    "gatedTrades": 103,
+    "gatedMean": 24.8,
+    "ddNone": 14.2,
+    "ddGate": 14.2,
+    "armedShare": 1.0
+   },
+   {
+    "q": "2026Q4",
+    "events": 160,
+    "baseTrades": 40,
+    "baseMean": 8.2,
+    "gatedTrades": 10,
+    "gatedMean": 7.8,
+    "ddNone": 25.8,
+    "ddGate": 9.9,
+    "armedShare": 0.519
+   }
+  ],
+  "monthly": [
+   {
+    "month": "2026-06",
+    "events": 12,
+    "trades": 7,
+    "mean": 39.0,
+    "win": 0.857,
+    "sum": 163.6
+   },
+   {
+    "month": "2026-07",
+    "events": 114,
+    "trades": 23,
+    "mean": 37.9,
+    "win": 0.783,
+    "sum": 523.4
+   },
+   {
+    "month": "2026-08",
+    "events": 148,
+    "trades": 28,
+    "mean": 16.3,
+    "win": 0.75,
+    "sum": 274.5
+   },
+   {
+    "month": "2026-09",
+    "events": 248,
+    "trades": 52,
+    "mean": 23.6,
+    "win": 0.846,
+    "sum": 736.9
+   },
+   {
+    "month": "2026-10",
+    "events": 160,
+    "trades": 10,
+    "mean": 7.8,
+    "win": 0.5,
+    "sum": 46.7
    }
   ]
  },
