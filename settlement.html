@@ -120,6 +120,33 @@
     </div>
   </div>
 
+  <div class="panel">
+    <h3><span data-icon="alert"></span>总闸 <span class="sub">实测不行就停手，回暖再开</span></h3>
+    <p style="color:var(--text-dim);font-size:12px;line-height:1.9;">
+      季度表说明白了一件事：价差在衰减，但尾部风险没跟着缩小。总闸就是给策略装一个「失业线」——
+      用<b>最近 30 天已经结算完成</b>的交易实测均值（至少 8 笔才生效）决定今天还开不开工。
+      滞回版：低于 10bp 停手，回到 25bp 以上才复开，避免在临界点反复横跳。
+    </p>
+    <div class="grid-metrics" id="gateMetrics"></div>
+    <div style="overflow:auto;margin-top:12px;">
+      <table>
+        <thead><tr>
+          <th>闸门</th><th>笔数</th><th>均值(bp)</th><th>中位(bp)</th><th>胜率</th><th>p05(bp)</th><th>最大回撤</th><th>拦下</th><th>切换</th>
+        </tr></thead>
+        <tbody id="gateBody"><tr><td colspan="9" class="placeholder">加载中…</td></tr></tbody>
+      </table>
+    </div>
+    <h4 style="color:var(--accent);font-size:14px;margin:16px 0 8px;">按季度看闸门有没有及时收手</h4>
+    <div style="overflow:auto;">
+      <table>
+        <thead><tr>
+          <th>季度</th><th>场次</th><th>出手(无闸)</th><th>均值(无闸)</th><th>出手(总闸)</th><th>均值(总闸)</th><th>回撤(无闸)</th><th>回撤(总闸)</th><th>开闸占比</th>
+        </tr></thead>
+        <tbody id="gateQBody"></tbody>
+      </table>
+    </div>
+  </div>
+
   <div class="row cols-2">
     <div class="panel">
       <h3><span data-icon="radar"></span>分币种 <span class="sub">样本量前 14</span></h3>
